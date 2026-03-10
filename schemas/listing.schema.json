@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Listing",
+  "type": "object",
+  "required": [
+    "brand",
+    "item_type",
+    "title",
+    "description",
+    "tagged_size",
+    "normalized_size",
+    "price_gbp",
+    "category"
+  ],
+  "properties": {
+    "brand":            { "type": ["string", "null"] },
+    "item_type":        { "type": "string" },
+    "title":            { "type": "string", "maxLength": 120 },
+    "description":      { "type": "string" },
+    "tagged_size":      { "type": "string" },
+    "normalized_size":  { "type": "string" },
+    "materials": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "colour":           { "type": "string" },
+    "gender":           { "type": "string", "enum": ["men's", "women's", "unisex"] },
+    "price_gbp":        { "type": "number", "minimum": 0 },
+    "buy_price_gbp":    { "type": "number", "minimum": 0 },
+    "category":         { "type": "string" },
+    "condition_summary":{ "type": "string" },
+    "flaws_note":       { "type": ["string", "null"] },
+    "photos_folder":    { "type": "string" },
+    "listed_date":      { "type": "string", "format": "date" },
+    "premium":          { "type": "boolean", "default": false },
+    "confidence":       { "type": "number", "minimum": 0, "maximum": 1 },
+    "low_confidence_fields": {
+      "type": "array",
+      "items": { "type": "string" }
+    }
+  }
+}

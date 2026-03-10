@@ -1,0 +1,16 @@
+{
+  "mcpServers": {
+    "playwright": {
+      "command": "npx",
+      "args": ["@playwright/mcp"]
+    },
+    "filesystem": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-filesystem", "./items"]
+    },
+    "sheets": {
+      "command": "python",
+      "args": ["mcp/sheets_server.py"]
+    }
+  }
+}

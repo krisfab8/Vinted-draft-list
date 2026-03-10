@@ -1,0 +1,39 @@
+# Secrets
+.env
+credentials.json
+*.json.bak
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+*.egg-info/
+dist/
+build/
+
+# Node (for @playwright/mcp)
+node_modules/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs and outputs
+logs/
+*.log
+output/
+drafts/
+
+# Item photos — do not commit real product photos
+items/*/front.jpg
+items/*/back.jpg
+items/*/tag.jpg
+items/*/material.jpg
+items/*/*.jpg
+items/*/*.jpeg
+items/*/*.png
+items/*/*.heic
+# Allow sample item README
+!items/_sample_item/README.md

@@ -1,0 +1,15 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "write_listing_json",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python app/validate_listing.py"
+          }
+        ]
+      }
+    ]
+  }
+}
