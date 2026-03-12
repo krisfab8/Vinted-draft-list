@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>{% block title %}Vinted Lister{% endblock %}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      /* Brand */
+      --brand:        #09B1BA;
+      --brand-dark:   #067d84;
+      --brand-pale:   #f0fafb;
+      --brand-glow:   rgba(9,177,186,0.18);
+
+      /* Neutral scale — Apple-inspired */
+      --black:        #1d1d1f;
+      --gray-9:       #3a3a3c;
+      --gray-7:       #636366;
+      --gray-5:       #8e8e93;
+      --gray-3:       #c7c7cc;
+      --gray-2:       #e5e5ea;
+      --gray-1:       #f2f2f7;
+      --white:        #ffffff;
+      --off-white:    #fafaf9;
+
+      /* Semantic */
+      --success:      #28cd41;
+      --success-dark: #1a9e30;
+      --success-bg:   #f0fff4;
+      --error:        #ff3b30;
+      --error-bg:     #fff5f5;
+      --gold:         #ff9500;
+      --gold-bg:      #fffbf0;
+
+      /* Radius */
+      --r-sm:  8px;
+      --r-md:  12px;
+      --r-lg:  16px;
+      --r-xl:  20px;
+      --r-pill: 100px;
+
+      /* Shadows */
+      --shadow-xs: 0 1px 2px rgba(0,0,0,0.06);
+      --shadow-sm: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04);
+      --shadow-md: 0 4px 12px rgba(0,0,0,0.06), 0 2px 4px rgba(0,0,0,0.04);
+      --shadow-lg: 0 12px 32px rgba(0,0,0,0.08), 0 4px 8px rgba(0,0,0,0.04);
+
+      --nav-h: 68px;
+    }
+
+    html { -webkit-text-size-adjust: 100%; }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif;
+      background: var(--off-white);
+      color: var(--black);
+      min-height: 100vh;
+      padding-bottom: calc(var(--nav-h) + 16px);
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    /* ── Header ── */
+    header {
+      background: var(--black);
+      color: var(--white);
+      padding: 14px 20px;
+      display: flex;
+      align-items: center;
+      position: sticky;
+      top: 0;
+      z-index: 40;
+      /* Subtle bottom border */
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex: 1;
+      min-width: 0;
+      text-decoration: none;
+    }
+
+    .logo-mark {
+      flex-shrink: 0;
+      width: 36px;
+      height: 36px;
+      background: var(--brand);
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .logo-text { min-width: 0; }
+
+    .logo-name {
+      font-size: 15px;
+      font-weight: 700;
+      letter-spacing: -0.3px;
+      color: var(--white);
+      line-height: 1.2;
+    }
+
+    .logo-sub {
+      font-size: 11px;
+      font-weight: 400;
+      color: rgba(255,255,255,0.45);
+      letter-spacing: 0.1px;
+      margin-top: 1px;
+    }
+
+    /* ── Page container ── */
+    .page {
+      padding: 20px 16px;
+      max-width: 540px;
+      margin: 0 auto;
+    }
+
+    /* ── Bottom nav ── */
+    .bottom-nav {
+      position: fixed;
+      bottom: 0; left: 0; right: 0;
+      height: var(--nav-h);
+      background: rgba(255,255,255,0.94);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border-top: 1px solid var(--gray-2);
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      z-index: 40;
+    }
+
+    .nav-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+      text-decoration: none;
+      color: var(--gray-5);
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.2px;
+      position: relative;
+      -webkit-tap-highlight-color: transparent;
+      transition: color 200ms ease;
+    }
+
+    .nav-item.active {
+      color: var(--brand);
+    }
+
+    .nav-item svg {
+      width: 24px;
+      height: 24px;
+      transition: transform 200ms ease;
+    }
+
+    .nav-item.active svg {
+      transform: scale(1.05);
+    }
+
+    /* Active dot indicator */
+    .nav-item::after {
+      content: '';
+      position: absolute;
+      bottom: 8px;
+      width: 4px; height: 4px;
+      border-radius: 50%;
+      background: var(--brand);
+      opacity: 0;
+      transition: opacity 200ms ease;
+    }
+
+    .nav-item.active::after {
+      opacity: 1;
+    }
+
+    .nav-badge {
+      position: absolute;
+      top: 10px;
+      right: calc(50% - 18px);
+      background: var(--brand);
+      color: white;
+      border-radius: 20px;
+      min-width: 17px;
+      height: 17px;
+      font-size: 10px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0 4px;
+    }
+
+    /* ── Shared type styles ── */
+    .page-title {
+      font-size: 28px;
+      font-weight: 800;
+      letter-spacing: -0.8px;
+      color: var(--black);
+      margin-bottom: 4px;
+    }
+
+    .page-subtitle {
+      font-size: 14px;
+      font-weight: 400;
+      color: var(--gray-7);
+      margin-bottom: 24px;
+    }
+
+    .section-title {
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+      color: var(--gray-5);
+      margin-bottom: 10px;
+    }
+
+    /* ── Card ── */
+    .card {
+      background: var(--white);
+      border-radius: var(--r-lg);
+      box-shadow: var(--shadow-sm);
+    }
+
+    /* ── Chip ── */
+    .chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 5px 11px;
+      border-radius: var(--r-pill);
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: -0.1px;
+    }
+
+    .chip-default  { background: var(--gray-1); color: var(--gray-9); }
+    .chip-brand    { background: var(--brand-pale); color: var(--brand-dark); }
+    .chip-success  { background: var(--success-bg); color: var(--success-dark); }
+    .chip-gold     { background: var(--gold-bg); color: var(--gold); }
+  </style>
+  {% block head %}{% endblock %}
+</head>
+<body>
+  <header>
+    <a href="/" class="logo">
+      <div class="logo-mark">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+          <path d="M12 3.5C12 3.5 15.2 3.5 15.2 6.8C15.2 9.5 12 9.5 12 9.5" stroke="white" stroke-width="2" stroke-linecap="round" fill="none"/>
+          <path d="M12 9.5L1.5 22" stroke="white" stroke-width="2.2" stroke-linecap="round"/>
+          <path d="M12 9.5L22.5 22" stroke="white" stroke-width="2.2" stroke-linecap="round"/>
+          <line x1="1.5" y1="22" x2="22.5" y2="22" stroke="white" stroke-width="2.5" stroke-linecap="round"/>
+        </svg>
+      </div>
+      <div class="logo-text">
+        <div class="logo-name">Vinted Lister</div>
+        <div class="logo-sub">AI-powered listings</div>
+      </div>
+    </a>
+    {% block header_right %}{% endblock %}
+  </header>
+
+  <main class="page">
+    {% block content %}{% endblock %}
+  </main>
+
+  <nav class="bottom-nav">
+    <a href="/" class="nav-item{% if active_tab == 'upload' %} active{% endif %}">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+        <circle cx="12" cy="13" r="4"/>
+      </svg>
+      <span>Upload</span>
+    </a>
+
+    <a href="/drafts" class="nav-item{% if active_tab == 'drafts' %} active{% endif %}">
+      {% if draft_count %}<span class="nav-badge">{{ draft_count }}</span>{% endif %}
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="3" y="3" width="7" height="7" rx="1.5"/>
+        <rect x="14" y="3" width="7" height="7" rx="1.5"/>
+        <rect x="14" y="14" width="7" height="7" rx="1.5"/>
+        <rect x="3" y="14" width="7" height="7" rx="1.5"/>
+      </svg>
+      <span>Drafts</span>
+    </a>
+
+    <a href="/stats" class="nav-item{% if active_tab == 'stats' %} active{% endif %}">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="18" y1="20" x2="18" y2="10"/>
+        <line x1="12" y1="20" x2="12" y2="4"/>
+        <line x1="6" y1="20" x2="6" y2="14"/>
+        <line x1="2" y1="20" x2="22" y2="20"/>
+      </svg>
+      <span>Stats</span>
+    </a>
+  </nav>
+
+  {% block scripts %}{% endblock %}
+</body>
+</html>

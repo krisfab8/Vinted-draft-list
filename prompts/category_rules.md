@@ -2,6 +2,9 @@
 # Format: Item type -> Vinted category path
 
 # Men's
+Blazer               -> Men > Suits > Blazers
+Suit jacket          -> Men > Suits > Blazers
+Sports jacket        -> Men > Suits > Blazers
 Wax jacket           -> Men > Coats & Jackets
 Trench coat          -> Men > Coats & Jackets
 Parka                -> Men > Coats & Jackets
@@ -23,6 +26,8 @@ Chino trousers       -> Men > Trousers
 Jeans                -> Men > Jeans
 
 # Women's
+Blazer               -> Women > Suits > Blazers
+Suit jacket          -> Women > Suits > Blazers
 Wax jacket           -> Women > Coats & Jackets
 Wool coat            -> Women > Coats & Jackets
 Denim jacket         -> Women > Jackets

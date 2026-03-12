@@ -1,0 +1,1168 @@
+{% extends "base.html" %}
+{% block title %}New Listing — Vinted Lister{% endblock %}
+
+{% block head %}
+<style>
+  /* ══════════════════════════════════════
+     PHOTO GRID
+  ══════════════════════════════════════ */
+
+  .photo-section { margin-bottom: 28px; }
+
+  .photo-section-header {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    margin-bottom: 12px;
+  }
+
+  .photo-counter {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--gray-5);
+  }
+
+  /* 2-column portrait grid */
+  .photo-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+
+  .photo-slot {
+    aspect-ratio: 3 / 4;
+    border-radius: var(--r-lg);
+    background: var(--white);
+    border: 1.5px dashed var(--gray-2);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    position: relative;
+    overflow: hidden;
+    transition:
+      transform 150ms ease,
+      box-shadow 150ms ease,
+      border-color 150ms ease;
+    -webkit-tap-highlight-color: transparent;
+    box-shadow: var(--shadow-xs);
+  }
+
+  .photo-slot:active:not(.has-photo) {
+    transform: scale(0.97);
+    background: var(--gray-1);
+  }
+
+  .photo-slot.has-photo {
+    border-color: transparent;
+    box-shadow: var(--shadow-md);
+  }
+
+  /* Selected for swap */
+  .photo-slot.selected {
+    border: 2px solid var(--brand) !important;
+    box-shadow: 0 0 0 4px var(--brand-glow), var(--shadow-md) !important;
+    transform: scale(0.97);
+  }
+
+  /* Swap target hint when something is selected */
+  .photo-slot.swap-target.has-photo {
+    opacity: 0.75;
+    border: 1.5px dashed var(--brand) !important;
+  }
+
+  .photo-slot img {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+
+  /* Empty slot: number badge + label */
+  .slot-number {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: var(--gray-1);
+    color: var(--gray-5);
+    font-size: 12px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 8px;
+  }
+
+  .slot-empty-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--gray-5);
+    text-align: center;
+    letter-spacing: 0.1px;
+  }
+
+  /* Filled slot overlays */
+  .slot-gradient {
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    height: 50%;
+    background: linear-gradient(transparent, rgba(0,0,0,0.55));
+    pointer-events: none;
+  }
+
+  .slot-role-label {
+    position: absolute;
+    bottom: 8px; left: 10px;
+    color: white;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.2px;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.3);
+  }
+
+  .slot-move-btn {
+    position: absolute;
+    top: 8px; right: 34px;
+    width: 26px; height: 26px;
+    background: rgba(0,0,0,0.48);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border: none;
+    border-radius: 50%;
+    color: white;
+    font-size: 12px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .slot-remove-btn {
+    position: absolute;
+    top: 8px; right: 6px;
+    width: 26px; height: 26px;
+    background: rgba(0,0,0,0.48);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border: none;
+    border-radius: 50%;
+    color: white;
+    font-size: 10px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* Selected indicator overlay */
+  .slot-selected-overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(9,177,186,0.15);
+    border-radius: var(--r-lg);
+    display: flex;
+    align-items: flex-start;
+    justify-content: flex-start;
+    padding: 8px;
+    pointer-events: none;
+  }
+
+  .slot-selected-badge {
+    background: var(--brand);
+    color: white;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 3px 8px;
+    border-radius: var(--r-pill);
+    letter-spacing: 0.2px;
+  }
+
+  /* Add more button */
+  .add-more-btn {
+    grid-column: span 1;
+    aspect-ratio: 3 / 4;
+    border-radius: var(--r-lg);
+    background: var(--white);
+    border: 1.5px dashed var(--gray-2);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    gap: 6px;
+    -webkit-tap-highlight-color: transparent;
+    transition: background 150ms ease, border-color 150ms ease;
+    box-shadow: var(--shadow-xs);
+  }
+
+  .add-more-btn:active { background: var(--gray-1); }
+
+  .add-more-icon {
+    width: 36px; height: 36px;
+    background: var(--gray-1);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--gray-5);
+    font-size: 20px;
+    font-weight: 300;
+    line-height: 1;
+  }
+
+  .add-more-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--gray-5);
+    text-align: center;
+    letter-spacing: 0.1px;
+  }
+
+  /* Swap mode hint */
+  .swap-hint {
+    display: none;
+    margin-top: 10px;
+    padding: 10px 14px;
+    background: var(--brand-pale);
+    border-radius: var(--r-md);
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--brand-dark);
+    text-align: center;
+    border: 1px solid rgba(9,177,186,0.15);
+  }
+
+  .swap-hint.visible { display: block; }
+
+  .photo-hint {
+    font-size: 12px;
+    color: var(--gray-5);
+    font-weight: 400;
+    text-align: center;
+    margin-top: 10px;
+    line-height: 1.5;
+  }
+
+  /* ══════════════════════════════════════
+     FORM
+  ══════════════════════════════════════ */
+
+  .form-section { margin-bottom: 20px; }
+
+  .field { margin-bottom: 16px; }
+
+  label {
+    display: block;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--gray-7);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 8px;
+  }
+
+  label span {
+    font-weight: 400;
+    text-transform: none;
+    letter-spacing: 0;
+    color: var(--gray-5);
+    font-size: 12px;
+  }
+
+  .input-wrap { position: relative; }
+
+  .input-symbol {
+    position: absolute;
+    left: 16px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 16px;
+    font-weight: 500;
+    color: var(--gray-5);
+    pointer-events: none;
+  }
+
+  input[type="number"] {
+    width: 100%;
+    padding: 16px 16px 16px 34px;
+    background: var(--white);
+    border: 1.5px solid var(--gray-2);
+    border-radius: var(--r-md);
+    font-size: 16px;
+    font-weight: 500;
+    font-family: inherit;
+    color: var(--black);
+    outline: none;
+    -webkit-appearance: none;
+    appearance: none;
+    box-shadow: var(--shadow-xs);
+    transition: border-color 200ms ease, box-shadow 200ms ease;
+  }
+
+  input[type="number"]:focus {
+    border-color: var(--brand);
+    box-shadow: 0 0 0 3px var(--brand-glow);
+  }
+
+  input[type="number"]::placeholder { color: var(--gray-3); }
+
+  /* ══════════════════════════════════════
+     SUBMIT BUTTON
+  ══════════════════════════════════════ */
+
+  .btn-submit {
+    width: 100%;
+    padding: 18px;
+    background: var(--black);
+    color: var(--white);
+    border: none;
+    border-radius: var(--r-lg);
+    font-size: 16px;
+    font-weight: 700;
+    font-family: inherit;
+    cursor: pointer;
+    letter-spacing: -0.2px;
+    transition: background 150ms ease, transform 100ms ease, box-shadow 150ms ease;
+    -webkit-tap-highlight-color: transparent;
+    box-shadow: var(--shadow-md);
+  }
+
+  .btn-submit:hover { background: var(--gray-9); }
+  .btn-submit:active { transform: scale(0.99); box-shadow: var(--shadow-xs); }
+
+  .btn-submit:disabled {
+    background: var(--gray-3);
+    box-shadow: none;
+    cursor: not-allowed;
+    transform: none;
+  }
+
+  /* ══════════════════════════════════════
+     LOADING STATE
+  ══════════════════════════════════════ */
+
+  .loading-state {
+    display: none;
+    padding: 36px 20px;
+    text-align: center;
+  }
+
+  .loading-ring {
+    width: 44px; height: 44px;
+    border: 3px solid var(--gray-2);
+    border-top-color: var(--brand);
+    border-radius: 50%;
+    animation: spin 0.75s linear infinite;
+    margin: 0 auto 16px;
+  }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .loading-step {
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--gray-7);
+    transition: opacity 300ms ease;
+  }
+
+  .loading-step::after {
+    content: '';
+    animation: dots 1.5s steps(4) infinite;
+  }
+
+  @keyframes dots {
+    0%   { content: ''; }
+    25%  { content: '.'; }
+    50%  { content: '..'; }
+    75%  { content: '...'; }
+  }
+
+  /* Progress steps */
+  .loading-steps-bar {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    margin-top: 20px;
+  }
+
+  .step-dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--gray-2);
+    transition: background 300ms ease, transform 300ms ease;
+  }
+
+  .step-dot.active {
+    background: var(--brand);
+    transform: scale(1.3);
+  }
+
+  .step-dot.done {
+    background: var(--success);
+  }
+
+  /* ══════════════════════════════════════
+     RESULT CARD
+  ══════════════════════════════════════ */
+
+  .result-card {
+    display: none;
+    margin-top: 24px;
+    background: var(--white);
+    border-radius: var(--r-xl);
+    overflow: hidden;
+    box-shadow: var(--shadow-lg);
+  }
+
+  /* Success header band */
+  .result-success-band {
+    background: var(--black);
+    padding: 20px 20px 18px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+
+  .result-check {
+    width: 36px; height: 36px;
+    background: var(--success);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    font-size: 16px;
+  }
+
+  .result-band-title {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--white);
+    letter-spacing: -0.2px;
+  }
+
+  .result-band-sub {
+    font-size: 12px;
+    color: rgba(255,255,255,0.45);
+    margin-top: 2px;
+  }
+
+  /* Result body */
+  .result-body { padding: 20px; }
+
+  .result-price-block { margin-bottom: 16px; }
+
+  .result-price-label {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    color: var(--gray-5);
+    margin-bottom: 2px;
+  }
+
+  .result-price {
+    font-size: 48px;
+    font-weight: 900;
+    letter-spacing: -2.5px;
+    color: var(--brand);
+    line-height: 1;
+  }
+
+  .result-title {
+    font-size: 16px;
+    font-weight: 600;
+    line-height: 1.4;
+    color: var(--black);
+    margin-bottom: 16px;
+    letter-spacing: -0.2px;
+  }
+
+  .chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 20px;
+  }
+
+  /* Meta grid */
+  .meta-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-bottom: 20px;
+  }
+
+  .meta-cell {
+    background: var(--gray-1);
+    border-radius: var(--r-md);
+    padding: 12px 14px;
+  }
+
+  .meta-cell-label {
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    color: var(--gray-5);
+    margin-bottom: 4px;
+  }
+
+  .meta-cell-value {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--black);
+    line-height: 1.3;
+  }
+
+  /* Description */
+  .desc-block {
+    background: var(--gray-1);
+    border-radius: var(--r-md);
+    padding: 16px;
+    font-size: 14px;
+    line-height: 1.7;
+    color: var(--gray-9);
+    white-space: pre-wrap;
+    margin-bottom: 20px;
+    border-left: 3px solid var(--brand);
+  }
+
+  /* Cost pill */
+  .cost-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--success-bg);
+    color: var(--success-dark);
+    border-radius: var(--r-pill);
+    padding: 6px 14px;
+    font-size: 13px;
+    font-weight: 600;
+    margin-bottom: 20px;
+  }
+
+  .cost-dot {
+    width: 6px; height: 6px;
+    background: var(--success);
+    border-radius: 50%;
+  }
+
+  /* CTA */
+  .btn-vinted {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    width: 100%;
+    padding: 17px;
+    background: var(--brand);
+    color: var(--white);
+    border: none;
+    border-radius: var(--r-lg);
+    font-size: 16px;
+    font-weight: 700;
+    font-family: inherit;
+    text-decoration: none;
+    letter-spacing: -0.2px;
+    cursor: pointer;
+    transition: background 150ms ease, transform 100ms ease;
+    -webkit-tap-highlight-color: transparent;
+    box-shadow: 0 4px 16px rgba(9,177,186,0.3);
+  }
+
+  .btn-vinted:active { transform: scale(0.99); }
+  .btn-vinted:hover  { background: var(--brand-dark); }
+
+  .btn-vinted-arrow {
+    font-size: 18px;
+    transition: transform 150ms ease;
+  }
+
+  .btn-vinted:hover .btn-vinted-arrow { transform: translateX(3px); }
+
+  .no-draft-note {
+    text-align: center;
+    font-size: 13px;
+    color: var(--gray-5);
+    padding: 16px;
+    background: var(--gray-1);
+    border-radius: var(--r-md);
+    line-height: 1.5;
+  }
+
+  .draft-error {
+    font-size: 12px;
+    color: var(--error);
+    padding: 10px 14px;
+    background: var(--error-bg);
+    border-radius: var(--r-sm);
+    margin-bottom: 16px;
+    line-height: 1.4;
+  }
+
+  /* Error result */
+  .result-error-band {
+    background: var(--error);
+    color: white;
+    padding: 16px 20px;
+    font-weight: 700;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  /* ══════════════════════════════════════
+     REVIEW CARD
+  ══════════════════════════════════════ */
+
+  .review-card {
+    margin-top: 12px;
+    background: var(--white);
+    border-radius: var(--r-xl);
+    overflow: hidden;
+    box-shadow: var(--shadow-md);
+    border: 1.5px solid var(--gold);
+  }
+
+  .review-header {
+    padding: 16px 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    gap: 12px;
+  }
+
+  .review-header-left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex: 1;
+    min-width: 0;
+  }
+
+  .review-icon {
+    width: 34px; height: 34px;
+    background: var(--gold-bg);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    flex-shrink: 0;
+  }
+
+  .review-header-title {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--black);
+    letter-spacing: -0.1px;
+  }
+
+  .review-header-sub {
+    font-size: 12px;
+    color: var(--gray-5);
+    margin-top: 1px;
+    line-height: 1.4;
+  }
+
+  .review-chevron {
+    font-size: 11px;
+    color: var(--gray-5);
+    transition: transform 200ms ease;
+    flex-shrink: 0;
+  }
+
+  .review-card.open .review-chevron { transform: rotate(180deg); }
+
+  .review-body {
+    display: none;
+    padding: 16px 20px 20px;
+    border-top: 1px solid var(--gray-2);
+  }
+
+  .review-card.open .review-body { display: block; }
+
+  .review-field { margin-bottom: 14px; }
+
+  .review-field label {
+    display: block;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--gray-7);
+    margin-bottom: 6px;
+  }
+
+  .review-input {
+    width: 100%;
+    padding: 13px 14px;
+    background: var(--gray-1);
+    border: 1.5px solid transparent;
+    border-radius: var(--r-md);
+    font-size: 15px;
+    font-weight: 500;
+    font-family: inherit;
+    color: var(--black);
+    outline: none;
+    transition: border-color 200ms ease, background 200ms ease;
+    -webkit-appearance: none;
+  }
+
+  .review-input:focus {
+    border-color: var(--brand);
+    background: var(--white);
+    box-shadow: 0 0 0 3px var(--brand-glow);
+  }
+
+  .btn-save-review {
+    width: 100%;
+    padding: 15px;
+    background: var(--black);
+    color: white;
+    border: none;
+    border-radius: var(--r-lg);
+    font-size: 15px;
+    font-weight: 700;
+    font-family: inherit;
+    cursor: pointer;
+    margin-top: 4px;
+    transition: background 150ms ease;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .btn-save-review:hover { background: var(--gray-9); }
+  .btn-save-review:disabled { background: var(--gray-3); cursor: not-allowed; }
+
+  input[type="file"] { display: none; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .loading-ring { animation: none; }
+    * { transition: none !important; }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Page heading -->
+<div style="margin-bottom:24px">
+  <div class="page-title">New Listing</div>
+  <div style="font-size:14px;font-weight:400;color:var(--gray-5);margin-top:2px">Upload photos · get AI listing in seconds</div>
+</div>
+
+<!-- ── Photos ── -->
+<div class="photo-section">
+  <div class="photo-section-header">
+    <div class="section-title" style="margin-bottom:0">Photos</div>
+    <div class="photo-counter" id="photoCounter">0 of 20</div>
+  </div>
+
+  <div class="photo-grid" id="photoGrid"></div>
+
+  <!-- Swap mode hint -->
+  <div class="swap-hint" id="swapHint">
+    Tap another photo to swap positions — or tap again to cancel
+  </div>
+
+  <p class="photo-hint">
+    Ordered: <strong>front · size tag · material · back</strong> · extras<br>
+    Tap any photo to reorder
+  </p>
+</div>
+
+<!-- ── Buy price ── -->
+<div class="form-section">
+  <div class="field">
+    <label for="buyPrice">Buy price <span>— optional, improves pricing</span></label>
+    <div class="input-wrap">
+      <span class="input-symbol">£</span>
+      <input type="number" id="buyPrice" placeholder="0.00" min="0" step="0.50" inputmode="decimal">
+    </div>
+  </div>
+</div>
+
+<!-- ── Submit ── -->
+<button class="btn-submit" id="submitBtn" onclick="createListing()">
+  Create Listing
+</button>
+
+<!-- ── Loading ── -->
+<div class="loading-state" id="loadingState">
+  <div class="loading-ring"></div>
+  <div class="loading-step" id="loadingStep">Analysing photos</div>
+  <div class="loading-steps-bar">
+    <div class="step-dot active" id="dot0"></div>
+    <div class="step-dot" id="dot1"></div>
+    <div class="step-dot" id="dot2"></div>
+    <div class="step-dot" id="dot3"></div>
+  </div>
+</div>
+
+<!-- ── Result ── -->
+<div class="result-card" id="resultCard"></div>
+<div id="reviewCard"></div>
+
+<input type="file" id="fileInput" accept="image/*" multiple capture="environment">
+{% endblock %}
+
+{% block scripts %}
+<script>
+  const SLOT_LABELS = ["Front", "Size tag", "Material", "Back"];
+  let photos = [];
+  let selectedForSwap = null;
+
+  /* ── Grid render ── */
+  function renderGrid() {
+    const grid = document.getElementById("photoGrid");
+    const counter = document.getElementById("photoCounter");
+    const hint = document.getElementById("swapHint");
+    grid.innerHTML = "";
+    counter.textContent = `${photos.length} of 20`;
+    hint.classList.toggle("visible", selectedForSwap !== null);
+
+    photos.forEach((file, i) => {
+      const url = URL.createObjectURL(file);
+      const label = SLOT_LABELS[i] || `Extra ${i - 3}`;
+      const isSelected = selectedForSwap === i;
+      const isTarget = selectedForSwap !== null && !isSelected;
+
+      const slot = document.createElement("div");
+      slot.className = "photo-slot has-photo" +
+        (isSelected ? " selected" : "") +
+        (isTarget ? " swap-target" : "");
+
+      slot.innerHTML = `
+        <img src="${url}" alt="${label}">
+        <div class="slot-gradient"></div>
+        <div class="slot-role-label">${label}</div>
+        ${isSelected ? `<div class="slot-selected-overlay"><span class="slot-selected-badge">Moving</span></div>` : ""}
+        <button class="slot-move-btn" onclick="handleSwapTap(event, ${i})" title="Move photo">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+            <path d="M5 9l-3 3 3 3M9 5l3-3 3 3M15 19l-3 3-3-3M19 9l3 3-3 3M2 12h20M12 2v20"/>
+          </svg>
+        </button>
+        <button class="slot-remove-btn" onclick="removePhoto(event, ${i})" title="Remove">✕</button>
+      `;
+
+      /* Tap the photo itself to trigger swap too */
+      slot.addEventListener("click", (e) => {
+        if (e.target.closest(".slot-remove-btn") || e.target.closest(".slot-move-btn")) return;
+        handleSwapTap(e, i);
+      });
+
+      grid.appendChild(slot);
+    });
+
+    /* Add more button */
+    if (photos.length < 20) {
+      const btn = document.createElement("div");
+      btn.className = "add-more-btn";
+      const nextLabel = photos.length === 0
+        ? "Add photos"
+        : (SLOT_LABELS[photos.length] || `Extra ${photos.length - 3}`);
+      btn.innerHTML = `
+        <div class="add-more-icon">${photos.length === 0 ? "📷" : "+"}</div>
+        <div class="add-more-label">${nextLabel}</div>
+      `;
+      btn.onclick = () => {
+        selectedForSwap = null;
+        openFilePicker();
+      };
+      grid.appendChild(btn);
+    }
+  }
+
+  function handleSwapTap(e, index) {
+    e.stopPropagation();
+    if (selectedForSwap === null) {
+      selectedForSwap = index;
+    } else if (selectedForSwap === index) {
+      selectedForSwap = null;
+    } else {
+      /* Swap */
+      [photos[selectedForSwap], photos[index]] = [photos[index], photos[selectedForSwap]];
+      selectedForSwap = null;
+    }
+    renderGrid();
+  }
+
+  function openFilePicker() {
+    const input = document.getElementById("fileInput");
+    input.value = "";
+    input.click();
+  }
+
+  document.getElementById("fileInput").addEventListener("change", function () {
+    photos = photos.concat(Array.from(this.files)).slice(0, 20);
+    selectedForSwap = null;
+    renderGrid();
+  });
+
+  function removePhoto(e, index) {
+    e.stopPropagation();
+    photos.splice(index, 1);
+    if (selectedForSwap === index) selectedForSwap = null;
+    else if (selectedForSwap > index) selectedForSwap--;
+    renderGrid();
+  }
+
+  /* ── Submit ── */
+  const LOAD_STEPS = [
+    "Analysing photos",
+    "Reading tags and labels",
+    "Writing listing",
+    "Creating Vinted draft"
+  ];
+
+  async function createListing() {
+    if (photos.length === 0) {
+      alert("Add at least one photo first.");
+      return;
+    }
+
+    selectedForSwap = null;
+    const btn       = document.getElementById("submitBtn");
+    const loading   = document.getElementById("loadingState");
+    const result    = document.getElementById("resultCard");
+    const stepEl    = document.getElementById("loadingStep");
+
+    btn.disabled = true;
+    loading.style.display = "block";
+    result.style.display  = "none";
+    result.innerHTML = "";
+
+    let stepIdx = 0;
+    updateStep(0);
+    const stepTimer = setInterval(() => {
+      stepIdx = Math.min(stepIdx + 1, LOAD_STEPS.length - 1);
+      updateStep(stepIdx);
+    }, 3200);
+
+    function updateStep(i) {
+      stepEl.textContent = LOAD_STEPS[i];
+      LOAD_STEPS.forEach((_, j) => {
+        const dot = document.getElementById(`dot${j}`);
+        if (!dot) return;
+        dot.className = "step-dot" + (j < i ? " done" : j === i ? " active" : "");
+      });
+    }
+
+    try {
+      const form = new FormData();
+      photos.forEach(f => form.append("photos", f));
+      const bp = document.getElementById("buyPrice").value.trim();
+      if (bp) form.append("buy_price", bp);
+
+      const resp = await fetch("/upload", { method: "POST", body: form });
+      const data = await resp.json();
+      clearInterval(stepTimer);
+      loading.style.display = "none";
+      resp.ok ? showResult(data) : showError(data.error || "Unknown error");
+    } catch (err) {
+      clearInterval(stepTimer);
+      loading.style.display = "none";
+      showError(err.message);
+    } finally {
+      btn.disabled = false;
+    }
+  }
+
+  /* ── Result helpers ── */
+  function fmtCost(gbp) {
+    if (gbp == null) return null;
+    if (gbp < 0.01) return "Under 1p";
+    if (gbp < 0.10) return `~${Math.round(gbp * 100)}p`;
+    if (gbp < 1.00) return `${(gbp * 100).toFixed(0)}p`;
+    return `£${gbp.toFixed(2)}`;
+  }
+
+  function showResult(d) {
+    const card = document.getElementById("resultCard");
+    card.style.display = "block";
+
+    const costStr  = fmtCost(d.cost_gbp);
+    const costHtml = costStr
+      ? `<div class="cost-pill"><div class="cost-dot"></div>AI cost: ${esc(costStr)}</div>`
+      : "";
+
+    const chips = [];
+    if (d.premium)   chips.push(`<span class="chip chip-gold">★ Premium</span>`);
+    if (d.gender)    chips.push(`<span class="chip chip-default">${esc(d.gender)}</span>`);
+    if (d.item_type) chips.push(`<span class="chip chip-brand">${esc(d.item_type)}</span>`);
+
+    const draftHtml = d.draft_url
+      ? `<a class="btn-vinted" href="${esc(d.draft_url)}" target="_blank">
+           Open on Vinted
+           <span class="btn-vinted-arrow">→</span>
+         </a>`
+      : `<div class="no-draft-note">No draft URL returned — open Vinted and check Drafts</div>`;
+
+    const errHtml = d.draft_error
+      ? `<div class="draft-error">Draft error: ${esc(d.draft_error)}</div>` : "";
+
+    card.innerHTML = `
+      <div class="result-success-band">
+        <div class="result-check">✓</div>
+        <div>
+          <div class="result-band-title">Listing created</div>
+          <div class="result-band-sub">${esc(d.brand || "")}${d.brand ? " · " : ""}Ready to publish</div>
+        </div>
+      </div>
+      <div class="result-body">
+        <div class="result-price-block">
+          <div class="result-price-label">List price</div>
+          <div class="result-price">£${d.price_gbp || "?"}</div>
+        </div>
+        <div class="result-title">${esc(d.title || "")}</div>
+        ${chips.length ? `<div class="chips">${chips.join("")}</div>` : ""}
+        <div class="meta-grid">
+          <div class="meta-cell">
+            <div class="meta-cell-label">Brand</div>
+            <div class="meta-cell-value">${esc(d.brand || "—")}</div>
+          </div>
+          <div class="meta-cell">
+            <div class="meta-cell-label">Size</div>
+            <div class="meta-cell-value">${esc(d.normalized_size || d.tagged_size || "—")}</div>
+          </div>
+          <div class="meta-cell">
+            <div class="meta-cell-label">Condition</div>
+            <div class="meta-cell-value" style="font-size:12px">${esc((d.condition_summary || "").split("—")[0].trim())}</div>
+          </div>
+          <div class="meta-cell">
+            <div class="meta-cell-label">Category</div>
+            <div class="meta-cell-value" style="font-size:11px">${esc(d.category || "—")}</div>
+          </div>
+        </div>
+        <div class="desc-block">${esc(d.description || "")}</div>
+        ${costHtml}
+        ${errHtml}
+        ${draftHtml}
+      </div>`;
+
+    card.scrollIntoView({ behavior: "smooth", block: "start" });
+    showReviewCard(d);
+  }
+
+  /* ── Review card ── */
+  const REVIEW_LABELS = {
+    brand:          "Brand",
+    model_name:     "Model / Style name",
+    materials:      "Materials (comma-separated)",
+    tagged_size:    "Size on tag",
+    trouser_waist:  "Waist measurement",
+    trouser_length: "Leg length",
+    colour:         "Colour",
+    gender:         "Gender",
+  };
+
+  function showReviewCard(d) {
+    const container = document.getElementById("reviewCard");
+    container.innerHTML = "";
+    const fields = (d.low_confidence_fields || []).filter(f => REVIEW_LABELS[f]);
+    if (!fields.length || !d.folder) return;
+
+    const fieldHtml = fields.map(f => {
+      let current = d[f] || "";
+      if (Array.isArray(current)) current = current.join(", ");
+      return `
+        <div class="review-field">
+          <label>${REVIEW_LABELS[f]}</label>
+          <input class="review-input" type="text" data-field="${f}"
+                 value="${esc(String(current))}"
+                 placeholder="Enter ${REVIEW_LABELS[f].toLowerCase()}">
+        </div>`;
+    }).join("");
+
+    container.innerHTML = `
+      <div class="review-card" id="reviewCardInner">
+        <div class="review-header" onclick="document.getElementById('reviewCardInner').classList.toggle('open')">
+          <div class="review-header-left">
+            <div class="review-icon">⚠️</div>
+            <div>
+              <div class="review-header-title">Some details need review</div>
+              <div class="review-header-sub">${fields.length} field${fields.length !== 1 ? "s" : ""} couldn't be read — tap to fill in</div>
+            </div>
+          </div>
+          <span class="review-chevron">▼</span>
+        </div>
+        <div class="review-body">
+          ${fieldHtml}
+          <button class="btn-save-review" onclick="saveReview('${esc(d.folder)}')">Save corrections</button>
+          <div id="reviewStatus" style="text-align:center;font-size:13px;margin-top:10px;display:none"></div>
+        </div>
+      </div>`;
+  }
+
+  async function saveReview(folder) {
+    const inputs = document.querySelectorAll("#reviewCard .review-input");
+    const updates = {};
+    inputs.forEach(inp => {
+      const field = inp.dataset.field;
+      let val = inp.value.trim();
+      if (!val) return;
+      if (field === "materials") {
+        updates[field] = val.split(",").map(s => s.trim()).filter(Boolean);
+      } else {
+        updates[field] = val;
+      }
+    });
+
+    const btn    = document.querySelector(".btn-save-review");
+    const status = document.getElementById("reviewStatus");
+    btn.textContent = "Saving…";
+    btn.disabled = true;
+
+    try {
+      const resp = await fetch(`/listing/${folder}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(updates),
+      });
+      status.style.display = "block";
+      if (resp.ok) {
+        status.style.color = "var(--success-dark)";
+        status.textContent = "Saved — listing updated.";
+        document.getElementById("reviewCardInner").classList.remove("open");
+      } else {
+        status.style.color = "var(--error)";
+        status.textContent = "Error saving — try again.";
+      }
+    } catch {
+      status.style.display = "block";
+      status.style.color = "var(--error)";
+      status.textContent = "Network error — try again.";
+    } finally {
+      btn.textContent = "Save corrections";
+      btn.disabled = false;
+    }
+  }
+
+  function showError(msg) {
+    const card = document.getElementById("resultCard");
+    card.style.display = "block";
+    card.innerHTML = `
+      <div class="result-error-band">❌ Error</div>
+      <div class="result-body">
+        <p style="font-size:14px;color:var(--error);white-space:pre-wrap;line-height:1.5">${esc(msg)}</p>
+      </div>`;
+  }
+
+  function esc(s) {
+    return String(s)
+      .replace(/&/g, "&amp;").replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+  }
+
+  renderGrid();
+</script>
+{% endblock %}

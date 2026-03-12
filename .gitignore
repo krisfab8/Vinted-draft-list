@@ -3,6 +3,10 @@
 credentials.json
 *.json.bak
 
+# User data — do not commit
+cost_log.csv
+items/*/listing.json
+
 # Python
 __pycache__/
 *.pyc
@@ -37,3 +41,4 @@ items/*/*.png
 items/*/*.heic
 # Allow sample item README
 !items/_sample_item/README.md
+vinted_cookies.json

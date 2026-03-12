@@ -1,0 +1,334 @@
+{% extends "base.html" %}
+{% block title %}Stats — Vinted Lister{% endblock %}
+
+{% block head %}
+<style>
+  /* ── Summary cards ── */
+  .stat-cards {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 20px;
+  }
+
+  .stat-card {
+    background: var(--white);
+    border-radius: var(--r-lg);
+    padding: 16px 12px;
+    text-align: center;
+    box-shadow: var(--shadow-sm);
+  }
+
+  .stat-num {
+    font-size: 26px;
+    font-weight: 900;
+    letter-spacing: -1px;
+    line-height: 1;
+    margin-bottom: 5px;
+  }
+
+  .stat-num.brand   { color: var(--brand); }
+  .stat-num.success { color: var(--success-dark); }
+  .stat-num.muted   { color: var(--gray-5); }
+
+  .stat-label-text {
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--gray-5);
+  }
+
+  /* ── ROI hero block ── */
+  .roi-hero {
+    background: var(--black);
+    border-radius: var(--r-xl);
+    padding: 24px 20px;
+    margin-bottom: 20px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  /* Subtle teal accent circle in background */
+  .roi-hero::after {
+    content: '';
+    position: absolute;
+    right: -30px;
+    top: -30px;
+    width: 120px;
+    height: 120px;
+    border-radius: 50%;
+    background: rgba(9,177,186,0.12);
+    pointer-events: none;
+  }
+
+  .roi-eyebrow {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.7px;
+    color: rgba(255,255,255,0.45);
+    margin-bottom: 8px;
+  }
+
+  .roi-amount {
+    font-size: 52px;
+    font-weight: 900;
+    color: var(--brand);
+    letter-spacing: -3px;
+    line-height: 1;
+    margin-bottom: 6px;
+  }
+
+  .roi-sub {
+    font-size: 13px;
+    color: rgba(255,255,255,0.55);
+    font-weight: 400;
+  }
+
+  /* ── Section cards ── */
+  .section-block {
+    background: var(--white);
+    border-radius: var(--r-lg);
+    overflow: hidden;
+    box-shadow: var(--shadow-sm);
+    margin-bottom: 16px;
+  }
+
+  .section-block-header {
+    padding: 14px 18px;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    color: var(--gray-5);
+    border-bottom: 1px solid var(--gray-2);
+  }
+
+  /* ── Value rows ── */
+  .val-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 18px;
+    border-bottom: 1px solid var(--gray-2);
+  }
+
+  .val-row:last-child { border-bottom: none; }
+
+  .val-row-label {
+    font-size: 15px;
+    font-weight: 500;
+    color: var(--black);
+  }
+
+  .val-row-value {
+    font-size: 15px;
+    font-weight: 700;
+    letter-spacing: -0.3px;
+  }
+
+  .val-row-value.brand   { color: var(--brand); }
+  .val-row-value.success { color: var(--success-dark); }
+  .val-row-value.muted   { color: var(--gray-5); font-weight: 500; font-size: 14px; }
+
+  /* ── Brand bars ── */
+  .brand-row {
+    display: flex;
+    align-items: center;
+    padding: 13px 18px;
+    gap: 14px;
+    border-bottom: 1px solid var(--gray-2);
+  }
+
+  .brand-row:last-child { border-bottom: none; }
+
+  .brand-row-name {
+    flex: 0 0 110px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--black);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .brand-bar-track {
+    flex: 1;
+    height: 6px;
+    background: var(--gray-1);
+    border-radius: var(--r-pill);
+    overflow: hidden;
+  }
+
+  .brand-bar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--brand) 0%, var(--brand-dark) 100%);
+    border-radius: var(--r-pill);
+  }
+
+  .brand-count-num {
+    flex: 0 0 20px;
+    text-align: right;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--gray-5);
+  }
+
+  /* ── Cost history rows ── */
+  .cost-row {
+    display: flex;
+    align-items: center;
+    padding: 12px 18px;
+    gap: 14px;
+    border-bottom: 1px solid var(--gray-2);
+  }
+
+  .cost-row:last-child { border-bottom: none; }
+
+  .cost-row-info { flex: 1; min-width: 0; }
+
+  .cost-row-brand {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--black);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    letter-spacing: -0.1px;
+  }
+
+  .cost-row-tokens {
+    font-size: 11px;
+    color: var(--gray-5);
+    margin-top: 2px;
+    font-weight: 400;
+  }
+
+  .cost-row-amount {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--success-dark);
+    flex-shrink: 0;
+  }
+
+  .empty-block {
+    padding: 28px 18px;
+    text-align: center;
+    font-size: 14px;
+    color: var(--gray-5);
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div style="margin-bottom:24px">
+  <div class="page-title">Stats</div>
+</div>
+
+<!-- Summary cards -->
+<div class="stat-cards">
+  <div class="stat-card">
+    <div class="stat-num brand">{{ stats.total_items }}</div>
+    <div class="stat-label-text">Items</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-num">
+      {% set s = stats.total_spend_gbp %}
+      {% if s == 0 %}0p
+      {% elif s < 0.01 %}&lt;1p
+      {% elif s < 1.0 %}{{ (s * 100)|round|int }}p
+      {% else %}£{{ "%.2f"|format(s) }}
+      {% endif %}
+    </div>
+    <div class="stat-label-text">AI spend</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-num muted">
+      {% set a = stats.avg_cost_gbp %}
+      {% if a == 0 %}—
+      {% elif a < 0.01 %}&lt;1p
+      {% elif a < 0.1 %}~{{ (a * 100)|round|int }}p
+      {% else %}£{{ "%.2f"|format(a) }}
+      {% endif %}
+    </div>
+    <div class="stat-label-text">Avg / item</div>
+  </div>
+</div>
+
+<!-- ROI hero -->
+{% if stats.profit_item_count > 0 %}
+<div class="roi-hero">
+  <div class="roi-eyebrow">Potential profit after Vinted fees</div>
+  <div class="roi-amount">£{{ "%.0f"|format(stats.potential_profit_gbp) }}</div>
+  <div class="roi-sub">across {{ stats.profit_item_count }} item{{ 's' if stats.profit_item_count != 1 }} · based on buy prices entered</div>
+</div>
+{% endif %}
+
+<!-- Inventory -->
+<div class="section-block">
+  <div class="section-block-header">Inventory</div>
+  <div class="val-row">
+    <div class="val-row-label">Total listed value</div>
+    <div class="val-row-value brand">£{{ "%.0f"|format(stats.total_value_gbp) }}</div>
+  </div>
+  {% if stats.potential_profit_gbp > 0 %}
+  <div class="val-row">
+    <div class="val-row-label">Profit potential</div>
+    <div class="val-row-value success">£{{ "%.0f"|format(stats.potential_profit_gbp) }}</div>
+  </div>
+  {% endif %}
+  <div class="val-row">
+    <div class="val-row-label">Total AI spend</div>
+    <div class="val-row-value muted">
+      {% set s = stats.total_spend_gbp %}
+      {% if s == 0 %}0p
+      {% elif s < 0.01 %}&lt;1p
+      {% elif s < 0.1 %}{{ (s * 100)|round|int }}p
+      {% else %}£{{ "%.4f"|format(s) }}
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<!-- Brands -->
+{% if stats.brands %}
+<div class="section-block">
+  <div class="section-block-header">Brands</div>
+  {% set max_count = stats.brands[0].count %}
+  {% for b in stats.brands %}
+  <div class="brand-row">
+    <div class="brand-row-name">{{ b.brand }}</div>
+    <div class="brand-bar-track">
+      <div class="brand-bar-fill" style="width:{{ ((b.count / max_count) * 100)|int }}%"></div>
+    </div>
+    <div class="brand-count-num">{{ b.count }}</div>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+
+<!-- Cost history -->
+<div class="section-block">
+  <div class="section-block-header">Recent AI costs</div>
+  {% if cost_history %}
+    {% for row in cost_history[:12] %}
+    <div class="cost-row">
+      <div class="cost-row-info">
+        <div class="cost-row-brand">{{ row.brand or row.folder }}</div>
+        <div class="cost-row-tokens">{{ row.timestamp[:10] }} · {{ row.input_tokens }} in / {{ row.output_tokens }} out tokens</div>
+      </div>
+      <div class="cost-row-amount">
+        {% set c = row.cost_gbp|float %}
+        {% if c < 0.01 %}&lt;1p
+        {% elif c < 0.1 %}~{{ (c * 100)|round|int }}p
+        {% else %}£{{ "%.4f"|format(c) }}
+        {% endif %}
+      </div>
+    </div>
+    {% endfor %}
+  {% else %}
+    <div class="empty-block">No cost history yet</div>
+  {% endif %}
+</div>
+{% endblock %}
