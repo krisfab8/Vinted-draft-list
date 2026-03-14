@@ -1,54 +1,99 @@
 # Category Mapping Rules
 # Format: Item type -> Vinted category path
+# All paths verified against vinted_categories.json scraped 2026-03-14
 
 # Men's
 Blazer               -> Men > Suits > Blazers
 Suit jacket          -> Men > Suits > Blazers
 Sports jacket        -> Men > Suits > Blazers
-Wax jacket           -> Men > Coats & Jackets
-Trench coat          -> Men > Coats & Jackets
-Parka                -> Men > Coats & Jackets
-Chore jacket         -> Men > Jackets
-Denim jacket         -> Men > Jackets
-Overshirt            -> Men > Jackets
+Overcoat             -> Men > Coats > Overcoat
+Wax jacket           -> Men > Coats > Overcoat
+Wool coat            -> Men > Coats > Overcoat
+Trench coat          -> Men > Coats > Trench
+Parka                -> Men > Coats > Parka
+Peacoat              -> Men > Coats > Peacoat
+Raincoat             -> Men > Coats > Raincoat
+Duffle coat          -> Men > Coats > Duffle
+Chore jacket         -> Men > Jackets > Field
+Denim jacket         -> Men > Jackets > Denim
+Overshirt            -> Men > Jackets > Field
+Bomber jacket        -> Men > Jackets > Bomber
+Fleece jacket        -> Men > Jackets > Fleece
+Harrington jacket    -> Men > Jackets > Harrington
+Puffer jacket        -> Men > Jackets > Puffer
+Quilted jacket       -> Men > Jackets > Quilted
+Gilet                -> Men > Gilets
 Lambswool jumper     -> Men > Knitwear
 Merino jumper        -> Men > Knitwear
 Crewneck sweatshirt  -> Men > Sweatshirts & Hoodies
 Hoodie               -> Men > Sweatshirts & Hoodies
-Flannel shirt        -> Men > Shirts
-Oxford shirt         -> Men > Shirts
+Flannel shirt        -> Men > Shirts > Checked
+Oxford shirt         -> Men > Shirts > Plain
+Polo shirt           -> Men > Polo Shirts
 T-shirt              -> Men > T-shirts
-Walking boots        -> Men > Shoes > Boots
-Chelsea boots        -> Men > Shoes > Boots
-Brogue shoes         -> Men > Shoes > Casual shoes
+Walking boots        -> Men > Shoes > Boots > Desert
+Chelsea boots        -> Men > Shoes > Boots > Chelsea
+Brogue shoes         -> Men > Shoes > Formal
+Loafers              -> Men > Shoes > Loafers
 Corduroy trousers    -> Men > Trousers
-Chino trousers       -> Men > Trousers
+Chino trousers       -> Men > Trousers > Chinos
+Slim fit jeans       -> Men > Jeans > Slim
+Skinny jeans         -> Men > Jeans > Skinny
+Straight fit jeans   -> Men > Jeans > Straight
+Ripped jeans         -> Men > Jeans > Ripped
 Jeans                -> Men > Jeans
+Track pants          -> Men > Trousers > Joggers
+Joggers              -> Men > Trousers > Joggers
+Sweatpants           -> Men > Trousers > Joggers
 
 # Women's
 Blazer               -> Women > Suits > Blazers
 Suit jacket          -> Women > Suits > Blazers
-Wax jacket           -> Women > Coats & Jackets
-Wool coat            -> Women > Coats & Jackets
-Denim jacket         -> Women > Jackets
-Overshirt            -> Women > Jackets
+Overcoat             -> Women > Coats > Overcoat
+Wax jacket           -> Women > Coats > Overcoat
+Wool coat            -> Women > Coats > Overcoat
+Trench coat          -> Women > Coats > Trench
+Parka                -> Women > Coats > Parka
+Raincoat             -> Women > Coats > Raincoat
+Denim jacket         -> Women > Jackets > Denim
+Overshirt            -> Women > Jackets > Field
+Puffer jacket        -> Women > Jackets > Puffer
+Gilet                -> Women > Gilets
 Lambswool jumper     -> Women > Knitwear
 Merino jumper        -> Women > Knitwear
 Crewneck sweatshirt  -> Women > Sweatshirts & Hoodies
 Hoodie               -> Women > Sweatshirts & Hoodies
-Shirt / blouse       -> Women > Tops
-T-shirt              -> Women > Tops
-Midi dress           -> Women > Dresses
-Maxi dress           -> Women > Dresses
-Mini dress           -> Women > Dresses
-Ankle boots          -> Women > Shoes > Boots
-Chelsea boots        -> Women > Shoes > Boots
-Loafers              -> Women > Shoes > Flat shoes
+Shirt / blouse       -> Women > Blouses & Shirts
+T-shirt              -> Women > Tops > T-shirt
+Midi dress           -> Women > Dresses > Midi
+Maxi dress           -> Women > Dresses > Maxi
+Mini dress           -> Women > Dresses > Mini
+Ankle boots          -> Women > Shoes > Boots > Ankle
+Chelsea boots        -> Women > Shoes > Boots > Ankle
+Loafers              -> Women > Shoes > Loafers
 Corduroy trousers    -> Women > Trousers & Leggings
+Straight jeans       -> Women > Jeans > Straight
+Skinny jeans         -> Women > Jeans > Skinny
+Slim fit jeans       -> Women > Jeans > Slim
+Boyfriend jeans      -> Women > Jeans > Boyfriend
+Cropped jeans        -> Women > Jeans > Cropped
+Flared jeans         -> Women > Jeans > Flared
+High waisted jeans   -> Women > Jeans > High waisted
+Ripped jeans         -> Women > Jeans > Ripped
 Jeans                -> Women > Jeans
+Track pants          -> Women > Trousers > Joggers
+Joggers              -> Women > Trousers > Joggers
+Sweatpants           -> Women > Trousers > Joggers
+Leggings             -> Women > Trousers > Leggings
+Mini skirt           -> Women > Skirts > Mini
+Midi skirt           -> Women > Skirts > Midi
+Maxi skirt           -> Women > Skirts > Maxi
 Skirt                -> Women > Skirts
 
 # Notes
 # - When in doubt, prefer the more specific sub-category.
+# - Men's jeans: only Slim fit, Skinny, Straight fit, Ripped exist on Vinted UK.
+# - Women's jeans: no "Slim fit" — use Straight jeans as fallback.
+# - Coats are 5 levels deep: Men/Women > Clothing > Outerwear > Coats > [type]
+# - Hoodies/sweatshirts go under Jumpers & sweaters, NOT Tops & t-shirts.
 # - If item type is ambiguous, flag for manual review.
-# - This list will grow — add new mappings here as new item types are processed.

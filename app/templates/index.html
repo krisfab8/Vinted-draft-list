@@ -312,6 +312,160 @@
   input[type="number"]::placeholder { color: var(--gray-3); }
 
   /* ══════════════════════════════════════
+     HINTS PANEL
+  ══════════════════════════════════════ */
+
+  .hints-toggle {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: none;
+    border: none;
+    padding: 0;
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--brand);
+    cursor: pointer;
+    margin-bottom: 14px;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .hints-toggle .chevron {
+    font-size: 10px;
+    transition: transform 200ms ease;
+  }
+
+  .hints-toggle.open .chevron { transform: rotate(180deg); }
+
+  .hints-panel {
+    display: none;
+    background: var(--gray-0);
+    border: 1.5px solid var(--gray-2);
+    border-radius: var(--r-md);
+    padding: 16px;
+    margin-bottom: 8px;
+  }
+
+  .hints-panel.open { display: block; }
+
+  .hints-panel input[type="text"],
+  .hints-panel select {
+    width: 100%;
+    padding: 12px 14px;
+    background: var(--white);
+    border: 1.5px solid var(--gray-2);
+    border-radius: var(--r-md);
+    font-size: 15px;
+    font-family: inherit;
+    color: var(--black);
+    outline: none;
+    box-shadow: var(--shadow-xs);
+    -webkit-appearance: none;
+    appearance: none;
+    transition: border-color 200ms ease;
+    box-sizing: border-box;
+  }
+
+  .hints-panel input[type="text"]:focus,
+  .hints-panel select:focus {
+    border-color: var(--brand);
+    box-shadow: 0 0 0 3px var(--brand-glow);
+  }
+
+  .hints-panel input[type="text"]::placeholder { color: var(--gray-3); }
+
+  .hints-note {
+    font-size: 12px;
+    color: var(--gray-5);
+    margin-bottom: 14px;
+    line-height: 1.5;
+  }
+
+  /* ══════════════════════════════════════
+     W/L BLOCKING CARD
+  ══════════════════════════════════════ */
+
+  .wl-card {
+    background: var(--white);
+    border: 2px solid #F59E0B;
+    border-radius: var(--r-lg);
+    padding: 20px;
+    margin-bottom: 16px;
+    box-shadow: var(--shadow-sm);
+  }
+
+  .wl-card-title {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--black);
+    margin-bottom: 4px;
+  }
+
+  .wl-card-sub {
+    font-size: 13px;
+    color: var(--gray-5);
+    margin-bottom: 16px;
+  }
+
+  .wl-inputs {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-bottom: 14px;
+  }
+
+  .wl-inputs input {
+    width: 100%;
+    padding: 14px;
+    background: var(--gray-0);
+    border: 1.5px solid var(--gray-2);
+    border-radius: var(--r-md);
+    font-size: 20px;
+    font-weight: 700;
+    font-family: inherit;
+    color: var(--black);
+    text-align: center;
+    outline: none;
+    box-shadow: var(--shadow-xs);
+    -webkit-appearance: none;
+    appearance: none;
+    box-sizing: border-box;
+    transition: border-color 200ms ease;
+  }
+
+  .wl-inputs input:focus { border-color: var(--brand); box-shadow: 0 0 0 3px var(--brand-glow); }
+  .wl-inputs input::placeholder { color: var(--gray-3); font-size: 14px; font-weight: 400; }
+
+  .wl-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--gray-5);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    text-align: center;
+    margin-top: 4px;
+  }
+
+  .btn-wl-save {
+    width: 100%;
+    padding: 14px;
+    background: #F59E0B;
+    color: var(--white);
+    border: none;
+    border-radius: var(--r-md);
+    font-size: 15px;
+    font-weight: 700;
+    font-family: inherit;
+    cursor: pointer;
+    transition: background 150ms ease;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .btn-wl-save:hover { background: #D97706; }
+  .btn-wl-save:disabled { opacity: 0.6; cursor: not-allowed; }
+
+  /* ══════════════════════════════════════
      SUBMIT BUTTON
   ══════════════════════════════════════ */
 
@@ -475,13 +629,49 @@
     line-height: 1;
   }
 
+  .btn-reprice {
+    background: none;
+    border: 1.5px solid var(--gray-2);
+    border-radius: 20px;
+    padding: 4px 12px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--gray-6);
+    font-family: inherit;
+    cursor: pointer;
+    transition: border-color 150ms ease, color 150ms ease;
+    -webkit-tap-highlight-color: transparent;
+    align-self: center;
+  }
+
+  .btn-reprice:hover { border-color: var(--brand); color: var(--brand); }
+  .btn-reprice:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  .result-title-wrap {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    margin-bottom: 16px;
+  }
   .result-title {
+    flex: 1;
     font-size: 16px;
     font-weight: 600;
     line-height: 1.4;
     color: var(--black);
-    margin-bottom: 16px;
     letter-spacing: -0.2px;
+    border: none;
+    outline: none;
+    background: transparent;
+    font-family: inherit;
+    resize: none;
+    padding: 0;
+    width: 100%;
+  }
+  .result-title:focus {
+    background: var(--gray-1);
+    border-radius: var(--r-sm);
+    padding: 6px 8px;
   }
 
   .chips {
@@ -503,6 +693,23 @@
     background: var(--gray-1);
     border-radius: var(--r-md);
     padding: 12px 14px;
+    border: 1px solid transparent;
+    transition: background 0.3s, border-color 0.3s;
+  }
+  .meta-cell.conf-green  { background: linear-gradient(135deg,#f0fff5,#e6f9ed); border-color: #9de0b5; }
+  .meta-cell.conf-orange { background: linear-gradient(135deg,#fffbf0,#fef4d8); border-color: #f8d472; }
+  .meta-cell.conf-red    { background: linear-gradient(135deg,#fff5f5,#fee8e8); border-color: #f5a0a0; }
+
+  .meta-edit-input {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--black);
+    background: transparent;
+    border: none;
+    outline: none;
+    padding: 0;
+    width: 100%;
+    font-family: inherit;
   }
 
   .meta-cell-label {
@@ -514,6 +721,19 @@
     margin-bottom: 4px;
   }
 
+  .meta-select {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--black);
+    background: transparent;
+    border: none;
+    outline: none;
+    padding: 0;
+    width: 100%;
+    cursor: pointer;
+    appearance: auto;
+  }
+
   .meta-cell-value {
     font-size: 14px;
     font-weight: 600;
@@ -521,8 +741,144 @@
     line-height: 1.3;
   }
 
+  /* ── Category picker (Vinted-style list) ── */
+
+  /* Collapsed trigger — same height/style as other meta cell values */
+  .cat-trigger {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    cursor: pointer;
+    gap: 6px;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .cat-trigger-value {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--black);
+    flex: 1;
+    line-height: 1.3;
+  }
+  .cat-trigger-value.empty {
+    color: var(--gray-4);
+    font-weight: 400;
+  }
+  .cat-trigger-chevron {
+    font-size: 11px;
+    color: var(--gray-5);
+    flex-shrink: 0;
+    transition: transform 200ms ease;
+    line-height: 1;
+  }
+  .cat-trigger.open .cat-trigger-chevron { transform: rotate(180deg); }
+
+  /* The expandable picker panel */
+  .cat-picker-wrap {
+    display: none;
+    background: var(--white);
+    border-radius: var(--r-md);
+    overflow: hidden;
+    border: 1px solid var(--gray-2);
+    margin-top: 10px;
+  }
+  .cat-picker-wrap.open { display: block; }
+
+  /* Breadcrumb bar — shows current path, tap a segment to go back */
+  .cat-breadcrumb {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    padding: 9px 14px 8px;
+    border-bottom: 1px solid var(--gray-2);
+    background: var(--gray-1);
+    flex-wrap: wrap;
+    row-gap: 2px;
+    min-height: 36px;
+  }
+  .cat-bc-back {
+    background: none;
+    border: none;
+    padding: 0 6px 0 0;
+    font-size: 16px;
+    color: var(--brand);
+    cursor: pointer;
+    line-height: 1;
+    flex-shrink: 0;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .cat-bc-seg {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--gray-5);
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    white-space: nowrap;
+  }
+  .cat-bc-seg:last-child { color: var(--brand-dark); }
+  .cat-bc-seg:hover { color: var(--brand); }
+  .cat-bc-sep {
+    font-size: 10px;
+    color: var(--gray-3);
+    padding: 0 3px;
+  }
+  .cat-bc-placeholder {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--gray-4);
+    font-style: italic;
+  }
+
+  /* The list panel */
+  .cat-list {
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* Individual row — like Vinted's category list rows */
+  .cat-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 13px 16px;
+    background: var(--white);
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 400;
+    color: var(--black);
+    border-bottom: 1px solid var(--gray-1);
+    transition: background 80ms;
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
+    gap: 8px;
+  }
+  .cat-row:last-child { border-bottom: none; }
+  .cat-row:active, .cat-row:hover { background: var(--brand-pale); }
+  .cat-row.selected { font-weight: 600; }
+
+  .cat-row-label { flex: 1; line-height: 1.3; }
+
+  /* Right side: chevron for branches, tick for selected leaf */
+  .cat-row-right {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    font-size: 18px;
+    line-height: 1;
+    color: var(--gray-3);
+  }
+  .cat-row.selected .cat-row-right { color: var(--brand); }
+
   /* Description */
+  .desc-wrap { margin-bottom: 20px; }
+
+  .desc-block-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
   .desc-block {
+    flex: 1;
     background: var(--gray-1);
     border-radius: var(--r-md);
     padding: 16px;
@@ -530,9 +886,83 @@
     line-height: 1.7;
     color: var(--gray-9);
     white-space: pre-wrap;
-    margin-bottom: 20px;
     border-left: 3px solid var(--brand);
   }
+
+  .btn-edit-desc {
+    flex-shrink: 0;
+    width: 32px; height: 32px;
+    background: var(--gray-1);
+    border: 1.5px solid var(--gray-2);
+    border-radius: var(--r-sm);
+    font-size: 14px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: border-color 150ms ease, background 150ms ease;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .btn-edit-desc:hover { border-color: var(--brand); background: var(--brand-pale); }
+
+  .desc-textarea {
+    display: none;
+    width: 100%;
+    min-height: 160px;
+    padding: 14px;
+    background: var(--white);
+    border: 1.5px solid var(--brand);
+    border-radius: var(--r-md);
+    font-size: 14px;
+    line-height: 1.7;
+    font-family: inherit;
+    color: var(--gray-9);
+    resize: vertical;
+    outline: none;
+    box-shadow: 0 0 0 3px var(--brand-glow);
+    box-sizing: border-box;
+    margin-bottom: 8px;
+  }
+
+  .desc-save-row {
+    display: none;
+    gap: 8px;
+  }
+
+  .btn-desc-save {
+    flex: 1;
+    padding: 11px;
+    background: var(--black);
+    color: white;
+    border: none;
+    border-radius: var(--r-md);
+    font-size: 14px;
+    font-weight: 700;
+    font-family: inherit;
+    cursor: pointer;
+    transition: background 150ms ease;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .btn-desc-save:hover { background: var(--gray-9); }
+  .btn-desc-save:disabled { background: var(--gray-3); cursor: not-allowed; }
+
+  .btn-desc-cancel {
+    padding: 11px 16px;
+    background: none;
+    color: var(--gray-6);
+    border: 1.5px solid var(--gray-2);
+    border-radius: var(--r-md);
+    font-size: 14px;
+    font-weight: 600;
+    font-family: inherit;
+    cursor: pointer;
+    transition: border-color 150ms ease;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .btn-desc-cancel:hover { border-color: var(--gray-4); }
 
   /* Cost pill */
   .cost-pill {
@@ -791,6 +1221,38 @@
   </div>
 </div>
 
+<!-- ── Hints ── -->
+<div class="form-section">
+  <button class="hints-toggle" id="hintsToggle" type="button" onclick="toggleHints()">
+    <span>Know the details? Add them</span>
+    <span class="chevron">▼</span>
+  </button>
+  <div class="hints-panel" id="hintsPanel">
+    <p class="hints-note">These override the AI — useful if labels are hard to read.</p>
+    <div class="field">
+      <label for="hintBrand">Brand <span>— e.g. Suit Supply</span></label>
+      <input type="text" id="hintBrand" placeholder="e.g. Suit Supply, Barbour" autocomplete="off">
+    </div>
+    <div class="field">
+      <label for="hintSize">Size <span>— e.g. W32 L32, 44R, M</span></label>
+      <input type="text" id="hintSize" placeholder="e.g. W32 L32 or 44R" autocomplete="off">
+    </div>
+    <div class="field">
+      <label for="hintGender">Gender</label>
+      <select id="hintGender">
+        <option value="">Auto-detect</option>
+        <option value="men's">Men's</option>
+        <option value="women's">Women's</option>
+        <option value="unisex">Unisex</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="hintDamages">Damages <span>— optional</span></label>
+      <input type="text" id="hintDamages" placeholder="e.g. small stain on left knee, 1cm" autocomplete="off">
+    </div>
+  </div>
+</div>
+
 <!-- ── Submit ── -->
 <button class="btn-submit" id="submitBtn" onclick="createListing()">
   Create Listing
@@ -817,7 +1279,7 @@
 
 {% block scripts %}
 <script>
-  const SLOT_LABELS = ["Front", "Size tag", "Material", "Back"];
+  const SLOT_LABELS = ["Front", "Brand label", "Model / Size tag", "Material", "Back (optional)"];
   let photos = [];
   let selectedForSwap = null;
 
@@ -832,7 +1294,7 @@
 
     photos.forEach((file, i) => {
       const url = URL.createObjectURL(file);
-      const label = SLOT_LABELS[i] || `Extra ${i - 3}`;
+      const label = SLOT_LABELS[i] || `Extra ${i - 4}`;
       const isSelected = selectedForSwap === i;
       const isTarget = selectedForSwap !== null && !isSelected;
 
@@ -869,7 +1331,7 @@
       btn.className = "add-more-btn";
       const nextLabel = photos.length === 0
         ? "Add photos"
-        : (SLOT_LABELS[photos.length] || `Extra ${photos.length - 3}`);
+        : (SLOT_LABELS[photos.length] || `Extra ${photos.length - 4}`);
       btn.innerHTML = `
         <div class="add-more-icon">${photos.length === 0 ? "📷" : "+"}</div>
         <div class="add-more-label">${nextLabel}</div>
@@ -963,6 +1425,16 @@
       const bp = document.getElementById("buyPrice").value.trim();
       if (bp) form.append("buy_price", bp);
 
+      // Append optional hints
+      const hintBrand   = document.getElementById("hintBrand").value.trim();
+      const hintSize    = document.getElementById("hintSize").value.trim();
+      const hintGender  = document.getElementById("hintGender").value;
+      const hintDamages = document.getElementById("hintDamages").value.trim();
+      if (hintBrand)   form.append("hint_brand",   hintBrand);
+      if (hintSize)    form.append("hint_size",    hintSize);
+      if (hintGender)  form.append("hint_gender",  hintGender);
+      if (hintDamages) form.append("hint_damages", hintDamages);
+
       const resp = await fetch("/upload", { method: "POST", body: form });
       const data = await resp.json();
       clearInterval(stepTimer);
@@ -977,6 +1449,13 @@
     }
   }
 
+  function toggleHints() {
+    const btn   = document.getElementById("hintsToggle");
+    const panel = document.getElementById("hintsPanel");
+    const isOpen = panel.classList.toggle("open");
+    btn.classList.toggle("open", isOpen);
+  }
+
   /* ── Result helpers ── */
   function fmtCost(gbp) {
     if (gbp == null) return null;
@@ -986,7 +1465,385 @@
     return `£${gbp.toFixed(2)}`;
   }
 
+  const MADE_IN_OPTIONS = [
+    "",           // Unknown — shown first when null
+    "Italy",
+    "England",
+    "Portugal",
+    "France",
+    "Germany",
+    "Spain",
+    "Scotland",
+    "USA",
+    "Turkey",
+    "Morocco",
+    "India",
+    "China",
+    "Vietnam",
+    "Bangladesh",
+    "Romania",
+  ];
+
+  const CONDITION_OPTIONS = ["Very good", "New with tags", "New without tags", "Good", "Satisfactory"];
+
+  const COLOUR_OPTIONS = ["Black","White","Grey","Brown","Beige","Cream","Navy","Blue","Light blue",
+    "Green","Dark green","Khaki","Red","Burgundy","Pink","Rose","Purple","Lilac","Orange","Yellow",
+    "Gold","Silver","Turquoise","Multi","Mustard","Mint","Coral","Apricot"];
+
+  // Map raw AI colour strings to the nearest COLOUR_OPTIONS entry (case-insensitive exact first, then keyword match)
+  function _matchColour(raw) {
+    if (!raw) return "";
+    const lower = raw.toLowerCase().trim();
+    // Exact case-insensitive match
+    const exact = COLOUR_OPTIONS.find(c => c.toLowerCase() === lower);
+    if (exact) return exact;
+    // Keyword map for common AI variants
+    const MAP = {
+      "dark blue":"Navy","dark navy":"Navy","midnight":"Navy","indigo":"Navy",
+      "sky blue":"Light blue","pale blue":"Light blue","powder blue":"Light blue","baby blue":"Light blue",
+      "dark grey":"Grey","charcoal":"Grey","slate":"Grey","ash":"Grey","stone":"Grey",
+      "dark brown":"Brown","tan":"Brown","camel":"Beige","sand":"Beige","off white":"Cream","ivory":"Cream",
+      "dark green":"Dark green","olive":"Khaki","army":"Khaki","forest green":"Dark green",
+      "wine":"Burgundy","maroon":"Burgundy","dark red":"Burgundy","claret":"Burgundy",
+      "lilac":"Lilac","lavender":"Lilac","violet":"Purple","mauve":"Purple",
+      "salmon":"Coral","peach":"Apricot","hot pink":"Pink","blush":"Pink","nude":"Beige",
+      "multicoloured":"Multi","multicolor":"Multi","multicolored":"Multi",
+    };
+    if (MAP[lower]) return MAP[lower];
+    // Partial: if raw contains a known colour word
+    for (const c of COLOUR_OPTIONS) {
+      if (lower.includes(c.toLowerCase())) return c;
+    }
+    return "";
+  }
+
+  // ── Confidence helpers ───────────────────────────────────────────────────
+  function _fieldConf(d, fieldName) {
+    const val = d[fieldName];
+    const low = (d.low_confidence_fields || []).includes(fieldName);
+    if (!val) return "red";
+    if (low) return "orange";
+    return "green";
+  }
+  function _confClass(conf) {
+    return { green: "conf-green", orange: "conf-orange", red: "conf-red" }[conf] || "conf-red";
+  }
+
+  // ── Generic meta-field save (PATCH only, no regen) ────────────────────
+  async function saveMetaField(el, field, folder) {
+    const val = (typeof el === "string" ? el : el.value).trim() || null;
+    await fetch(`/listing/${folder}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ [field]: val }),
+    });
+  }
+
+  // ── W/L draft state — persists across re-renders of the same listing ───
+  let _wlDraft = { w: "", l: "" };
+  let _wlDraftFolder = null;
+
+  // ── Edit-from-drafts: auto-load listing if ?edit=<folder> in URL ────────
+  const _editFolder = new URLSearchParams(location.search).get("edit");
+  const _fromDrafts = !!_editFolder;
+  if (_editFolder) {
+    fetch(`/listing/${encodeURIComponent(_editFolder)}`)
+      .then(r => r.json())
+      .then(data => { if (data && data.folder) showResult(data); })
+      .catch(() => {});
+  }
+
+  // ── Cascading category picker ───────────────────────────────────────────
+  let _CAT_TREE = null;
+
+  async function _loadCatTree() {
+    if (_CAT_TREE) return _CAT_TREE;
+    try {
+      const r = await fetch("/api/categories");
+      const flat = await r.json();
+      const tree = {};
+      for (const cat of flat) {
+        const parts = cat.split(" > ");
+        let node = tree;
+        for (const part of parts) {
+          if (!node[part]) node[part] = {};
+          node = node[part];
+        }
+      }
+      _CAT_TREE = tree;
+    } catch { _CAT_TREE = {}; }
+    return _CAT_TREE;
+  }
+
+  async function renderCategoryPicker(d) {
+    const tree = await _loadCatTree();
+    const folder = d.folder;
+    const cell = document.getElementById(`cat-cell-${folder}`);
+    if (!cell) return;
+
+    // Traffic-light on the containing meta-cell
+    const catConf = !d.category ? "red" : d.category_locked ? "green" : "orange";
+    const parentCell = cell.closest(".meta-cell");
+    if (parentCell) {
+      parentCell.className = `meta-cell ${_confClass(catConf)}`;
+    }
+
+    // Format the category path with › separators for the trigger label
+    const currentParts = (d.category || "").split(" > ").filter(Boolean);
+    const displayPath = currentParts.join(" › ");
+
+    cell.innerHTML = `
+      <div class="cat-trigger" id="cat-trigger-${esc(folder)}" onclick="_catToggle('${esc(folder)}')">
+        <span class="cat-trigger-value${displayPath ? "" : " empty"}">${displayPath || "Select a category"}</span>
+        <span class="cat-trigger-chevron">▾</span>
+      </div>
+      <div class="cat-picker-wrap" id="cat-selects-${esc(folder)}"></div>`;
+
+    // Populate the picker (hidden until toggled)
+    _catShowLevel(folder, tree, currentParts, 0);
+  }
+
+  function _catToggle(folder) {
+    const trigger = document.getElementById(`cat-trigger-${folder}`);
+    const picker  = document.getElementById(`cat-selects-${folder}`);
+    if (!trigger || !picker) return;
+    const opening = !picker.classList.contains("open");
+    trigger.classList.toggle("open", opening);
+    picker.classList.toggle("open", opening);
+  }
+
+  function _catUpdateTrigger(folder, pathStr) {
+    const trigger = document.getElementById(`cat-trigger-${folder}`);
+    if (!trigger) return;
+    const val = trigger.querySelector(".cat-trigger-value");
+    if (val) {
+      val.textContent = pathStr.replace(/ > /g, " › ");
+      val.classList.remove("empty");
+    }
+    // Collapse after selection
+    trigger.classList.remove("open");
+    document.getElementById(`cat-selects-${folder}`)?.classList.remove("open");
+  }
+
+  // Walk to the deepest confirmed level and render from there.
+  // On initial load we show the deepest pre-selected level.
+  // pathSoFar is the array of selections already confirmed above the current view.
+  function _catShowLevel(folder, treeNode, currentParts, level, pathSoFar = []) {
+    const container = document.getElementById(`cat-selects-${folder}`);
+    if (!container) return;
+
+    const pre = currentParts[level];
+    // If there is a pre-selection and it has children, keep drilling silently
+    if (pre && treeNode[pre] && Object.keys(treeNode[pre]).length > 0) {
+      _catShowLevel(folder, treeNode[pre], currentParts, level + 1, [...pathSoFar, pre]);
+      return;
+    }
+
+    // Render this level
+    _catRenderList(folder, treeNode, pathSoFar, currentParts[level] || null);
+  }
+
+  function _catRenderList(folder, treeNode, pathSoFar, selectedKey) {
+    const container = document.getElementById(`cat-selects-${folder}`);
+    if (!container) return;
+    container.innerHTML = "";
+
+    // ── Breadcrumb bar ──
+    const bc = document.createElement("div");
+    bc.className = "cat-breadcrumb";
+
+    if (pathSoFar.length === 0) {
+      const ph = document.createElement("span");
+      ph.className = "cat-bc-placeholder";
+      ph.textContent = "Select a category";
+      bc.appendChild(ph);
+    } else {
+      // Back chevron — goes up one level
+      const backBtn = document.createElement("button");
+      backBtn.className = "cat-bc-back";
+      backBtn.innerHTML = "‹";
+      backBtn.title = "Back";
+      backBtn.onclick = () => _catNavigateBack(folder, pathSoFar);
+      bc.appendChild(backBtn);
+      // Path segments — each is tappable to jump back to that level
+      pathSoFar.forEach((seg, i) => {
+        if (i > 0) {
+          const sep = document.createElement("span");
+          sep.className = "cat-bc-sep";
+          sep.textContent = "›";
+          bc.appendChild(sep);
+        }
+        const span = document.createElement("span");
+        span.className = "cat-bc-seg";
+        span.textContent = seg;
+        span.onclick = () => _catNavigateBack(folder, pathSoFar.slice(0, i + 1));
+        bc.appendChild(span);
+      });
+    }
+    container.appendChild(bc);
+
+    // ── Row list ──
+    const list = document.createElement("div");
+    list.className = "cat-list";
+
+    const keys = Object.keys(treeNode).sort();
+    for (const key of keys) {
+      const children = treeNode[key];
+      const hasChildren = children && Object.keys(children).length > 0;
+      const isSelected = key === selectedKey;
+
+      const row = document.createElement("div");
+      row.className = "cat-row" + (isSelected ? " selected" : "");
+      row.dataset.catvalue = key;
+      row.innerHTML = `
+        <span class="cat-row-label">${esc(key)}</span>
+        <span class="cat-row-right">${hasChildren ? "›" : (isSelected ? "✓" : "")}</span>`;
+
+      row.onclick = () => {
+        if (hasChildren) {
+          _catRenderList(folder, children, [...pathSoFar, key], null);
+        } else {
+          // Leaf — save
+          const fullPath = [...pathSoFar, key].join(" > ");
+          // Mark selected visually
+          list.querySelectorAll(".cat-row").forEach(r => r.classList.remove("selected"));
+          row.classList.add("selected");
+          row.querySelector(".cat-row-right").textContent = "✓";
+          _catUpdateTrigger(folder, fullPath);
+          _saveCategory(fullPath, folder);
+        }
+      };
+
+      list.appendChild(row);
+    }
+
+    container.appendChild(list);
+  }
+
+  // Navigate the stored category tree back to a given path prefix
+  async function _catNavigateBack(folder, pathSoFar) {
+    const tree = await _loadCatTree();
+    let node = tree;
+    for (const seg of pathSoFar) {
+      if (node[seg]) node = node[seg]; else break;
+    }
+    _catRenderList(folder, node, pathSoFar, null);
+  }
+
+  async function _saveCategory(categoryStr, folder) {
+    const resp = await fetch(`/listing/${folder}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ category: categoryStr, category_locked: true }),
+    });
+    const data = await resp.json();
+    if (resp.ok) showResult(data);
+  }
+
+  function detectConditionLevel(condSummary) {
+    const s = (condSummary || "").toLowerCase();
+    if (s.startsWith("new with tag")) return "New with tags";
+    if (s.startsWith("new without")) return "New without tags";
+    if (s.startsWith("good")) return "Good";
+    if (s.startsWith("satisfact")) return "Satisfactory";
+    return "Very good";
+  }
+
+  function conditionSelect(condSummary, folder) {
+    const current = detectConditionLevel(condSummary);
+    const opts = CONDITION_OPTIONS.map(o =>
+      `<option value="${esc(o)}"${o === current ? " selected" : ""}>${esc(o)}</option>`
+    ).join("");
+    return `<select class="meta-select" data-oldsummary="${esc(condSummary || '')}" onchange="saveCondition(this,'${esc(folder)}')">${opts}</select>`;
+  }
+
+  async function saveCondition(sel, folder) {
+    const level = sel.value;
+    const oldSummary = sel.dataset.oldsummary || "";
+    // Build new condition_summary
+    let newSummary;
+    if (level === "New with tags") {
+      newSummary = "New with tags — original labels attached.";
+    } else if (level === "New without tags") {
+      newSummary = "New without tags — unworn, no original tags.";
+    } else {
+      const prefix = level + " used condition";
+      const dashIdx = oldSummary.indexOf(" — ");
+      const note = dashIdx >= 0 ? oldSummary.slice(dashIdx) : " — no visible flaws.";
+      newSummary = prefix + note;
+    }
+    sel.dataset.oldsummary = newSummary;
+
+    // For new-item conditions, trigger a full regen so the description is rewritten correctly
+    if (level === "New with tags" || level === "New without tags") {
+      await fetch(`/listing/${folder}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ condition_summary: newSummary }),
+      });
+      const resp = await fetch(`/regen/${folder}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ updates: { condition_summary: newSummary } }),
+      });
+      const data = await resp.json();
+      if (resp.ok) showResult(data);
+      return;
+    }
+
+    // For used-condition levels: fast inline text replace + PATCH (no regen needed)
+    const descView = document.getElementById("descView");
+    const updates = { condition_summary: newSummary };
+    if (descView) {
+      const conditionPrefix = level + " used condition";
+      const newDesc = descView.textContent.replace(
+        /New with tags|New without tags|Excellent used condition|Very good used condition|Good used condition|Satisfactory used condition/,
+        conditionPrefix
+      );
+      descView.textContent = newDesc;
+      updates.description = newDesc;
+    }
+    await fetch(`/listing/${folder}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(updates),
+    });
+  }
+
+  function madeinSelect(value, folder) {
+    const opts = MADE_IN_OPTIONS.map(o => {
+      const sel = (o === (value || "")) ? " selected" : "";
+      const label = o || "Unknown";
+      return `<option value="${esc(o)}"${sel}>${esc(label)}</option>`;
+    }).join("");
+    return `<select class="meta-select" onchange="saveMadeIn(this,'${esc(folder)}')">${opts}</select>`;
+  }
+
+  async function saveMadeIn(sel, folder) {
+    const val = sel.value || null;
+    await fetch(`/listing/${folder}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ made_in: val }),
+    });
+  }
+
+  async function saveGender(sel, folder) {
+    const val = sel.value || null;
+    await fetch(`/listing/${folder}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ gender: val }),
+    });
+  }
+
   function showResult(d) {
+    // Reset W/L draft state when a different listing is shown
+    if (d.folder !== _wlDraftFolder) {
+      _wlDraft = { w: "", l: "" };
+      _wlDraftFolder = d.folder;
+    }
+
     const card = document.getElementById("resultCard");
     card.style.display = "block";
 
@@ -1001,16 +1858,34 @@
     if (d.item_type) chips.push(`<span class="chip chip-brand">${esc(d.item_type)}</span>`);
 
     const draftHtml = d.draft_url
-      ? `<a class="btn-vinted" href="${esc(d.draft_url)}" target="_blank">
-           Open on Vinted
-           <span class="btn-vinted-arrow">→</span>
-         </a>`
-      : `<div class="no-draft-note">No draft URL returned — open Vinted and check Drafts</div>`;
+      ? `<div>
+           <a class="btn-vinted" href="${esc(d.draft_url)}" target="_blank">
+             Open on Vinted
+             <span class="btn-vinted-arrow">→</span>
+           </a>
+           <div id="draftBtnWrap" style="margin-top:8px">
+             <button class="btn-vinted" id="createDraftBtn" onclick="editDraft('${esc(d.folder)}')"
+               style="background:var(--gray-3);color:var(--text-2);font-size:13px;padding:10px 16px">
+               Edit draft
+               <span class="btn-vinted-arrow">✏</span>
+             </button>
+           </div>
+         </div>`
+      : d.folder
+        ? `<div id="draftBtnWrap">
+             ${!d.category_locked ? `<div style="font-size:12px;color:#D97706;font-weight:600;margin-bottom:8px;text-align:center">⚠ Select a category before creating draft</div>` : ""}
+             <button class="btn-vinted" id="createDraftBtn" onclick="createDraft('${esc(d.folder)}')" ${!d.category_locked ? "disabled style=\"opacity:0.5;cursor:not-allowed\"" : ""}>
+               Create Vinted Draft
+               <span class="btn-vinted-arrow">↑</span>
+             </button>
+           </div>`
+        : `<div class="no-draft-note">No draft URL — open Vinted and check Drafts manually</div>`;
 
     const errHtml = d.draft_error
       ? `<div class="draft-error">Draft error: ${esc(d.draft_error)}</div>` : "";
 
     card.innerHTML = `
+      ${_fromDrafts ? `<a href="/drafts" style="display:flex;align-items:center;gap:6px;font-size:13px;font-weight:600;color:var(--brand);text-decoration:none;padding:12px 20px 0;letter-spacing:-0.1px">← Back to Drafts</a>` : ""}
       <div class="result-success-band">
         <div class="result-check">✓</div>
         <div>
@@ -1021,83 +1896,323 @@
       <div class="result-body">
         <div class="result-price-block">
           <div class="result-price-label">List price</div>
-          <div class="result-price">£${d.price_gbp || "?"}</div>
+          <div style="display:flex;align-items:baseline;gap:12px">
+            <div class="result-price">£${d.price_gbp || "?"}</div>
+            ${d.folder ? `<button class="btn-reprice" onclick="reprice('${esc(d.folder)}')">Reprice ↻</button>` : ""}
+          </div>
         </div>
-        <div class="result-title">${esc(d.title || "")}</div>
+        <div class="result-title-wrap">
+          <textarea class="result-title" id="resultTitle" rows="2"
+            onblur="saveMetaField(this,'title','${esc(d.folder)}')"
+            onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();this.blur()}"
+          >${esc(d.title || "")}</textarea>
+        </div>
         ${chips.length ? `<div class="chips">${chips.join("")}</div>` : ""}
         <div class="meta-grid">
-          <div class="meta-cell">
+          <div class="meta-cell ${_confClass(_fieldConf(d,'brand'))}">
             <div class="meta-cell-label">Brand</div>
-            <div class="meta-cell-value">${esc(d.brand || "—")}</div>
+            <input class="meta-edit-input" value="${esc(d.brand || '')}"
+              placeholder="e.g. Nike"
+              onblur="saveMetaField(this,'brand','${esc(d.folder)}')"
+              onkeydown="if(event.key==='Enter')this.blur()">
           </div>
-          <div class="meta-cell">
+          <div class="meta-cell ${_confClass(_fieldConf(d,'colour'))}">
+            <div class="meta-cell-label">Colour</div>
+            ${(() => { const matched = _matchColour(d.colour); return `<select class="meta-select" onchange="saveMetaField(this,'colour','${esc(d.folder)}')">
+              <option value="">— pick —</option>
+              ${COLOUR_OPTIONS.map(c => `<option value="${esc(c)}"${c===matched?" selected":""}>${esc(c)}</option>`).join("")}
+            </select>`; })()}
+          </div>
+          <div class="meta-cell ${_confClass(_fieldConf(d,'normalized_size'))}">
             <div class="meta-cell-label">Size</div>
-            <div class="meta-cell-value">${esc(d.normalized_size || d.tagged_size || "—")}</div>
+            <input class="meta-edit-input" value="${esc(d.normalized_size || d.tagged_size || '')}"
+              placeholder="e.g. W32 L30 or M"
+              onblur="saveMetaField(this,'normalized_size','${esc(d.folder)}')"
+              onkeydown="if(event.key==='Enter')this.blur()">
           </div>
-          <div class="meta-cell">
+          <div class="meta-cell ${_confClass(_fieldConf(d,'condition_summary'))}">
             <div class="meta-cell-label">Condition</div>
-            <div class="meta-cell-value" style="font-size:12px">${esc((d.condition_summary || "").split("—")[0].trim())}</div>
+            ${conditionSelect(d.condition_summary, d.folder)}
           </div>
-          <div class="meta-cell">
+          <div class="meta-cell" style="grid-column:1/-1">
             <div class="meta-cell-label">Category</div>
-            <div class="meta-cell-value" style="font-size:11px">${esc(d.category || "—")}</div>
+            <div id="cat-cell-${esc(d.folder)}">${esc(d.category || "—")}</div>
           </div>
         </div>
-        <div class="desc-block">${esc(d.description || "")}</div>
+        <div class="desc-wrap" id="descWrap" data-folder="${esc(d.folder || '')}">
+          <div class="desc-block-row">
+            <div class="desc-block" id="descView">${esc(d.description || "")}</div>
+            <button class="btn-edit-desc" id="descEditBtn" onclick="editDesc()" title="Edit description">✏</button>
+          </div>
+          <textarea class="desc-textarea" id="descEdit">${esc(d.description || "")}</textarea>
+          <div class="desc-save-row" id="descSaveRow">
+            <button class="btn-desc-save" onclick="saveDesc()">Save description</button>
+            <button class="btn-desc-cancel" onclick="cancelDesc()">Cancel</button>
+          </div>
+        </div>
         ${costHtml}
         ${errHtml}
         ${draftHtml}
       </div>`;
 
     card.scrollIntoView({ behavior: "smooth", block: "start" });
+    // Render cascading category picker
+    renderCategoryPicker(d);
     showReviewCard(d);
+    showWLCard(d);
   }
 
-  /* ── Review card ── */
-  const REVIEW_LABELS = {
-    brand:          "Brand",
-    model_name:     "Model / Style name",
-    materials:      "Materials (comma-separated)",
-    tagged_size:    "Size on tag",
-    trouser_waist:  "Waist measurement",
-    trouser_length: "Leg length",
-    colour:         "Colour",
-    gender:         "Gender",
-  };
+  /* ── W/L blocking card — shown if item is any trouser type and W/L missing ── */
+  function _isActivewearItem(d) {
+    const typeStr = (d.item_type || "").toLowerCase();
+    const catStr  = (d.category  || "").toLowerCase();
+    return /jogger|sweatpant|tracksuit|legging|activewear|gym pant|trackpant|track suit|track pant/.test(typeStr)
+        || /jogger|legging|activewear|tracksuit/.test(catStr);
+  }
+
+  function _isTrouserItem(d) {
+    if (_isActivewearItem(d)) return false; // activewear uses S/M/L, not W/L
+    const typeStr = (d.item_type || "").toLowerCase();
+    const catStr  = (d.category  || "").toLowerCase();
+    return /trouser|jeans?|shorts?|chino|cargo/.test(typeStr)
+        || /trouser|jeans?|shorts?|chino|cargo/.test(catStr);
+  }
+
+  function showWLCard(d) {
+    const container = document.getElementById("reviewCard");
+    const isTrouser    = _isTrouserItem(d);
+    const isActivewear = _isActivewearItem(d);
+    // W/L is present only if BOTH W and L appear (e.g. "W32 L32") — bare "M" or "S/M" doesn't count
+    const hasWL = /W\d+\s*L\d+/i.test(d.normalized_size || "") || /W\d+\s*L\d+/i.test(d.title || "");
+    if ((!isTrouser && !isActivewear) || !d.folder) return;
+
+    if (isActivewear) {
+      // Activewear: W/L is optional / goes to description only
+      if (d.trouser_waist && d.trouser_length) return; // already recorded
+      const wl = document.createElement("div");
+      wl.id = "wlCard";
+      wl.innerHTML = `
+        <div class="wl-card" style="border-color:#9de0b5">
+          <div class="wl-card-title" style="color:#1a7a4a">Add measurements? <span style="font-weight:400;font-size:12px">(optional)</span></div>
+          <div class="wl-card-sub">For activewear, S/M/L stays in title. Measurements go in the description for buyers who want them.</div>
+          <div class="wl-inputs">
+            <div>
+              <input type="number" id="wlWaist" placeholder="e.g. 32" inputmode="numeric" min="24" max="50" value="${_wlDraft.w}" oninput="_wlDraft.w=this.value">
+              <div class="wl-label">Waist (W)</div>
+            </div>
+            <div>
+              <input type="number" id="wlLength" placeholder="e.g. 32" inputmode="numeric" min="26" max="36" value="${_wlDraft.l}" oninput="_wlDraft.l=this.value">
+              <div class="wl-label">Length (L)</div>
+            </div>
+          </div>
+          <div style="display:flex;gap:8px">
+            <button class="btn-wl-save" style="background:#27ae60;flex:1" onclick="saveWLActivewear('${esc(d.folder)}')">Add to description</button>
+            <button class="btn-wl-save" style="background:var(--gray-4);flex:0 0 auto;padding:14px 16px" onclick="document.getElementById('wlCard').remove()">Skip</button>
+          </div>
+          <div id="wlStatus" style="text-align:center;font-size:13px;margin-top:10px;display:none"></div>
+        </div>`;
+      container.prepend(wl);
+      return;
+    }
+
+    // Standard trousers — W/L required in title
+    if (hasWL) return;
+    const wl = document.createElement("div");
+    wl.id = "wlCard";
+    wl.innerHTML = `
+      <div class="wl-card">
+        <div class="wl-card-title">Waist &amp; length not found</div>
+        <div class="wl-card-sub">These are required for trousers — enter them from the label.</div>
+        <div class="wl-inputs">
+          <div>
+            <input type="number" id="wlWaist" placeholder="e.g. 32" inputmode="numeric" min="24" max="50" value="${_wlDraft.w}" oninput="_wlDraft.w=this.value">
+            <div class="wl-label">Waist (W)</div>
+          </div>
+          <div>
+            <input type="number" id="wlLength" placeholder="e.g. 32" inputmode="numeric" min="26" max="36" value="${_wlDraft.l}" oninput="_wlDraft.l=this.value">
+            <div class="wl-label">Length (L)</div>
+          </div>
+        </div>
+        <button class="btn-wl-save" onclick="saveWL('${esc(d.folder)}')">Save measurements</button>
+        <div id="wlStatus" style="text-align:center;font-size:13px;margin-top:10px;display:none"></div>
+      </div>`;
+    container.prepend(wl);
+    wl.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }
+
+  // Activewear: save W/L into description only — does NOT change normalized_size or title
+  async function saveWLActivewear(folder) {
+    const w   = (document.getElementById("wlWaist").value || "").trim();
+    const l   = (document.getElementById("wlLength").value || "").trim();
+    const btn = document.querySelector(".btn-wl-save");
+    const status = document.getElementById("wlStatus");
+
+    if (!w || !l) {
+      status.style.display = "block";
+      status.style.color = "var(--error)";
+      status.textContent = "Please enter both waist and length.";
+      return;
+    }
+    btn.textContent = "Saving…";
+    btn.disabled = true;
+
+    // PATCH waist/length onto listing so future regen sees them, but don't change normalized_size
+    try {
+      await fetch(`/listing/${folder}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ trouser_waist: w, trouser_length: l }),
+      });
+      // Regen so listing_writer adds W/L mention to description (activewear rule)
+      const resp = await fetch(`/regen/${folder}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ updates: { trouser_waist: w, trouser_length: l } }),
+      });
+      const data = await resp.json();
+      if (resp.ok) {
+        _wlDraft = { w: "", l: "" };
+        document.getElementById("wlCard")?.remove();
+        showResult(data);
+      } else {
+        status.style.display = "block";
+        status.style.color = "var(--error)";
+        status.textContent = "Error saving — try again.";
+        btn.disabled = false;
+        btn.textContent = "Add to description";
+      }
+    } catch {
+      status.style.display = "block";
+      status.style.color = "var(--error)";
+      status.textContent = "Network error — try again.";
+      btn.disabled = false;
+      btn.textContent = "Add to description";
+    }
+  }
+
+  async function saveWL(folder) {
+    const w   = (document.getElementById("wlWaist").value || "").trim();
+    const l   = (document.getElementById("wlLength").value || "").trim();
+    const btn = document.querySelector(".btn-wl-save");
+    const status = document.getElementById("wlStatus");
+
+    if (!w || !l) {
+      status.style.display = "block";
+      status.style.color = "var(--error)";
+      status.textContent = "Please enter both waist and length.";
+      return;
+    }
+
+    const size = `W${w} L${l}`;
+    btn.textContent = "Saving…";
+    btn.disabled = true;
+
+    // Read current listing to pick up locked category leaf (e.g. "Joggers" from "Men > Trousers > Joggers")
+    let categoryLeaf = null;
+    try {
+      const lr = await fetch(`/api/listings`);
+      const listings = await lr.json();
+      const cur = listings.find(l => l.folder === folder);
+      if (cur && cur.category_locked && cur.category) {
+        const parts = cur.category.split(" > ");
+        categoryLeaf = parts[parts.length - 1]; // e.g. "Joggers"
+      }
+    } catch { /* non-critical */ }
+
+    const updates = { normalized_size: size, trouser_waist: w, trouser_length: l };
+    if (categoryLeaf) updates.item_type = categoryLeaf;
+
+    try {
+      const resp = await fetch(`/regen/${folder}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ updates }),
+      });
+      const data = await resp.json();
+      if (resp.ok) {
+        _wlDraft = { w: "", l: "" };
+        document.getElementById("wlCard")?.remove();
+        showResult(data);
+      } else {
+        status.style.display = "block";
+        status.style.color = "var(--error)";
+        status.textContent = "Error saving — try again.";
+        btn.disabled = false;
+        btn.textContent = "Save measurements";
+      }
+    } catch {
+      status.style.display = "block";
+      status.style.color = "var(--error)";
+      status.textContent = "Network error — try again.";
+      btn.disabled = false;
+      btn.textContent = "Save measurements";
+    }
+  }
+
+  /* ── Confirm / review card ── */
+  // Always-shown fields in display order
+  const CONFIRM_FIELDS = [
+    ["brand",             "Brand"],
+    ["item_type",         "Item type"],
+    ["colour",            "Colour"],
+    ["colour_secondary",  "Second colour (if any)"],
+    ["pattern",           "Pattern"],
+    ["normalized_size",   "Size"],
+    ["gender",            "Gender"],
+    ["materials",         "Materials (comma-separated)"],
+    ["model_name",        "Model"],
+    ["style",             "Style (e.g. Slim, Straight, Skinny, Bomber, Trench)"],
+    ["tag_keywords",      "Tag keywords (comma-separated)"],
+    ["flaws_note",        "Flaws / defects (leave blank if none)"],
+  ];
 
   function showReviewCard(d) {
     const container = document.getElementById("reviewCard");
     container.innerHTML = "";
-    const fields = (d.low_confidence_fields || []).filter(f => REVIEW_LABELS[f]);
-    if (!fields.length || !d.folder) return;
+    if (!d.folder) return;
 
-    const fieldHtml = fields.map(f => {
-      let current = d[f] || "";
+    const uncertain = new Set(d.low_confidence_fields || []);
+    const hasUncertain = CONFIRM_FIELDS.some(([f]) => uncertain.has(f));
+
+    const fieldHtml = CONFIRM_FIELDS.map(([f, label]) => {
+      let current = d[f] != null ? d[f] : "";
       if (Array.isArray(current)) current = current.join(", ");
+      const bad = uncertain.has(f);
       return `
         <div class="review-field">
-          <label>${REVIEW_LABELS[f]}</label>
+          <label>${label}${bad
+            ? ' <span style="color:#D97706;font-size:10px;font-weight:600;text-transform:none;letter-spacing:0">⚠ check this</span>'
+            : ''}</label>
           <input class="review-input" type="text" data-field="${f}"
                  value="${esc(String(current))}"
-                 placeholder="Enter ${REVIEW_LABELS[f].toLowerCase()}">
+                 placeholder="Enter ${label.toLowerCase()}"
+                 ${bad ? 'style="border-color:#F59E0B;background:#FFFBEB"' : ''}>
         </div>`;
     }).join("");
 
+    const icon   = hasUncertain ? "⚠️" : "✓";
+    const iconBg = hasUncertain ? "var(--gold-bg)" : "var(--brand-pale)";
+    const border = hasUncertain ? "var(--gold)" : "rgba(9,177,186,0.3)";
+    const title  = hasUncertain ? "Check &amp; confirm details" : "Confirm listing details";
+    const sub    = hasUncertain
+      ? "Some fields need review — fix anything that looks wrong"
+      : "Looks right? Or edit anything below then tap Update";
+
     container.innerHTML = `
-      <div class="review-card" id="reviewCardInner">
+      <div class="review-card open" id="reviewCardInner" style="border-color:${border}">
         <div class="review-header" onclick="document.getElementById('reviewCardInner').classList.toggle('open')">
           <div class="review-header-left">
-            <div class="review-icon">⚠️</div>
+            <div class="review-icon" style="background:${iconBg}">${icon}</div>
             <div>
-              <div class="review-header-title">Some details need review</div>
-              <div class="review-header-sub">${fields.length} field${fields.length !== 1 ? "s" : ""} couldn't be read — tap to fill in</div>
+              <div class="review-header-title">${title}</div>
+              <div class="review-header-sub">${sub}</div>
             </div>
           </div>
           <span class="review-chevron">▼</span>
         </div>
         <div class="review-body">
           ${fieldHtml}
-          <button class="btn-save-review" onclick="saveReview('${esc(d.folder)}')">Save corrections</button>
+          <button class="btn-save-review" onclick="saveReview('${esc(d.folder)}')">Update Listing</button>
           <div id="reviewStatus" style="text-align:center;font-size:13px;margin-top:10px;display:none"></div>
         </div>
       </div>`;
@@ -1109,8 +2224,13 @@
     inputs.forEach(inp => {
       const field = inp.dataset.field;
       let val = inp.value.trim();
+      if (field === "flaws_note") {
+        // Blank or "na"/"n/a" → null (no flaws)
+        updates[field] = (!val || /^n\/?a$/i.test(val)) ? null : val;
+        return;
+      }
       if (!val) return;
-      if (field === "materials") {
+      if (field === "materials" || field === "tag_keywords") {
         updates[field] = val.split(",").map(s => s.trim()).filter(Boolean);
       } else {
         updates[field] = val;
@@ -1119,31 +2239,168 @@
 
     const btn    = document.querySelector(".btn-save-review");
     const status = document.getElementById("reviewStatus");
-    btn.textContent = "Saving…";
+    btn.textContent = "Regenerating…";
     btn.disabled = true;
 
     try {
-      const resp = await fetch(`/listing/${folder}`, {
-        method: "PATCH",
+      const resp = await fetch(`/regen/${folder}`, {
+        method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(updates),
+        body: JSON.stringify({ updates }),
       });
-      status.style.display = "block";
+      const data = await resp.json();
       if (resp.ok) {
-        status.style.color = "var(--success-dark)";
-        status.textContent = "Saved — listing updated.";
-        document.getElementById("reviewCardInner").classList.remove("open");
+        showResult(data);
       } else {
+        status.style.display = "block";
         status.style.color = "var(--error)";
         status.textContent = "Error saving — try again.";
+        btn.textContent = "Save & Regenerate";
+        btn.disabled = false;
       }
     } catch {
       status.style.display = "block";
       status.style.color = "var(--error)";
       status.textContent = "Network error — try again.";
-    } finally {
-      btn.textContent = "Save corrections";
+      btn.textContent = "Save & Regenerate";
       btn.disabled = false;
+    }
+  }
+
+  async function reprice(folder) {
+    const btn = document.querySelector(".btn-reprice");
+    if (!btn) return;
+    btn.textContent = "Repricing…";
+    btn.disabled = true;
+    try {
+      const resp = await fetch(`/reprice/${folder}`, { method: "POST" });
+      const data = await resp.json();
+      if (resp.ok) {
+        showResult(data);
+      } else {
+        btn.textContent = "Reprice ↻";
+        btn.disabled = false;
+        alert("Reprice failed: " + (data.error || "unknown error"));
+      }
+    } catch (err) {
+      btn.textContent = "Reprice ↻";
+      btn.disabled = false;
+      alert("Network error: " + err.message);
+    }
+  }
+
+  async function createDraft(folder) {
+    const btn  = document.getElementById("createDraftBtn");
+    const wrap = document.getElementById("draftBtnWrap");
+    if (!btn || !wrap) return;
+    btn.textContent = "Creating draft…";
+    btn.disabled = true;
+
+    try {
+      const resp = await fetch("/create-draft", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ folder }),
+      });
+      const data = await resp.json();
+      if (resp.ok && data.draft_url) {
+        wrap.innerHTML = `<a class="btn-vinted" href="${esc(data.draft_url)}" target="_blank">
+          Open on Vinted <span class="btn-vinted-arrow">→</span>
+        </a>`;
+      } else {
+        const errMsg = data.error || "Unknown error";
+        const isSessionErr = /expired|session.refresh|cookie/i.test(errMsg);
+        const reloginHtml = isSessionErr
+          ? `<button style="margin-top:10px;width:100%;padding:12px;background:var(--brand);color:white;border:none;border-radius:var(--r-md);font-size:14px;font-weight:700;font-family:inherit;cursor:pointer" onclick="startRelogin()">Re-login to Vinted</button>`
+          : "";
+        wrap.insertAdjacentHTML("beforebegin",
+          `<div class="draft-error" id="draftErrBox">Draft error: ${esc(errMsg)}${reloginHtml ? "<br>" + reloginHtml : ""}</div>`);
+        btn.textContent = "Create Vinted Draft";
+        btn.disabled = false;
+      }
+    } catch (err) {
+      wrap.insertAdjacentHTML("beforebegin",
+        `<div class="draft-error">Network error: ${esc(err.message)}</div>`);
+      btn.textContent = "Create Vinted Draft";
+      btn.disabled = false;
+    }
+  }
+
+  async function editDraft(folder) {
+    const btn  = document.getElementById("createDraftBtn");
+    const wrap = document.getElementById("draftBtnWrap");
+    if (!btn || !wrap) return;
+    btn.textContent = "Opening draft…";
+    btn.disabled = true;
+
+    try {
+      const resp = await fetch("/edit-draft", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ folder }),
+      });
+      const data = await resp.json();
+      if (resp.ok) {
+        if (_fromDrafts) {
+          location.href = "/drafts";
+        } else {
+          btn.textContent = "Edit draft ✏";
+          btn.disabled = false;
+        }
+      } else {
+        const errMsg = data.error || "Unknown error";
+        const isSessionErr = /expired|session.refresh|cookie/i.test(errMsg);
+        const reloginHtml = isSessionErr
+          ? `<button style="margin-top:10px;width:100%;padding:12px;background:var(--brand);color:white;border:none;border-radius:var(--r-md);font-size:14px;font-weight:700;font-family:inherit;cursor:pointer" onclick="startRelogin()">Re-login to Vinted</button>`
+          : "";
+        wrap.insertAdjacentHTML("beforebegin",
+          `<div class="draft-error" id="draftErrBox">Edit error: ${esc(errMsg)}${reloginHtml ? "<br>" + reloginHtml : ""}</div>`);
+        btn.textContent = "Edit draft ✏";
+        btn.disabled = false;
+      }
+    } catch (err) {
+      wrap.insertAdjacentHTML("beforebegin",
+        `<div class="draft-error">Network error: ${esc(err.message)}</div>`);
+      btn.textContent = "Edit draft ✏";
+      btn.disabled = false;
+    }
+  }
+
+  async function startRelogin() {
+    const errBox = document.getElementById("draftErrBox");
+    if (errBox) errBox.innerHTML = "Opening Vinted in a browser window…";
+    try {
+      const resp = await fetch("/login/start", { method: "POST" });
+      const data = await resp.json();
+      if (!resp.ok) {
+        if (errBox) errBox.textContent = "Error: " + (data.error || "unknown");
+        return;
+      }
+      if (errBox) errBox.innerHTML = `
+        <div style="font-size:13px;line-height:1.6;color:var(--gray-7)">
+          A Vinted browser window is open.<br>
+          <strong>Log in</strong>, then tap the button below to save your session.
+        </div>
+        <button style="margin-top:10px;width:100%;padding:12px;background:var(--black);color:white;border:none;border-radius:var(--r-md);font-size:14px;font-weight:700;font-family:inherit;cursor:pointer" onclick="saveRelogin()">Done — Save session</button>
+      `;
+    } catch (err) {
+      if (errBox) errBox.textContent = "Network error: " + err.message;
+    }
+  }
+
+  async function saveRelogin() {
+    const errBox = document.getElementById("draftErrBox");
+    if (errBox) errBox.innerHTML = "Saving session…";
+    try {
+      const resp = await fetch("/login/save", { method: "POST" });
+      const data = await resp.json();
+      if (resp.ok) {
+        if (errBox) errBox.innerHTML = `✓ Session saved (${data.count} cookies). Now tap <strong>Create Vinted Draft</strong> again.`;
+      } else {
+        if (errBox) errBox.textContent = "Error saving: " + (data.error || "unknown");
+      }
+    } catch (err) {
+      if (errBox) errBox.textContent = "Network error: " + err.message;
     }
   }
 
@@ -1161,6 +2418,67 @@
     return String(s)
       .replace(/&/g, "&amp;").replace(/</g, "&lt;")
       .replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+  }
+
+  /* ── Description inline edit ── */
+  function editDesc() {
+    const view    = document.getElementById("descView");
+    const edit    = document.getElementById("descEdit");
+    const saveRow = document.getElementById("descSaveRow");
+    const editBtn = document.getElementById("descEditBtn");
+    if (!view || !edit) return;
+    // Use textContent so we get the decoded raw text, not HTML entities
+    edit.value = view.textContent;
+    view.style.display    = "none";
+    editBtn.style.display = "none";
+    edit.style.display    = "block";
+    saveRow.style.display = "flex";
+    edit.focus();
+    edit.selectionStart = edit.selectionEnd = edit.value.length;
+  }
+
+  function cancelDesc() {
+    const view    = document.getElementById("descView");
+    const edit    = document.getElementById("descEdit");
+    const saveRow = document.getElementById("descSaveRow");
+    const editBtn = document.getElementById("descEditBtn");
+    if (!view || !edit) return;
+    edit.style.display    = "none";
+    saveRow.style.display = "none";
+    editBtn.style.display = "flex";
+    view.style.display    = "block";
+  }
+
+  async function saveDesc() {
+    const wrap   = document.getElementById("descWrap");
+    const folder = wrap ? wrap.dataset.folder : null;
+    if (!folder) { cancelDesc(); return; }
+    const edit    = document.getElementById("descEdit");
+    const saveBtn = document.querySelector(".btn-desc-save");
+    const newDesc = edit.value.trim();
+    saveBtn.textContent = "Saving…";
+    saveBtn.disabled = true;
+    try {
+      const resp = await fetch(`/listing/${folder}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ description: newDesc }),
+      });
+      const data = await resp.json();
+      if (resp.ok) {
+        const view = document.getElementById("descView");
+        view.textContent = data.description || newDesc;
+        cancelDesc();
+      } else {
+        saveBtn.textContent = "Save description";
+        saveBtn.disabled = false;
+        alert("Save failed: " + (data.error || "unknown"));
+      }
+    } catch (err) {
+      saveBtn.textContent = "Save description";
+      saveBtn.disabled = false;
+      alert("Network error: " + err.message);
+    }
   }
 
   renderGrid();

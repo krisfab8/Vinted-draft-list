@@ -73,6 +73,36 @@
     opacity: 0.15;
   }
 
+  /* Delete button — top right on card */
+  .draft-card {
+    position: relative;
+  }
+
+  .btn-delete-draft {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    z-index: 2;
+    width: 26px;
+    height: 26px;
+    background: rgba(0,0,0,0.55);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    border: none;
+    border-radius: 50%;
+    color: white;
+    font-size: 13px;
+    line-height: 1;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    -webkit-tap-highlight-color: transparent;
+    transition: background 150ms ease;
+  }
+
+  .btn-delete-draft:hover { background: rgba(220,40,40,0.85); }
+
   /* Price badge — bottom right on thumbnail */
   .draft-price-badge {
     position: absolute;
@@ -378,6 +408,29 @@
 
   .btn-sheet-vinted:hover { background: var(--brand-dark); }
 
+  .btn-sheet-edit {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    width: 100%;
+    padding: 14px;
+    background: var(--gray-1);
+    color: var(--gray-9);
+    border: none;
+    border-radius: var(--r-lg);
+    font-size: 15px;
+    font-weight: 600;
+    font-family: inherit;
+    text-decoration: none;
+    margin-top: 10px;
+    cursor: pointer;
+    transition: background 150ms ease;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .btn-sheet-edit:hover { background: var(--gray-2); }
+
   .no-url-note {
     text-align: center;
     font-size: 13px;
@@ -408,7 +461,8 @@
 {% else %}
   <div class="drafts-grid">
     {% for item in listings %}
-    <div class="draft-card" onclick="openSheet({{ loop.index0 }})">
+    <div class="draft-card" id="card-{{ item.folder }}" onclick="openSheet({{ loop.index0 }})">
+      <button class="btn-delete-draft" onclick="deleteDraft(event, '{{ item.folder }}', this)" title="Delete">✕</button>
       <div class="draft-thumb">
         {% if item.thumbnail_url %}
           <img src="{{ item.thumbnail_url }}" alt="{{ item.title }}" loading="lazy">
@@ -483,7 +537,13 @@ function openSheet(idx) {
 
   const draftBtn = item.draft_url
     ? `<a class="btn-sheet-vinted" href="${esc(item.draft_url)}" target="_blank">Open on Vinted →</a>`
-    : `<div class="no-url-note">No Vinted URL for this item — check Vinted Drafts manually</div>`;
+    : item.folder
+      ? `<div id="sheetDraftWrap">
+           <button class="btn-sheet-vinted" id="sheetDraftBtn" onclick="createDraftFromSheet('${esc(item.folder)}')">
+             Create Vinted Draft ↑
+           </button>
+         </div>`
+      : `<div class="no-url-note">No Vinted URL — check Drafts manually</div>`;
 
   document.getElementById("sheetBody").innerHTML = `
     <div class="sheet-meta">
@@ -506,8 +566,9 @@ function openSheet(idx) {
     </div>
     ${mats ? `<div class="materials-row">${mats}</div>` : ""}
     ${item.description ? `<div class="sheet-desc">${esc(item.description)}</div>` : ""}
-    ${item.category ? `<div class="sheet-category">📂 ${esc(item.category)}</div>` : ""}
+    ${item.category ? `<div class="sheet-category">📂 ${esc(item.category).replace(/ &gt; /g, ' › ')}</div>` : ""}
     ${draftBtn}
+    ${item.folder ? `<a class="btn-sheet-edit" href="/?edit=${esc(item.folder)}">Edit listing ✏</a>` : ""}
   `;
 
   document.getElementById("sheetOverlay").classList.add("open");
@@ -521,6 +582,67 @@ function closeSheet() {
 
 function closeIfBackdrop(e) {
   if (e.target === document.getElementById("sheetOverlay")) closeSheet();
+}
+
+async function deleteDraft(e, folder, btn) {
+  e.stopPropagation(); // don't open the sheet
+  if (!confirm("Delete this listing and all its photos? This cannot be undone.")) return;
+  btn.textContent = "…";
+  btn.disabled = true;
+  try {
+    const resp = await fetch(`/listing/${encodeURIComponent(folder)}`, { method: "DELETE" });
+    if (resp.ok) {
+      const card = document.getElementById(`card-${folder}`);
+      if (card) card.remove();
+      // Remove from cached LISTINGS array
+      const idx = LISTINGS.findIndex(l => l.folder === folder);
+      if (idx !== -1) LISTINGS.splice(idx, 1);
+      // Update the count badge
+      const badge = document.querySelector(".drafts-count-badge");
+      if (badge) {
+        const n = LISTINGS.length;
+        badge.textContent = `${n} item${n !== 1 ? "s" : ""}`;
+      }
+    } else {
+      btn.textContent = "✕";
+      btn.disabled = false;
+      alert("Delete failed.");
+    }
+  } catch {
+    btn.textContent = "✕";
+    btn.disabled = false;
+  }
+}
+
+async function createDraftFromSheet(folder) {
+  const btn  = document.getElementById("sheetDraftBtn");
+  const wrap = document.getElementById("sheetDraftWrap");
+  if (!btn || !wrap) return;
+  btn.textContent = "Creating draft…";
+  btn.disabled = true;
+
+  try {
+    const resp = await fetch("/create-draft", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ folder }),
+    });
+    const data = await resp.json();
+    if (resp.ok && data.draft_url) {
+      wrap.innerHTML = `<a class="btn-sheet-vinted" href="${esc(data.draft_url)}" target="_blank">Open on Vinted →</a>`;
+      // Update cached listing so the button stays correct if sheet is re-opened
+      const idx = LISTINGS.findIndex(l => l.folder === folder);
+      if (idx !== -1) LISTINGS[idx].draft_url = data.draft_url;
+    } else {
+      wrap.insertAdjacentHTML("beforebegin",
+        `<div class="no-url-note" style="color:var(--error)">Error: ${esc(data.error || "Unknown error")}</div>`);
+      btn.textContent = "Create Vinted Draft ↑";
+      btn.disabled = false;
+    }
+  } catch (err) {
+    btn.textContent = "Create Vinted Draft ↑";
+    btn.disabled = false;
+  }
 }
 </script>
 {% endblock %}

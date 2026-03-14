@@ -17,13 +17,14 @@
     "item_type":        { "type": "string" },
     "title":            { "type": "string", "maxLength": 120 },
     "description":      { "type": "string" },
-    "tagged_size":      { "type": "string" },
-    "normalized_size":  { "type": "string" },
+    "tagged_size":      { "type": ["string", "null"] },
+    "normalized_size":  { "type": ["string", "null"] },
     "materials": {
       "type": "array",
       "items": { "type": "string" }
     },
     "colour":           { "type": "string" },
+    "colour_secondary": { "type": ["string", "null"] },
     "gender":           { "type": "string", "enum": ["men's", "women's", "unisex"] },
     "price_gbp":        { "type": "number", "minimum": 0 },
     "buy_price_gbp":    { "type": "number", "minimum": 0 },
@@ -37,6 +38,16 @@
     "low_confidence_fields": {
       "type": "array",
       "items": { "type": "string" }
-    }
+    },
+    "made_in":          { "type": ["string", "null"] },
+    "fabric_mill":      { "type": ["string", "null"] },
+    "style":            { "type": ["string", "null"] },
+    "cut":              { "type": ["string", "null"] },
+    "pattern":          { "type": ["string", "null"] },
+    "tag_keywords": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "tag_keywords_confidence": { "type": ["string", "null"] }
   }
 }

@@ -26,7 +26,9 @@ HAIKU_MODEL = "claude-haiku-4-5-20251001"
 SONNET_MODEL = "claude-sonnet-4-6"
 
 # Confidence threshold — below this, escalate to Sonnet
-CONFIDENCE_THRESHOLD = 0.7
+# Set low (0.5) to avoid expensive Sonnet calls; user can correct via review card
+CONFIDENCE_THRESHOLD = float(os.getenv("CONFIDENCE_THRESHOLD", "0.5"))
 
 # Core photos to analyse (in priority order)
-CORE_PHOTOS = ["front", "tag", "material", "back"]
+# Slots 1-4 are the primary analysis photos; back (slot 5) is optional but analyzed if present
+CORE_PHOTOS = ["front", "brand", "model_size", "material", "back"]

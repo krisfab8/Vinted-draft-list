@@ -1,0 +1,132 @@
+# Common UK menswear & womenswear resale brands
+# One canonical name per line. Used for fuzzy OCR-correction of extracted brand names.
+# Add new brands here — no code changes needed.
+
+# Luxury / Heritage British
+Barbour
+Belstaff
+Grenfell
+Aquascutum
+Burberry
+Gieves & Hawkes
+Huntsman
+Norton & Sons
+Cordings
+Johnstons of Elgin
+Brora
+N.Peal
+Pringle of Scotland
+Lyle & Scott
+John Smedley
+William Lockie
+Peter Christian
+
+# Smart / Tailoring
+Suitsupply
+Canali
+Corneliani
+Ermenegildo Zegna
+Boglioli
+Caruso
+Pal Zileri
+Brioni
+Kiton
+Cesare Attolini
+Isaia
+Hugo Boss
+Reiss
+Ted Baker
+Paul Smith
+Richard James
+Hackett
+Chester Barrie
+Simon Carter
+Timothy Everest
+Chester by Chester Barrie
+Dege & Skinner
+
+# Mid-market British
+Marks & Spencer
+Next
+Jaeger
+Charles Tyrwhitt
+Thomas Pink
+TM Lewin
+Brook Taverner
+Magee
+Crombie
+
+# Smart Casual / Contemporary
+Ralph Lauren
+Tommy Hilfiger
+Lacoste
+Fred Perry
+Ben Sherman
+Farah
+Gant
+Sunspel
+Oliver Spencer
+Albam
+Folk
+Norse Projects
+A.P.C.
+Universal Works
+Corridor
+
+# Denim
+Levi's
+Wrangler
+Lee
+Nudie Jeans
+A.P.C.
+Edwin
+Evisu
+G-Star Raw
+Diesel
+Replay
+
+# Streetwear / Casual
+Stone Island
+CP Company
+Carhartt
+Carhartt WIP
+Represent
+Kenzo
+Valentino
+Acne Studios
+Ami Paris
+Maison Margiela
+
+# Outerwear
+Patagonia
+Arc'teryx
+North Face
+Fjallraven
+Woolrich
+Moncler
+Canada Goose
+Pyrenex
+Rab
+Berghaus
+Quiksilver
+
+# Women's
+Hobbs
+Phase Eight
+LK Bennett
+Jigsaw
+Whistles
+Monsoon
+Karen Millen
+Coast
+Boden
+White Stuff
+Fat Face
+Seasalt
+Joules
+Ghost
+Sosander
+French Connection
+Warehouse
+Oasis
+Wallis
