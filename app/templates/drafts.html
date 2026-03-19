@@ -440,10 +440,80 @@
     border-radius: var(--r-md);
     line-height: 1.5;
   }
+
+  /* ── Auth not-connected note ── */
+  .auth-note {
+    display: none;
+    background: #fff8e6;
+    border: 1.5px solid #f5c842;
+    border-radius: var(--r-lg);
+    padding: 12px 16px;
+    margin-bottom: 16px;
+    font-size: 14px;
+    color: #7a5800;
+    line-height: 1.5;
+  }
+  .auth-note.visible { display: flex; align-items: center; gap: 10px; }
+  .auth-note a {
+    color: #7a5800;
+    font-weight: 700;
+    white-space: nowrap;
+    margin-left: auto;
+    text-decoration: underline;
+  }
+
+  .btn-draft-disabled {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    padding: 14px;
+    background: var(--gray-1);
+    color: var(--gray-5);
+    border: none;
+    border-radius: var(--r-lg);
+    font-size: 15px;
+    font-weight: 600;
+    font-family: inherit;
+    cursor: not-allowed;
+  }
+
+  /* ── Graphic/Plain conflict card in sheet ── */
+  .sheet-conflict {
+    background: #fff8e6;
+    border: 1.5px solid #f5c842;
+    border-radius: var(--r-lg);
+    padding: 13px 15px;
+    margin-bottom: 10px;
+    font-size: 13px;
+    color: #7a5800;
+    line-height: 1.45;
+  }
+  .sheet-conflict strong { font-weight: 700; }
+  .sheet-conflict-btns { display: flex; gap: 8px; margin-top: 9px; }
+  .sheet-conflict-btn {
+    flex: 1;
+    padding: 8px 10px;
+    border-radius: var(--r-sm);
+    border: none;
+    font-size: 13px;
+    font-weight: 600;
+    font-family: inherit;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .sheet-conflict-btn.yes { background: var(--brand); color: #fff; }
+  .sheet-conflict-btn.no  { background: var(--gray-1); color: var(--gray-9); }
 </style>
 {% endblock %}
 
 {% block content %}
+<!-- ── Vinted not-connected note ── -->
+<div class="auth-note" id="auth-note">
+  <span>⚠ Vinted not connected — draft creation disabled.</span>
+  <a href="/connect">Connect →</a>
+</div>
+
 <div class="drafts-heading">
   <div class="page-title" style="margin-bottom:0">Drafts</div>
   {% if listings %}
@@ -506,6 +576,36 @@
 {% block scripts %}
 <script>
 const LISTINGS = {{ listings | tojson }};
+let _authOk = true;   // updated by checkAuthOnLoad(); gates draft buttons
+
+// ── Auth status ─────────────────────────────────────────────────────────────
+
+async function checkAuthOnLoad() {
+  try {
+    const resp = await fetch("/auth/status");
+    if (!resp.ok) return;
+    const data = await resp.json();
+    if (data.logged_in !== "likely") {
+      _authOk = false;
+      document.getElementById("auth-note").classList.add("visible");
+    }
+  } catch (_) { /* network error — don't block UI */ }
+}
+
+function showToast(msg) {
+  let t = document.getElementById("toast-drafts");
+  if (!t) {
+    t = document.createElement("div");
+    t.id = "toast-drafts";
+    t.style.cssText = "position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:#222;color:#fff;padding:8px 18px;border-radius:20px;font-size:13px;font-weight:600;z-index:9999;pointer-events:none;opacity:0;transition:opacity 200ms";
+    document.body.appendChild(t);
+  }
+  t.textContent = msg;
+  t.style.opacity = "1";
+  setTimeout(() => { t.style.opacity = "0"; }, 2500);
+}
+
+let currentFolder = null;
 
 function relDate(iso) {
   if (!iso) return "";
@@ -527,6 +627,7 @@ function esc(s) {
 function openSheet(idx) {
   const item = LISTINGS[idx];
   if (!item) return;
+  currentFolder = item.folder || null;
 
   document.getElementById("sheetPrice").textContent = `£${item.price_gbp || "?"}`;
   document.getElementById("sheetTitle").textContent = item.title || "";
@@ -539,13 +640,32 @@ function openSheet(idx) {
     ? `<a class="btn-sheet-vinted" href="${esc(item.draft_url)}" target="_blank">Open on Vinted →</a>`
     : item.folder
       ? `<div id="sheetDraftWrap">
-           <button class="btn-sheet-vinted" id="sheetDraftBtn" onclick="createDraftFromSheet('${esc(item.folder)}')">
-             Create Vinted Draft ↑
-           </button>
+           ${_authOk
+             ? `<button class="btn-sheet-vinted" id="sheetDraftBtn" onclick="createDraftFromSheet('${esc(item.folder)}')">Create Vinted Draft ↑</button>`
+             : `<a class="btn-draft-disabled" href="/connect" style="text-align:center;text-decoration:none">Connect Vinted →</a>`
+           }
          </div>`
       : `<div class="no-url-note">No Vinted URL — check Drafts manually</div>`;
 
+  // Graphic/Plain conflict: item has Graphic pattern/style but category says Plain
+  const cat = item.category || "";
+  const hasGraphicSignal = (item.pattern === "Graphic" || item.style === "Graphic");
+  const hasPlaInCategory = />\s*Plain\s*$/.test(cat);
+  const conflictCard = (hasGraphicSignal && hasPlaInCategory)
+    ? `<div class="sheet-conflict" id="sheetConflict">
+         <strong>⚠ Category mismatch</strong><br>
+         This t-shirt has a <strong>Graphic</strong> pattern but is set to
+         <strong>${esc(cat)}</strong>.<br>
+         Does it have a visible print or graphic on it?
+         <div class="sheet-conflict-btns">
+           <button class="sheet-conflict-btn yes" onclick="fixGraphicConflict('${esc(item.folder)}', true)">Yes — fix to Graphic</button>
+           <button class="sheet-conflict-btn no"  onclick="fixGraphicConflict('${esc(item.folder)}', false)">No — keep Plain</button>
+         </div>
+       </div>`
+    : "";
+
   document.getElementById("sheetBody").innerHTML = `
+    ${conflictCard}
     <div class="sheet-meta">
       <div class="sheet-meta-cell">
         <div class="sheet-meta-label">Brand</div>
@@ -568,7 +688,7 @@ function openSheet(idx) {
     ${item.description ? `<div class="sheet-desc">${esc(item.description)}</div>` : ""}
     ${item.category ? `<div class="sheet-category">📂 ${esc(item.category).replace(/ &gt; /g, ' › ')}</div>` : ""}
     ${draftBtn}
-    ${item.folder ? `<a class="btn-sheet-edit" href="/?edit=${esc(item.folder)}">Edit listing ✏</a>` : ""}
+    ${item.folder ? `<a class="btn-sheet-edit" href="/review/${esc(item.folder)}">Review &amp; correct ✏</a>` : ""}
   `;
 
   document.getElementById("sheetOverlay").classList.add("open");
@@ -614,6 +734,37 @@ async function deleteDraft(e, folder, btn) {
   }
 }
 
+async function fixGraphicConflict(folder, isGraphic) {
+  const card = document.getElementById("sheetConflict");
+  if (card) { card.innerHTML = "<em>Saving…</em>"; }
+  const idx = LISTINGS.findIndex(l => l.folder === folder);
+
+  async function patch(field, value) {
+    await fetch(`/listing/${encodeURIComponent(folder)}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ [field]: value }),
+    });
+    if (idx !== -1) LISTINGS[idx][field] = value;
+  }
+
+  if (isGraphic) {
+    const currentCat = (idx !== -1 ? LISTINGS[idx].category : "") || "";
+    const graphicCat = currentCat.replace(/>\s*Plain\s*$/, "> Graphic").trim();
+    await patch("category", graphicCat);
+    await patch("style", "Graphic");
+    // Update the category display in the sheet
+    const catEl = document.querySelector(".sheet-category");
+    if (catEl) catEl.textContent = "📂 " + graphicCat.replace(/ > /g, " › ");
+    showToast("Category updated to Graphic ✓");
+  } else {
+    await patch("pattern", "Plain");
+    await patch("style", "Plain");
+    showToast("Pattern corrected to Plain ✓");
+  }
+  if (card) card.remove();
+}
+
 async function createDraftFromSheet(folder) {
   const btn  = document.getElementById("sheetDraftBtn");
   const wrap = document.getElementById("sheetDraftWrap");
@@ -633,6 +784,10 @@ async function createDraftFromSheet(folder) {
       // Update cached listing so the button stays correct if sheet is re-opened
       const idx = LISTINGS.findIndex(l => l.folder === folder);
       if (idx !== -1) LISTINGS[idx].draft_url = data.draft_url;
+    } else if (resp.status === 401 && data.code === "VINTED_AUTH_EXPIRED") {
+      _authOk = false;
+      document.getElementById("auth-note").classList.add("visible");
+      btn.outerHTML = `<a class="btn-draft-disabled" href="/connect" style="text-align:center;text-decoration:none">Connect Vinted →</a>`;
     } else {
       wrap.insertAdjacentHTML("beforebegin",
         `<div class="no-url-note" style="color:var(--error)">Error: ${esc(data.error || "Unknown error")}</div>`);
@@ -644,5 +799,9 @@ async function createDraftFromSheet(folder) {
     btn.disabled = false;
   }
 }
+
+document.addEventListener("DOMContentLoaded", () => {
+  checkAuthOnLoad();
+});
 </script>
 {% endblock %}

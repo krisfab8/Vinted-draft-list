@@ -1,0 +1,304 @@
+{% extends "base.html" %}
+{% block title %}Connect Vinted — Vinted Lister{% endblock %}
+
+{% block head %}
+<style>
+  .connect-status-card {
+    background: var(--white);
+    border-radius: var(--r-xl);
+    box-shadow: var(--shadow-md);
+    padding: 24px 20px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+
+  .connect-light {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    background: var(--gray-1);
+    transition: background 400ms;
+  }
+  .connect-light.on  { background: #edfff3; }
+  .connect-light.off { background: #fff1f0; }
+
+  .connect-light-dot {
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: var(--gray-3);
+    transition: background 400ms, box-shadow 400ms;
+  }
+  .connect-light.on  .connect-light-dot { background: #34c759; box-shadow: 0 0 8px rgba(52,199,89,0.5); }
+  .connect-light.off .connect-light-dot { background: #ff3b30; box-shadow: 0 0 8px rgba(255,59,48,0.35); }
+
+  .connect-status-text {}
+  .connect-status-title {
+    font-size: 17px;
+    font-weight: 700;
+    color: var(--black);
+    line-height: 1.2;
+  }
+  .connect-status-sub {
+    font-size: 13px;
+    color: var(--gray-7);
+    margin-top: 3px;
+  }
+
+  .connect-steps-card {
+    background: var(--white);
+    border-radius: var(--r-xl);
+    box-shadow: var(--shadow-sm);
+    overflow: hidden;
+    margin-bottom: 16px;
+  }
+
+  .connect-step {
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+    padding: 18px 20px;
+  }
+  .connect-step + .connect-step {
+    border-top: 1px solid var(--gray-1);
+  }
+
+  .step-num {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: var(--brand-pale);
+    color: var(--brand-dark);
+    font-size: 13px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+
+  .step-body {
+    flex: 1;
+    min-width: 0;
+  }
+  .step-label {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--black);
+    margin-bottom: 4px;
+  }
+  .step-desc {
+    font-size: 13px;
+    color: var(--gray-7);
+    line-height: 1.4;
+    margin-bottom: 12px;
+  }
+
+  .btn-connect-start {
+    width: 100%;
+    padding: 13px;
+    background: var(--brand);
+    color: #fff;
+    border: none;
+    border-radius: var(--r-md);
+    font-size: 15px;
+    font-weight: 600;
+    font-family: inherit;
+    cursor: pointer;
+    transition: background 150ms;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .btn-connect-start:hover   { background: var(--brand-dark); }
+  .btn-connect-start:disabled { opacity: 0.55; cursor: not-allowed; }
+
+  .btn-connect-save {
+    width: 100%;
+    padding: 13px;
+    background: var(--success);
+    color: #fff;
+    border: none;
+    border-radius: var(--r-md);
+    font-size: 15px;
+    font-weight: 600;
+    font-family: inherit;
+    cursor: pointer;
+    display: none;
+    transition: background 150ms;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .btn-connect-save:hover    { background: var(--success-dark); }
+  .btn-connect-save:disabled { opacity: 0.55; cursor: not-allowed; }
+
+  .connect-feedback {
+    font-size: 13px;
+    color: var(--gray-7);
+    margin-top: 8px;
+    min-height: 18px;
+    line-height: 1.4;
+  }
+  .connect-feedback.error { color: var(--error); }
+
+  .connect-success-card {
+    display: none;
+    background: #edfff3;
+    border: 1.5px solid #34c759;
+    border-radius: var(--r-lg);
+    padding: 16px 18px;
+    font-size: 14px;
+    color: #1a6632;
+    line-height: 1.5;
+    margin-bottom: 16px;
+  }
+  .connect-success-card.visible { display: block; }
+  .connect-success-card strong  { font-weight: 700; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-title">Vinted Account</div>
+<div class="page-subtitle">Connect your Vinted account to create and manage listings.</div>
+
+<!-- Current status -->
+<div class="connect-status-card" id="statusCard">
+  <div class="connect-light" id="statusLight">
+    <div class="connect-light-dot"></div>
+  </div>
+  <div class="connect-status-text">
+    <div class="connect-status-title" id="statusTitle">Checking…</div>
+    <div class="connect-status-sub"  id="statusSub"></div>
+  </div>
+</div>
+
+<!-- Success banner -->
+<div class="connect-success-card" id="successCard">
+  <strong>✓ Connected</strong><br>Session saved. You can now create and edit drafts.
+</div>
+
+<!-- Steps -->
+<div class="connect-steps-card">
+  <div class="connect-step">
+    <div class="step-num">1</div>
+    <div class="step-body">
+      <div class="step-label">Open Vinted in a browser</div>
+      <div class="step-desc">A browser window will open. Log in to your Vinted account normally.</div>
+      <button class="btn-connect-start" id="btnStart" onclick="connectStart()">Open Vinted Login ↗</button>
+      <div class="connect-feedback" id="feedbackStart"></div>
+    </div>
+  </div>
+  <div class="connect-step">
+    <div class="step-num">2</div>
+    <div class="step-body">
+      <div class="step-label">Save your session</div>
+      <div class="step-desc">Once you're logged in, tap Save Session to store your credentials.</div>
+      <button class="btn-connect-save" id="btnSave" onclick="connectSave()">Save Session ✓</button>
+      <div class="connect-feedback" id="feedbackSave"></div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function loadStatus() {
+  try {
+    const r = await fetch("/auth/status");
+    const d = await r.json();
+    const light = document.getElementById("statusLight");
+    const title = document.getElementById("statusTitle");
+    const sub   = document.getElementById("statusSub");
+    if (d.logged_in === "likely") {
+      light.classList.add("on");
+      light.classList.remove("off");
+      title.textContent = "Connected";
+      if (d.saved_at) {
+        const ts = new Date(d.saved_at * 1000);
+        const date = ts.toLocaleDateString("en-GB", {day: "numeric", month: "short"});
+        const time = ts.toLocaleTimeString("en-GB", {hour: "2-digit", minute: "2-digit"});
+        sub.textContent = `Last saved ${date} at ${time}`;
+      } else {
+        sub.textContent = "Session active";
+      }
+    } else {
+      light.classList.add("off");
+      light.classList.remove("on");
+      title.textContent = d.logged_in === "missing" ? "Not connected" : "Session expired";
+      sub.textContent = "Tap Step 1 below to connect.";
+    }
+  } catch(_) {}
+}
+
+async function connectStart() {
+  const btn      = document.getElementById("btnStart");
+  const feedback = document.getElementById("feedbackStart");
+  btn.disabled = true;
+  btn.textContent = "Opening browser…";
+  feedback.textContent = "";
+  feedback.classList.remove("error");
+  try {
+    const r = await fetch("/login/start", { method: "POST" });
+    const d = await r.json();
+    if (!r.ok) {
+      feedback.textContent = d.error || "Could not open browser.";
+      feedback.classList.add("error");
+      btn.disabled = false;
+      btn.textContent = "Open Vinted Login ↗";
+      return;
+    }
+    btn.textContent = "Browser is open";
+    feedback.textContent = "Log in to Vinted, then tap Save Session below.";
+    const saveBtn = document.getElementById("btnSave");
+    saveBtn.style.display = "block";
+  } catch(_) {
+    feedback.textContent = "Failed to open browser.";
+    feedback.classList.add("error");
+    btn.disabled = false;
+    btn.textContent = "Open Vinted Login ↗";
+  }
+}
+
+async function connectSave() {
+  const btn      = document.getElementById("btnSave");
+  const feedback = document.getElementById("feedbackSave");
+  btn.disabled = true;
+  btn.textContent = "Saving…";
+  feedback.textContent = "";
+  feedback.classList.remove("error");
+  try {
+    const r = await fetch("/login/save", { method: "POST" });
+    const d = await r.json();
+    if (!r.ok) {
+      feedback.textContent = d.error || "Could not save session.";
+      feedback.classList.add("error");
+      btn.disabled = false;
+      btn.textContent = "Save Session ✓";
+      return;
+    }
+    // Success
+    document.getElementById("successCard").classList.add("visible");
+    btn.style.display = "none";
+    document.getElementById("btnStart").textContent = "Open Again";
+    document.getElementById("btnStart").disabled = false;
+    // Update status card
+    await loadStatus();
+    // Update header dot
+    const el = document.getElementById("header-vinted-status");
+    if (el) { el.classList.add("connected"); el.classList.remove("disconnected"); }
+  } catch(_) {
+    feedback.textContent = "Failed to save session.";
+    feedback.classList.add("error");
+    btn.disabled = false;
+    btn.textContent = "Save Session ✓";
+  }
+}
+
+document.addEventListener("DOMContentLoaded", loadStatus);
+</script>
+{% endblock %}

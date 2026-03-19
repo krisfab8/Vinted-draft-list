@@ -1,0 +1,331 @@
+{
+  "_comment": "Price memory V1 — lightweight local price guide for common resale items.",
+  "_schema": {
+    "key_format": "brand|item_type|material_group  OR  brand|item_type  OR  item_type",
+    "material_group": "cashmere | wool | cotton | linen | silk | synthetic | leather | down",
+    "prices": "GBP — typical UK Vinted resale prices (not buy price)",
+    "source": "manual | sold_listings | price_history",
+    "confidence": "high | medium | low"
+  },
+  "entries": [
+    {
+      "brand": "barbour",
+      "item_type": "wax jacket",
+      "material_group": null,
+      "low": 55,
+      "typical": 85,
+      "high": 130,
+      "source": "sold_listings",
+      "confidence": "high",
+      "notes": "Classic wax jackets hold value well; Beaufort and Bedale fetch most"
+    },
+    {
+      "brand": "suitsupply",
+      "item_type": "blazer",
+      "material_group": "wool",
+      "low": 55,
+      "typical": 85,
+      "high": 130,
+      "source": "sold_listings",
+      "confidence": "high",
+      "notes": "Havana/Lazio cuts command premium; check model name"
+    },
+    {
+      "brand": "suitsupply",
+      "item_type": "suit",
+      "material_group": "wool",
+      "low": 80,
+      "typical": 130,
+      "high": 200,
+      "source": "sold_listings",
+      "confidence": "high",
+      "notes": "Full suits with VBC or Loro Piana fabric can hit top of range"
+    },
+    {
+      "brand": "ermenegildo zegna",
+      "item_type": "blazer",
+      "material_group": "wool",
+      "low": 120,
+      "typical": 200,
+      "high": 350,
+      "source": "sold_listings",
+      "confidence": "medium",
+      "notes": "Couture and Trofeo lines substantially higher"
+    },
+    {
+      "brand": "canali",
+      "item_type": "blazer",
+      "material_group": "wool",
+      "low": 90,
+      "typical": 160,
+      "high": 260,
+      "source": "sold_listings",
+      "confidence": "medium"
+    },
+    {
+      "brand": "corneliani",
+      "item_type": "blazer",
+      "material_group": "wool",
+      "low": 70,
+      "typical": 120,
+      "high": 200,
+      "source": "sold_listings",
+      "confidence": "medium"
+    },
+    {
+      "brand": "hackett",
+      "item_type": "blazer",
+      "material_group": "wool",
+      "low": 50,
+      "typical": 85,
+      "high": 140,
+      "source": "sold_listings",
+      "confidence": "high"
+    },
+    {
+      "brand": "paul smith",
+      "item_type": "blazer",
+      "material_group": "wool",
+      "low": 60,
+      "typical": 100,
+      "high": 170,
+      "source": "sold_listings",
+      "confidence": "medium"
+    },
+    {
+      "brand": "john smedley",
+      "item_type": "jumper",
+      "material_group": "wool",
+      "low": 30,
+      "typical": 55,
+      "high": 90,
+      "source": "sold_listings",
+      "confidence": "high",
+      "notes": "Sea Island cotton jumpers fetch similar; check fibre"
+    },
+    {
+      "brand": "n.peal",
+      "item_type": "jumper",
+      "material_group": "cashmere",
+      "low": 80,
+      "typical": 140,
+      "high": 220,
+      "source": "sold_listings",
+      "confidence": "medium"
+    },
+    {
+      "brand": "brora",
+      "item_type": "jumper",
+      "material_group": "cashmere",
+      "low": 60,
+      "typical": 110,
+      "high": 180,
+      "source": "sold_listings",
+      "confidence": "medium"
+    },
+    {
+      "brand": "pringle of scotland",
+      "item_type": "jumper",
+      "material_group": "wool",
+      "low": 25,
+      "typical": 50,
+      "high": 90,
+      "source": "sold_listings",
+      "confidence": "medium"
+    },
+    {
+      "brand": "moncler",
+      "item_type": "puffer jacket",
+      "material_group": "down",
+      "low": 200,
+      "typical": 380,
+      "high": 600,
+      "source": "sold_listings",
+      "confidence": "high",
+      "notes": "Authenticity matters heavily; verify logo details"
+    },
+    {
+      "brand": "canada goose",
+      "item_type": "parka",
+      "material_group": "down",
+      "low": 180,
+      "typical": 320,
+      "high": 500,
+      "source": "sold_listings",
+      "confidence": "high"
+    },
+    {
+      "brand": "stone island",
+      "item_type": "jacket",
+      "material_group": null,
+      "low": 100,
+      "typical": 180,
+      "high": 300,
+      "source": "sold_listings",
+      "confidence": "high",
+      "notes": "Badge presence and season affect price"
+    },
+    {
+      "brand": "cp company",
+      "item_type": "jacket",
+      "material_group": null,
+      "low": 80,
+      "typical": 150,
+      "high": 260,
+      "source": "sold_listings",
+      "confidence": "medium"
+    },
+    {
+      "brand": "belstaff",
+      "item_type": "jacket",
+      "material_group": null,
+      "low": 80,
+      "typical": 150,
+      "high": 250,
+      "source": "sold_listings",
+      "confidence": "medium"
+    },
+    {
+      "brand": "levi's",
+      "item_type": "jeans",
+      "material_group": null,
+      "low": 18,
+      "typical": 30,
+      "high": 55,
+      "source": "sold_listings",
+      "confidence": "high",
+      "notes": "501 and vintage cuts at top of range; modern slim at bottom"
+    },
+    {
+      "brand": "nudie jeans",
+      "item_type": "jeans",
+      "material_group": null,
+      "low": 30,
+      "typical": 55,
+      "high": 90,
+      "source": "sold_listings",
+      "confidence": "medium"
+    },
+    {
+      "brand": "g-star raw",
+      "item_type": "jeans",
+      "material_group": null,
+      "low": 18,
+      "typical": 30,
+      "high": 55,
+      "source": "sold_listings",
+      "confidence": "medium"
+    },
+    {
+      "brand": "diesel",
+      "item_type": "jeans",
+      "material_group": null,
+      "low": 18,
+      "typical": 28,
+      "high": 50,
+      "source": "sold_listings",
+      "confidence": "medium"
+    },
+    {
+      "brand": null,
+      "item_type": "blazer",
+      "material_group": "cashmere",
+      "low": 40,
+      "typical": 75,
+      "high": 140,
+      "source": "manual",
+      "confidence": "low",
+      "notes": "Generic cashmere blazer — bump up if brand is identified"
+    },
+    {
+      "brand": null,
+      "item_type": "blazer",
+      "material_group": "wool",
+      "low": 20,
+      "typical": 40,
+      "high": 80,
+      "source": "manual",
+      "confidence": "low"
+    },
+    {
+      "brand": null,
+      "item_type": "blazer",
+      "material_group": "synthetic",
+      "low": 10,
+      "typical": 22,
+      "high": 40,
+      "source": "manual",
+      "confidence": "low"
+    },
+    {
+      "brand": null,
+      "item_type": "jumper",
+      "material_group": "cashmere",
+      "low": 25,
+      "typical": 55,
+      "high": 120,
+      "source": "manual",
+      "confidence": "low"
+    },
+    {
+      "brand": null,
+      "item_type": "jumper",
+      "material_group": "wool",
+      "low": 12,
+      "typical": 22,
+      "high": 45,
+      "source": "manual",
+      "confidence": "low"
+    },
+    {
+      "brand": null,
+      "item_type": "jeans",
+      "material_group": null,
+      "low": 8,
+      "typical": 15,
+      "high": 30,
+      "source": "manual",
+      "confidence": "low"
+    },
+    {
+      "brand": null,
+      "item_type": "jacket",
+      "material_group": null,
+      "low": 12,
+      "typical": 25,
+      "high": 55,
+      "source": "manual",
+      "confidence": "low"
+    },
+    {
+      "brand": null,
+      "item_type": "coat",
+      "material_group": "wool",
+      "low": 20,
+      "typical": 40,
+      "high": 90,
+      "source": "manual",
+      "confidence": "low"
+    },
+    {
+      "brand": null,
+      "item_type": "trousers",
+      "material_group": "wool",
+      "low": 15,
+      "typical": 28,
+      "high": 60,
+      "source": "manual",
+      "confidence": "low"
+    },
+    {
+      "brand": null,
+      "item_type": "shirt",
+      "material_group": null,
+      "low": 6,
+      "typical": 12,
+      "high": 28,
+      "source": "manual",
+      "confidence": "low"
+    }
+  ]
+}

@@ -12,6 +12,7 @@ import csv
 import json
 import re
 import threading
+import time
 import traceback
 import uuid
 from collections import Counter
@@ -21,7 +22,7 @@ from pathlib import Path
 from flask import Flask, jsonify, render_template, request, send_from_directory
 
 from app.config import ITEMS_DIR, ROOT
-from app import extractor, listing_writer
+from app import extractor, listing_writer, run_logger
 
 # ── Vinted login session (for cookie refresh flow) ───────────────────────────
 _vinted_login: dict = {}   # holds playwright/browser/context while login window is open
@@ -35,6 +36,7 @@ except Exception:
     _DRAFT_ENABLED = False
 
 app = Flask(__name__)
+app.config["MAX_CONTENT_LENGTH"] = 50 * 1024 * 1024  # 50 MB max upload
 
 
 @app.errorhandler(Exception)
@@ -103,17 +105,21 @@ def create_listing():
         return jsonify({"error": f"Folder not found: {item_path}"}), 404
 
     hints = {k: v for k, v in {
-        "brand":   body.get("hint_brand",   "").strip(),
-        "size":    body.get("hint_size",    "").strip(),
-        "gender":  body.get("hint_gender",  "").strip(),
-        "damages": body.get("hint_damages", "").strip(),
+        "brand":    body.get("hint_brand",    "").strip(),
+        "size":     body.get("hint_size",     "").strip(),
+        "gender":   body.get("hint_gender",   "").strip(),
+        "made_in":  body.get("hint_made_in",  "").strip(),
+        "damages":  body.get("hint_damages",  "").strip(),
     }.items() if v}
 
     try:
+        _t0 = time.perf_counter()
         item, extract_usage = extractor.extract(item_path, hints=hints or None)
+        extract_log = item.pop("_extract_log", {})
         if "buy_price_gbp" in body:
             item["buy_price_gbp"] = float(body["buy_price_gbp"])
         listing, write_usage = listing_writer.write(item, hints=hints or None)
+        write_log = write_usage.pop("_write_log", {})
 
         # Save listing JSON next to the photos
         out_path = item_path / "listing.json"
@@ -121,6 +127,8 @@ def create_listing():
 
         listing["folder"] = folder
         _log_cost(folder, extract_usage, write_usage, listing)
+        _write_run_log(folder, extract_log, write_log, extract_usage, write_usage, listing,
+                       round((time.perf_counter() - _t0) * 1000))
     except FileNotFoundError as e:
         return jsonify({"error": str(e)}), 404
     except ValueError as e:
@@ -129,6 +137,14 @@ def create_listing():
         return jsonify({"error": traceback.format_exc()}), 500
 
     return jsonify(listing), 200
+
+
+@app.get("/auth/status")
+def auth_status():
+    """GET /auth/status — fast file-based Vinted session indicator (no browser launch)."""
+    if not _DRAFT_ENABLED:
+        return jsonify({"logged_in": "missing", "method": "none", "expires_at": None})
+    return jsonify(draft_creator.check_auth_state())
 
 
 @app.post("/create-draft")
@@ -151,10 +167,8 @@ def create_draft_endpoint():
     try:
         listing = json.loads(listing_path.read_text())
         draft_url = draft_creator.create_draft(listing, item_path)
-    except FileNotFoundError as e:
-        return jsonify({"error": str(e)}), 404
-    except RuntimeError as e:
-        return jsonify({"error": str(e)}), 401
+    except draft_creator.VintedAuthError as e:
+        return jsonify({"error": str(e), "code": "VINTED_AUTH_EXPIRED"}), 401
     except Exception:
         return jsonify({"error": traceback.format_exc()}), 500
 
@@ -182,14 +196,46 @@ def edit_draft_endpoint():
         listing = json.loads(listing_path.read_text())
         draft_url = listing.get("draft_url") or ""
         result_url = draft_creator.edit_draft(listing, item_path, draft_url)
-    except FileNotFoundError as e:
-        return jsonify({"error": str(e)}), 404
-    except RuntimeError as e:
-        return jsonify({"error": str(e)}), 401
+    except draft_creator.VintedAuthError as e:
+        return jsonify({"error": str(e), "code": "VINTED_AUTH_EXPIRED"}), 401
     except Exception:
         return jsonify({"error": traceback.format_exc()}), 500
 
     return jsonify({"draft_url": result_url}), 200
+
+
+_UPLOAD_MAX_DIM = 2048   # px — phone photos are typically 4000+ px wide
+_UPLOAD_MAX_BYTES = 8 * 1024 * 1024   # 8 MB — Vinted rejects anything ≥ 9 MB
+
+
+def _resize_photo(path: Path) -> Path:
+    """Resize a photo to ≤ _UPLOAD_MAX_DIM px and ≤ _UPLOAD_MAX_BYTES in-place.
+
+    Always normalises to JPEG with progressive encoding and EXIF stripping.
+    Returns the (possibly renamed) path.
+    """
+    try:
+        from PIL import Image
+        orig_bytes = path.stat().st_size
+        img = Image.open(path).convert("RGB")
+        w, h = img.size
+        needs_resize = max(w, h) > _UPLOAD_MAX_DIM or orig_bytes > _UPLOAD_MAX_BYTES
+        if needs_resize:
+            scale = min(1.0, _UPLOAD_MAX_DIM / max(w, h))
+            img = img.resize((int(w * scale), int(h * scale)), Image.LANCZOS)
+        jpg_path = path.with_suffix(".jpg")
+        img.save(jpg_path, "JPEG", quality=85, optimize=True, progressive=True, exif=b"")
+        new_w, new_h = img.size
+        print(
+            f"[photo_resize] original={orig_bytes // 1024 // 1024}MB "
+            f"resized={jpg_path.stat().st_size // 1024 // 1024}MB "
+            f"width={new_w} height={new_h}"
+        )
+        if jpg_path != path:
+            path.unlink(missing_ok=True)
+        return jpg_path
+    except Exception:
+        return path  # Pillow unavailable or corrupt file — keep original
 
 
 @app.get("/")
@@ -223,6 +269,7 @@ def upload_listing():
         name = core_names[i] if i < len(core_names) else f"extra_{i - len(core_names) + 1:02d}"
         dest = item_path / f"{name}{ext}"
         f.save(dest)
+        dest = _resize_photo(dest)   # shrink large phone photos before storing
         saved.append(dest.name)
 
     if not saved:
@@ -232,14 +279,18 @@ def upload_listing():
         "brand":   request.form.get("hint_brand",   "").strip(),
         "size":    request.form.get("hint_size",    "").strip(),
         "gender":  request.form.get("hint_gender",  "").strip(),
+        "made_in": request.form.get("hint_made_in", "").strip(),
         "damages": request.form.get("hint_damages", "").strip(),
     }.items() if v}
 
     try:
+        _t0 = time.perf_counter()
         item, extract_usage = extractor.extract(item_path, hints=hints or None)
+        extract_log = item.pop("_extract_log", {})
         if buy_price:
             item["buy_price_gbp"] = float(buy_price)
         listing, write_usage = listing_writer.write(item, hints=hints or None)
+        write_log = write_usage.pop("_write_log", {})
 
         out_path = item_path / "listing.json"
         out_path.write_text(json.dumps(listing, indent=2))
@@ -254,6 +305,8 @@ def upload_listing():
 
         listing["folder"] = folder_name
         _log_cost(folder_name, extract_usage, write_usage, listing)
+        _write_run_log(folder_name, extract_log, write_log, extract_usage, write_usage, listing,
+                       round((time.perf_counter() - _t0) * 1000))
     except FileNotFoundError as e:
         return jsonify({"error": str(e)}), 404
     except ValueError as e:
@@ -268,6 +321,11 @@ def upload_listing():
 def drafts_page():
     listings = _get_all_listings()
     return render_template("drafts.html", listings=listings, draft_count=len(listings), active_tab="drafts")
+
+
+@app.get("/connect")
+def connect_page():
+    return render_template("connect.html", active_tab="connect")
 
 
 @app.get("/stats")
@@ -399,6 +457,51 @@ def _compute_stats(listings: list[dict], cost_history: list[dict]) -> dict:
     }
 
 
+def _write_run_log(listing_id, extract_log, write_log, extract_usage, write_usage, listing, latency_ms):
+    """Assemble and persist a structured run log entry."""
+    cost_extract = _calc_cost_usd(extract_usage) * _USD_TO_GBP
+    cost_write   = _calc_cost_usd(write_usage)   * _USD_TO_GBP
+    entry = {
+        "listing_id":            listing_id,
+        "timestamp":             datetime.now().isoformat(timespec="seconds"),
+        "latency_ms":            latency_ms,
+        # Extraction stage
+        "photos_found":          extract_log.get("photos_found", []),
+        "crop_applied":          extract_log.get("crop_applied", {}),
+        "escalated":             extract_log.get("escalated", False),
+        "extract_latency_ms":    extract_log.get("extract_latency_ms"),
+        "extract_input_tokens":  extract_log.get("extract_input_tokens", 0),
+        "extract_output_tokens": extract_log.get("extract_output_tokens", 0),
+        "extract_model":         extract_log.get("extract_model", ""),
+        "rereads_triggered":     extract_log.get("rereads_triggered", {}),
+        "reread_reasons":        extract_log.get("reread_reasons", {}),
+        "parallel_used":         extract_log.get("parallel_used", False),
+        "reread_errors":         extract_log.get("reread_errors", {}),
+        "rereads_count":         extract_log.get("rereads_count", 0),
+        # Listing write stage
+        "write_input_tokens":    write_usage.get("input_tokens", 0),
+        "write_output_tokens":   write_usage.get("output_tokens", 0),
+        "write_model":           write_usage.get("model", ""),
+        "write_latency_ms":      write_log.get("write_latency_ms"),
+        "category_slice_level":  write_log.get("category_slice_level"),
+        # Quality signals (from listing)
+        "price_memory_match_level": listing.get("price_memory_match"),
+        "brand_confidence":         listing.get("brand_confidence"),
+        "material_confidence":      listing.get("material_confidence"),
+        "confidence":               listing.get("confidence"),
+        "low_confidence_fields":    listing.get("low_confidence_fields", []),
+        "warnings":                 listing.get("warnings", []),
+        # Cost
+        "cost_gbp_extract": round(cost_extract, 5),
+        "cost_gbp_write":   round(cost_write, 5),
+        "cost_gbp_total":   round(cost_extract + cost_write, 5),
+    }
+    try:
+        run_logger.write_run_log(entry)
+    except Exception:
+        pass  # never let logging crash the main pipeline
+
+
 @app.get("/listing/<folder>")
 def get_listing(folder):
     """GET /listing/<folder> — return listing.json as JSON."""
@@ -413,7 +516,8 @@ def get_listing(folder):
 
 @app.patch("/listing/<folder>")
 def patch_listing(folder):
-    """PATCH /listing/<folder>  Body: {field: value, ...}  — update specific fields in listing.json."""
+    """PATCH /listing/<folder>  Body: {field: value, ...}  — update specific fields in listing.json.
+    Changed fields are logged as correction events in data/corrections.jsonl."""
     safe_folder = Path(folder).name
     listing_path = ITEMS_DIR / safe_folder / "listing.json"
     if not listing_path.exists():
@@ -421,7 +525,32 @@ def patch_listing(folder):
     try:
         updates = request.get_json(force=True, silent=True) or {}
         listing = json.loads(listing_path.read_text())
+        # Log each changed field as a correction event
+        for field, new_val in updates.items():
+            if field.startswith("_"):
+                continue
+            old_val = listing.get(field)
+            if old_val != new_val:
+                try:
+                    run_logger.write_correction({
+                        "timestamp":  datetime.now().isoformat(timespec="seconds"),
+                        "listing_id": safe_folder,
+                        "field":      field,
+                        "old_value":  old_val,
+                        "new_value":  new_val,
+                        "source":     "manual_review",
+                    })
+                except Exception:
+                    pass
+        # Capture old size before applying updates (needed for title patch below)
+        old_size = listing.get("normalized_size") or listing.get("tagged_size") or ""
         listing.update(updates)
+        # If normalized_size was corrected, replace the old size token in the title too
+        if "normalized_size" in updates:
+            new_size = updates["normalized_size"]
+            title = listing.get("title", "")
+            if old_size and old_size in title:
+                listing["title"] = title.replace(old_size, new_size, 1)
         listing_path.write_text(json.dumps(listing, indent=2))
         listing["folder"] = safe_folder  # always include so frontend can re-render
     except Exception:
@@ -483,6 +612,10 @@ def regen_listing(folder):
     gender_val = updates.get("gender") or existing.get("gender")
     if gender_val:
         hints["gender"] = gender_val
+
+    made_in_val = updates.get("made_in") or existing.get("made_in")
+    if made_in_val:
+        hints["made_in"] = made_in_val
 
     if updates.get("item_type"):
         hints["item_type"] = updates["item_type"]
@@ -586,9 +719,20 @@ window.chrome = {runtime: {}};
             _vinted_login["browser"] = browser
             _vinted_login["context"] = context
             _vinted_login["active"] = True
-            _vinted_login["done"] = threading.Event()
+            _vinted_login["done"]   = threading.Event()
+            _vinted_login["saved"]  = threading.Event()
             ready.set()
-            _vinted_login["done"].wait()   # block until /login/save is called
+            _vinted_login["done"].wait()   # block until /login/save signals us
+
+            # storage_state() MUST be called from this thread (Playwright greenlet rule)
+            save_path = _vinted_login.get("save_path")
+            if save_path:
+                try:
+                    context.storage_state(path=save_path)
+                    _vinted_login["save_error"] = None
+                except Exception as exc:
+                    _vinted_login["save_error"] = str(exc)
+                _vinted_login["saved"].set()
         except Exception as exc:
             error_holder.append(str(exc))
             ready.set()
@@ -613,19 +757,99 @@ window.chrome = {runtime: {}};
 
 @app.post("/login/save")
 def login_save():
-    """Capture cookies from the open Vinted browser and save to vinted_cookies.json."""
-    ctx = _vinted_login.get("context")
-    if not ctx:
+    """Save full Playwright storage state from the open Vinted browser session.
+
+    storage_state() must be called from the Playwright background thread (greenlet rule),
+    so we set save_path + signal done, then wait for the background thread to do the write.
+    """
+    done = _vinted_login.get("done")
+    saved = _vinted_login.get("saved")
+    if not done:
         return jsonify({"error": "No browser session open — call /login/start first."}), 400
     try:
-        cookies = ctx.cookies()
-        COOKIES_FILE.write_text(json.dumps(cookies, indent=2))
-        done = _vinted_login.get("done")
-        if done:
-            done.set()   # signal background thread to close browser
-        return jsonify({"status": "saved", "count": len(cookies)})
+        _vinted_login["save_path"] = str(ROOT / "auth_state.json")
+        done.set()          # tell background thread to call storage_state() + close browser
+        saved.wait(timeout=15)   # wait for background thread to finish writing
+        err = _vinted_login.get("save_error")
+        if err:
+            return jsonify({"error": err}), 500
+        return jsonify({"status": "saved", "method": "storage_state"})
     except Exception:
         return jsonify({"error": traceback.format_exc()}), 500
+
+
+@app.get("/review/<folder>")
+def review_listing_page(folder):
+    """GET /review/<folder> — full review UI for a single listing."""
+    safe_folder = Path(folder).name
+    item_path = ITEMS_DIR / safe_folder
+    listing_path = item_path / "listing.json"
+    if not listing_path.exists():
+        return jsonify({"error": "listing not found"}), 404
+    listing = json.loads(listing_path.read_text())
+    listing["folder"] = safe_folder
+
+    # Collect photo filenames
+    extensions = {".jpg", ".jpeg", ".png", ".webp"}
+    photos = sorted(
+        f.name for f in item_path.iterdir()
+        if f.is_file() and f.suffix.lower() in extensions
+    )
+
+    return render_template(
+        "review.html",
+        listing=listing,
+        photos=photos,
+        folder=safe_folder,
+        error_categories=run_logger.ERROR_CATEGORIES,
+        draft_count=_draft_count(),
+        active_tab="drafts",
+    )
+
+
+@app.post("/listing/<folder>/error-tags")
+def set_error_tags(folder):
+    """POST /listing/<folder>/error-tags  Body: {"tags": ["brand", "pricing"]}
+    Saves error taxonomy tags to listing.json and logs to corrections.jsonl."""
+    safe_folder = Path(folder).name
+    listing_path = ITEMS_DIR / safe_folder / "listing.json"
+    if not listing_path.exists():
+        return jsonify({"error": "listing not found"}), 404
+    try:
+        body = request.get_json(force=True, silent=True) or {}
+        tags = [t for t in body.get("tags", []) if t in run_logger.ERROR_CATEGORIES]
+        listing = json.loads(listing_path.read_text())
+        old_tags = listing.get("error_tags", [])
+        listing["error_tags"] = tags
+        listing_path.write_text(json.dumps(listing, indent=2))
+        if old_tags != tags:
+            try:
+                run_logger.write_correction({
+                    "timestamp":  datetime.now().isoformat(timespec="seconds"),
+                    "listing_id": safe_folder,
+                    "field":      "_error_tags",
+                    "old_value":  old_tags,
+                    "new_value":  tags,
+                    "source":     "error_taxonomy",
+                })
+            except Exception:
+                pass
+    except Exception:
+        return jsonify({"error": traceback.format_exc()}), 500
+    return jsonify({"folder": safe_folder, "error_tags": tags}), 200
+
+
+@app.get("/api/run-logs/summary")
+def api_run_logs_summary():
+    """GET /api/run-logs/summary — aggregate stats over all run logs."""
+    return jsonify(run_logger.summarize_logs())
+
+
+@app.get("/api/run-logs")
+def api_run_logs():
+    """GET /api/run-logs — all run log entries (most recent first, max 200)."""
+    logs = run_logger.read_run_logs()
+    return jsonify(list(reversed(logs))[:200])
 
 
 @app.get("/health")

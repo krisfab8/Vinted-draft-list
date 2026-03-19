@@ -17,7 +17,12 @@ from playwright.sync_api import sync_playwright, Page
 from app.config import ROOT
 
 COOKIES_FILE = ROOT / "vinted_cookies.json"
+AUTH_STATE_FILE = ROOT / "auth_state.json"
 VINTED_URL = "https://www.vinted.co.uk"
+
+
+class VintedAuthError(RuntimeError):
+    """Raised when the Vinted session is missing or expired."""
 
 _STEALTH_SCRIPT = """
 Object.defineProperty(navigator, 'webdriver', {get: () => undefined});
@@ -71,6 +76,7 @@ CATEGORY_NAV: dict[str, list[str]] = {
     "Men > Shirts > Striped":                   ["Men", "Clothing", "Tops & t-shirts", "Shirts", "Striped shirts"],
     "Men > T-shirts":                           ["Men", "Clothing", "Tops & t-shirts", "T-shirts", "Other t-shirts"],
     "Men > T-shirts > Plain":                   ["Men", "Clothing", "Tops & t-shirts", "T-shirts", "Plain t-shirts"],
+    "Men > T-shirts > Graphic":                 ["Men", "Clothing", "Tops & t-shirts", "T-shirts", "Print"],
     "Men > T-shirts > Long-sleeve":             ["Men", "Clothing", "Tops & t-shirts", "T-shirts", "Long-sleeved t-shirts"],
     "Men > Polo Shirts":                        ["Men", "Clothing", "Tops & t-shirts", "T-shirts", "Polo shirts"],
     # ── Men: Bottoms ──────────────────────────────────────────────────────
@@ -191,6 +197,107 @@ CATEGORY_NAV: dict[str, list[str]] = {
     "Women > Shoes > Sandals":                  ["Women", "Shoes", "Sandals"],
 }
 
+# ---------------------------------------------------------------------------
+# Category aliases — map raw AI-extracted strings to CATEGORY_NAV keys.
+# Add new entries here when the AI returns a variant not yet covered.
+# ---------------------------------------------------------------------------
+CATEGORY_ALIASES: dict[str, str] = {
+    # ── Men: Jeans — full Vinted-label variants the AI echoes back ────────
+    "Men > Jeans > Straight fit jeans":         "Men > Jeans > Straight",
+    "Men > Jeans > Straight-fit jeans":         "Men > Jeans > Straight",
+    "Men > Jeans > Straight jeans":             "Men > Jeans > Straight",
+    "Men > Jeans > Slim fit jeans":             "Men > Jeans > Slim",
+    "Men > Jeans > Slim-fit jeans":             "Men > Jeans > Slim",
+    "Men > Jeans > Slim jeans":                 "Men > Jeans > Slim",
+    "Men > Jeans > Skinny jeans":               "Men > Jeans > Skinny",
+    "Men > Jeans > Ripped jeans":               "Men > Jeans > Ripped",
+    # ── Men: Jeans — tapered/relaxed/regular AI variants → closest Vinted type
+    "Men > Jeans > Tapered jeans":              "Men > Jeans > Slim",
+    "Men > Jeans > Tapered":                    "Men > Jeans > Slim",
+    "Men > Jeans > Tapered fit jeans":          "Men > Jeans > Slim",
+    "Men > Jeans > Relaxed jeans":              "Men > Jeans > Straight",
+    "Men > Jeans > Relaxed fit jeans":          "Men > Jeans > Straight",
+    "Men > Jeans > Regular jeans":              "Men > Jeans > Straight",
+    "Men > Jeans > Regular fit jeans":          "Men > Jeans > Straight",
+    "Men > Jeans > Bootcut jeans":              "Men > Jeans > Straight",
+    "Men > Jeans > Bootcut":                    "Men > Jeans > Straight",
+    "Men > Jeans > Wide leg jeans":             "Men > Jeans > Straight",
+    "Men > Jeans > Wide-leg jeans":             "Men > Jeans > Straight",
+    # ── Men: Jeans — top-level shortcuts (no sub-path) ───────────────────
+    "Men > Straight jeans":                     "Men > Jeans > Straight",
+    "Men > Straight-leg jeans":                 "Men > Jeans > Straight",
+    "Men > Slim jeans":                         "Men > Jeans > Slim",
+    "Men > Slim-fit jeans":                     "Men > Jeans > Slim",
+    "Men > Tapered jeans":                      "Men > Jeans > Slim",
+    "Men > Skinny jeans":                       "Men > Jeans > Skinny",
+    "Men > Ripped jeans":                       "Men > Jeans > Ripped",
+    # ── Women: Jeans — full Vinted-label variants ─────────────────────────
+    "Women > Jeans > Straight fit jeans":       "Women > Jeans > Straight",
+    "Women > Jeans > Straight-fit jeans":       "Women > Jeans > Straight",
+    "Women > Jeans > Straight jeans":           "Women > Jeans > Straight",
+    "Women > Jeans > Slim fit jeans":           "Women > Jeans > Slim",
+    "Women > Jeans > Slim-fit jeans":           "Women > Jeans > Slim",
+    "Women > Jeans > Slim jeans":               "Women > Jeans > Slim",
+    "Women > Jeans > Boyfriend jeans":          "Women > Jeans > Boyfriend",
+    "Women > Jeans > Cropped jeans":            "Women > Jeans > Cropped",
+    "Women > Jeans > Flared jeans":             "Women > Jeans > Flared",
+    "Women > Jeans > High waisted jeans":       "Women > Jeans > High waisted",
+    "Women > Jeans > High-waisted jeans":       "Women > Jeans > High waisted",
+    "Women > Jeans > Skinny jeans":             "Women > Jeans > Skinny",
+    "Women > Jeans > Ripped jeans":             "Women > Jeans > Ripped",
+    "Women > Jeans > Tapered jeans":            "Women > Jeans > Straight",
+    "Women > Jeans > Relaxed jeans":            "Women > Jeans > Straight",
+    "Women > Jeans > Regular fit jeans":        "Women > Jeans > Straight",
+    "Women > Jeans > Bootcut jeans":            "Women > Jeans > Straight",
+    # ── Men: Trousers — alternate labels ─────────────────────────────────
+    "Men > Trousers > Tracksuit Bottoms":       "Men > Trousers > Joggers",
+    "Men > Trousers > Track Pants":             "Men > Trousers > Joggers",
+    "Men > Trousers > Sweatpants":              "Men > Trousers > Joggers",
+    "Men > Trousers > Cargos":                  "Men > Trousers > Cargo",
+    "Men > Trousers > Tailored trousers":       "Men > Trousers > Tailored",
+    "Men > Trousers > Chino trousers":          "Men > Trousers > Chinos",
+    # ── Men: Tops ─────────────────────────────────────────────────────────
+    "Men > T-shirts & Tops":                    "Men > T-shirts",
+    "Men > Tops":                               "Men > T-shirts",
+    "Men > Tops > T-shirt":                     "Men > T-shirts",
+    "Men > T-shirts > Print":                   "Men > T-shirts > Graphic",
+    "Men > T-shirts > Printed":                 "Men > T-shirts > Graphic",
+    "Men > T-shirts > Graphic tee":             "Men > T-shirts > Graphic",
+    "Men > T-shirts > Graphic print":           "Men > T-shirts > Graphic",
+    "Men > T-shirts > Band tee":                "Men > T-shirts > Graphic",
+    "Men > T-shirts > Slogan":                  "Men > T-shirts > Graphic",
+    "Men > Tops > Polo":                        "Men > Polo Shirts",
+    # ── Men: Knitwear ─────────────────────────────────────────────────────
+    "Men > Jumpers & Sweaters":                 "Men > Knitwear",
+    "Men > Jumpers":                            "Men > Knitwear",
+    "Men > Sweaters":                           "Men > Knitwear",
+    "Men > Knitwear > Jumper":                  "Men > Knitwear",
+    # ── Men: Outerwear — path variants ───────────────────────────────────
+    "Men > Outerwear > Coats":                  "Men > Coats",
+    "Men > Outerwear > Coats > Overcoat":       "Men > Coats > Overcoat",
+    "Men > Outerwear > Coats > Trench":         "Men > Coats > Trench",
+    "Men > Outerwear > Coats > Parka":          "Men > Coats > Parka",
+    "Men > Outerwear > Jackets":                "Men > Jackets",
+    "Men > Outerwear > Jackets > Bomber":       "Men > Jackets > Bomber",
+    "Men > Outerwear > Jackets > Puffer":       "Men > Jackets > Puffer",
+    "Men > Outerwear > Jackets > Denim":        "Men > Jackets > Denim",
+    "Men > Outerwear":                          "Men > Jackets",
+    # ── Women: Outerwear — path variants ─────────────────────────────────
+    "Women > Outerwear > Coats":                "Women > Coats",
+    "Women > Outerwear > Coats > Overcoat":     "Women > Coats > Overcoat",
+    "Women > Outerwear > Coats > Trench":       "Women > Coats > Trench",
+    "Women > Outerwear > Jackets":              "Women > Jackets",
+    "Women > Outerwear":                        "Women > Jackets",
+    # ── Men: Suits ────────────────────────────────────────────────────────
+    "Men > Suits & Blazers > Blazers":          "Men > Suits > Blazers",
+    "Men > Suits & Blazers > Waistcoats":       "Men > Suits > Waistcoats",
+    "Men > Suits & Blazers > Trousers":         "Men > Suits > Trousers",
+    "Men > Suits & Blazers":                    "Men > Suits > Blazers",
+    # ── Women: Suits ──────────────────────────────────────────────────────
+    "Women > Suits & Blazers > Blazers":        "Women > Suits > Blazers",
+    "Women > Suits & Blazers":                  "Women > Suits > Blazers",
+}
+
 # Keyword -> Vinted colour label (longest-first matching)
 COLOUR_MAP: dict[str, str] = {
     "light blue": "Light blue",
@@ -270,9 +377,128 @@ def _load_cookies() -> list[dict]:
     return result
 
 
+def check_auth_state() -> dict:
+    """Fast file-based session indicator — not authoritative, used for UI status only.
+
+    Returns dict with keys:
+      logged_in: "likely" | "expired" | "missing"
+      expires_at: Unix timestamp or None
+      saved_at:   Unix timestamp of when the auth file was last written (for UI display)
+      method: "storage_state" | "cookies" | "none"
+    """
+    import time
+    import os
+
+    def _find_token(cookies: list[dict]) -> dict | None:
+        for c in cookies:
+            if c.get("name") == "access_token_web":
+                return c
+        return None
+
+    # Prefer auth_state.json (Playwright storage state)
+    if AUTH_STATE_FILE.exists():
+        saved_at = int(os.path.getmtime(AUTH_STATE_FILE))
+        try:
+            data = json.loads(AUTH_STATE_FILE.read_text())
+            cookies = data.get("cookies", [])
+            token = _find_token(cookies)
+            if token:
+                exp = token.get("expires", -1)
+                if exp and exp > 0:
+                    status = "likely" if exp > time.time() else "expired"
+                    return {"logged_in": status, "expires_at": int(exp), "saved_at": saved_at, "method": "storage_state"}
+            return {"logged_in": "likely", "expires_at": None, "saved_at": saved_at, "method": "storage_state"}
+        except Exception:
+            pass
+
+    # Fallback: vinted_cookies.json
+    if COOKIES_FILE.exists():
+        saved_at = int(os.path.getmtime(COOKIES_FILE))
+        try:
+            raw = json.loads(COOKIES_FILE.read_text())
+            token = _find_token(raw)
+            if token:
+                exp = token.get("expires") or token.get("expirationDate", -1)
+                if exp and exp > 0:
+                    status = "likely" if float(exp) > time.time() else "expired"
+                    return {"logged_in": status, "expires_at": int(exp), "saved_at": saved_at, "method": "cookies"}
+            return {"logged_in": "likely", "expires_at": None, "saved_at": saved_at, "method": "cookies"}
+        except Exception:
+            pass
+
+    return {"logged_in": "missing", "expires_at": None, "saved_at": None, "method": "none"}
+
+
+_CONTEXT_KWARGS = {
+    "user_agent": (
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+        "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+    ),
+    "viewport": {"width": 1280, "height": 900},
+}
+
+
+def _build_context(browser):
+    """Create a Playwright browser context loaded with the best available auth.
+
+    Preference order:
+    1. auth_state.json  — Playwright storage state (cookies + localStorage)
+    2. vinted_cookies.json — legacy cookie-only fallback
+    3. VintedAuthError  — no auth found
+    """
+    if AUTH_STATE_FILE.exists():
+        ctx = browser.new_context(storage_state=str(AUTH_STATE_FILE), **_CONTEXT_KWARGS)
+        ctx.add_init_script(_STEALTH_SCRIPT)
+        return ctx
+
+    if COOKIES_FILE.exists():
+        cookies = _load_cookies()
+        ctx = browser.new_context(**_CONTEXT_KWARGS)
+        ctx.add_init_script(_STEALTH_SCRIPT)
+        ctx.add_cookies(cookies)
+        return ctx
+
+    raise VintedAuthError("No Vinted session found — reconnect via the app")
+
+
+def _probe_auth(page) -> None:
+    """Navigate to Vinted home and verify the session is active.
+
+    Raises VintedAuthError if Vinted redirects to /login or /signup,
+    which is the definitive sign that the session has expired.
+    """
+    page.goto(VINTED_URL, wait_until="domcontentloaded", timeout=15000)
+    if "/login" in page.url or "/signup" in page.url:
+        raise VintedAuthError("Vinted session expired — reconnect via the app")
+
+
 # ---------------------------------------------------------------------------
 # Page helpers
 # ---------------------------------------------------------------------------
+
+def safe_label(s: str) -> str:
+    """Make a string safe for use in a filename."""
+    return re.sub(r"[^\w\-]", "_", str(s))[:50]
+
+
+def _screenshot(page: Page, label: str) -> str | None:
+    """Save a debug screenshot. Returns the file path, or None on error.
+
+    Files land in <project-root>/debug_screenshots/ with a timestamp prefix
+    so each run's failures are easy to find.
+    """
+    try:
+        import datetime
+        outdir = ROOT / "debug_screenshots"
+        outdir.mkdir(exist_ok=True)
+        ts = datetime.datetime.now().strftime("%H%M%S")
+        safe = re.sub(r"[^\w\-]", "_", label)[:60]
+        path = outdir / f"{ts}_{safe}.png"
+        page.screenshot(path=str(path))
+        return str(path)
+    except Exception:
+        return None
+
 
 def _dismiss_cookie_banner(page: Page) -> None:
     page.evaluate("""() => {
@@ -362,9 +588,38 @@ def _upload_photos(page: Page, folder: Path) -> None:
     photos = sorted(set(photos), key=_photo_sort_key)
     if not photos:
         raise FileNotFoundError(f"No photos found in {folder}")
-    page.set_input_files('input[data-testid="add-photos-input"]', [str(p) for p in photos])
+
+    # Vinted rejects files ≥ 9 MB. Shrink any oversized photos to a temp JPEG.
+    _VINTED_MAX_BYTES = 8 * 1024 * 1024
+    _VINTED_MAX_DIM   = 2048
+    upload_paths: list[str] = []
+    _tmp_files: list[Path] = []
+    for p in photos:
+        if p.stat().st_size <= _VINTED_MAX_BYTES:
+            upload_paths.append(str(p))
+            continue
+        try:
+            from PIL import Image as _PIL
+            import tempfile
+            orig_mb = p.stat().st_size // 1024 // 1024
+            img = _PIL.open(p).convert("RGB")
+            w, h = img.size
+            scale = min(1.0, _VINTED_MAX_DIM / max(w, h))
+            if scale < 1.0:
+                img = img.resize((int(w * scale), int(h * scale)), _PIL.LANCZOS)
+            tmp = Path(tempfile.mktemp(suffix=".jpg"))
+            img.save(tmp, "JPEG", quality=85, optimize=True, progressive=True, exif=b"")
+            upload_paths.append(str(tmp))
+            _tmp_files.append(tmp)
+            print(f"[vinted_guard] photo exceeded 8MB, compressed before upload ({orig_mb}MB -> {tmp.stat().st_size // 1024 // 1024}MB)")
+        except Exception:
+            upload_paths.append(str(p))  # upload as-is, let Vinted give the error
+
+    page.set_input_files('input[data-testid="add-photos-input"]', upload_paths)
     page.wait_for_timeout(2000)
     print(f"  Photos uploaded: {[p.name for p in photos]}")
+    for tmp in _tmp_files:
+        tmp.unlink(missing_ok=True)
 
 
 def _get_dropdown_options(page: Page) -> list[str]:
@@ -399,21 +654,143 @@ def _click_page_option(page: Page, option_text: str, timeout: int = 5000) -> boo
     return False
 
 
+def _normalise_category(category: str) -> str:
+    """Strip AI-hallucinated middle segments the model sometimes inserts.
+
+    e.g. "Men > Clothing > Trousers > Joggers" → "Men > Trousers > Joggers"
+         "Women > Activewear > Trousers"        → "Women > Trousers"
+    """
+    parts = [p.strip() for p in category.split(">")]
+    stripped = [p for p in parts if p not in ("Clothing", "Activewear")]
+    return " > ".join(stripped)
+
+
+def _resolve_category_key(raw: str, style: str | None = None) -> str | None:
+    """Resolve a raw extracted category string to a CATEGORY_NAV key.
+
+    Resolution order:
+    1. Style-qualified lookup  ("Men > Jeans" + style "Slim" → "Men > Jeans > Slim")
+    2. CATEGORY_ALIASES exact lookup (raw or normalised)
+    3. CATEGORY_NAV direct lookup   (raw or normalised)
+    4. Fuzzy: last-segment containment match against same-gender nav keys
+
+    Logs the raw input and resolved key for tracing.
+    """
+    norm = _normalise_category(raw)
+
+    def _try(key: str) -> str | None:
+        # Try style-qualified first
+        if style:
+            for styled in (f"{key} > {style}", f"{key} > {style.title()}"):
+                if styled in CATEGORY_ALIASES:
+                    return CATEGORY_ALIASES[styled]
+                if styled in CATEGORY_NAV:
+                    return styled
+        if key in CATEGORY_ALIASES:
+            return CATEGORY_ALIASES[key]
+        if key in CATEGORY_NAV:
+            return key
+        return None
+
+    canonical = _try(norm) or _try(raw)
+    if canonical:
+        # Style-conflict override: canonical ends with a style keyword (e.g. "Plain")
+        # that contradicts the explicit style arg (e.g. "Graphic") → use correct variant.
+        _STYLE_TERMINALS = {"plain", "graphic"}
+        if style:
+            canon_parts = [p.strip() for p in canonical.split(">")]
+            if (len(canon_parts) >= 2
+                    and canon_parts[-1].lower() in _STYLE_TERMINALS
+                    and canon_parts[-1].lower() != style.lower()):
+                base_key = " > ".join(canon_parts[:-1])
+                for styled in (f"{base_key} > {style}", f"{base_key} > {style.title()}"):
+                    if styled in CATEGORY_ALIASES:
+                        canonical = CATEGORY_ALIASES[styled]
+                        break
+                    if styled in CATEGORY_NAV:
+                        canonical = styled
+                        break
+
+        # After an alias resolves (e.g. "Men > Jumpers & Sweaters" → "Men > Knitwear"),
+        # re-apply style qualification to the canonical alias key.
+        # This lets style="Crew neck" pick "Men > Knitwear > Crew neck" even when the
+        # raw key only reached "Men > Knitwear" via alias.
+        if style and canonical not in (norm, raw):
+            for styled in (f"{canonical} > {style}", f"{canonical} > {style.title()}"):
+                if styled in CATEGORY_ALIASES:
+                    canonical = CATEGORY_ALIASES[styled]
+                    break
+                if styled in CATEGORY_NAV:
+                    canonical = styled
+                    break
+        if canonical != norm:
+            print(f"  [category] '{raw}' → '{canonical}'")
+        return canonical
+
+    # Fuzzy: find a nav key where the last segment is contained within the
+    # raw last segment (e.g. "Straight" ⊂ "Straight fit jeans")
+    parts = [p.strip() for p in norm.split(">")]
+    if len(parts) >= 2:
+        gender = parts[0].lower()
+        last_raw = parts[-1].lower()
+        for key in CATEGORY_NAV:
+            kparts = [p.strip() for p in key.split(">")]
+            if kparts[0].lower() != gender:
+                continue
+            klast = kparts[-1].lower()
+            if klast not in last_raw and not last_raw.startswith(klast):
+                continue
+            # Also check middle segment if both have ≥3 parts
+            if len(parts) >= 3 and len(kparts) >= 3:
+                mid = parts[-2].lower()
+                kmid = kparts[-2].lower()
+                if kmid not in mid and mid not in kmid:
+                    continue
+            print(f"  [category] fuzzy match '{raw}' → '{key}'")
+            return key
+
+    return None
+
+
+def _match_option(target: str, options: list[str]) -> tuple[str, str] | None:
+    """Match *target* against *options* using exact → normalised → substring.
+
+    Returns (matched_option, method_name) or None.
+    """
+    def _n(s: str) -> str:
+        return re.sub(r"\s+", " ", s.strip().lower())
+
+    t = target.strip()
+    t_norm = _n(t)
+
+    # 1. Exact
+    if t in options:
+        return t, "exact"
+
+    # 2. Normalised (case + whitespace insensitive)
+    for opt in options:
+        if _n(opt) == t_norm:
+            return opt, "normalized"
+
+    # 3. Substring — prefer longer options (more specific)
+    for opt in sorted(options, key=len, reverse=True):
+        opt_norm = _n(opt)
+        if t_norm in opt_norm or opt_norm in t_norm:
+            return opt, "contains"
+
+    return None
+
+
 def _select_category(page: Page, category: str, style: str | None = None) -> None:
     """Navigate the Vinted category picker.
 
-    If *style* is provided, look up the more specific key ``category > style``
-    first (e.g. "Men > Jeans" + "Slim" → "Men > Jeans > Slim").  Falls back
-    to the base category if no specific key exists.
+    Resolves raw → canonical → CATEGORY_NAV path using _resolve_category_key.
     """
-    if style:
-        specific = f"{category} > {style}"
-        if specific in CATEGORY_NAV:
-            category = specific
-    nav_path = CATEGORY_NAV.get(category)
-    if not nav_path:
-        print(f"  Warning: no category mapping for '{category}', skipping")
+    canonical = _resolve_category_key(category, style)
+    if not canonical:
+        print(f"  Warning: no category mapping for '{category}' (style={style!r}), skipping")
         return
+    nav_path = CATEGORY_NAV[canonical]
     _pw_click(page, "catalog-select-dropdown-input")
     for step in nav_path:
         if _dropdown_click_option(page, "catalog-select-dropdown-content", step):
@@ -428,7 +805,9 @@ def _select_category(page: Page, category: str, style: str | None = None) -> Non
         if _click_page_option(page, step):
             continue
         available = _get_dropdown_options(page)
-        print(f"  Warning: category step '{step}' not found. Available: {available}")
+        shot = _screenshot(page, f"category_step_{safe_label(step)}")
+        print(f"  Warning: category step '{step}' not found. Available: {available}"
+              + (f" — screenshot: {shot}" if shot else ""))
         return
     # Dismiss any lingering sub-category modal.
     # Full-screen modals (e.g. jeans style picker) intercept pointer events so
@@ -437,45 +816,80 @@ def _select_category(page: Page, category: str, style: str | None = None) -> Non
     page.wait_for_timeout(400)
     _close_dropdown(page)
     page.wait_for_timeout(300)
-    print(f"  Category: {category}")
+    print(f"  Category: {canonical}")
 
 
 def _open_brand_dropdown(page: Page) -> bool:
-    """Open the brand dropdown panel. Returns True if content is visible after opening."""
+    """Open the brand dropdown panel. Returns True if content is visible after opening.
+
+    Tries five escalating methods and logs which one succeeded.
+    """
     loc = page.locator('[data-testid="brand-select-dropdown-input"]').first
     content = page.locator('[data-testid="brand-select-dropdown-content"]')
 
-    # Attempt 1: standard Playwright click (scroll + click)
+    # Attempt 1: scroll into view → wait visible → standard click
     try:
         loc.wait_for(state="visible", timeout=8000)
         loc.scroll_into_view_if_needed()
-        page.wait_for_timeout(300)  # let scroll settle before clicking
+        page.wait_for_timeout(300)
         loc.click()
         page.wait_for_timeout(600)
         if content.is_visible():
+            print("  [brand_dropdown] opened via attempt 1 (scroll+click)")
             return True
     except Exception:
         pass
 
-    # Attempt 2: dispatch_event bypasses hit-testing (fires directly on element,
-    # ignores any sticky header / overlay covering it)
+    # Attempt 2: dispatch_event — bypasses overlay hit-testing
     try:
         loc.dispatch_event("click")
         page.wait_for_timeout(600)
         if content.is_visible():
+            print("  [brand_dropdown] opened via attempt 2 (dispatch_event)")
             return True
     except Exception:
         pass
 
-    # Attempt 3: JS click — different event path through the browser
+    # Attempt 3: JS .click() — different React event path
     try:
         page.evaluate("document.querySelector('[data-testid=\"brand-select-dropdown-input\"]').click()")
         page.wait_for_timeout(600)
         if content.is_visible():
+            print("  [brand_dropdown] opened via attempt 3 (js click)")
             return True
     except Exception:
         pass
 
+    # Attempt 4: centre scroll → dismiss overlay → force click → longer wait
+    try:
+        page.evaluate("""
+            const el = document.querySelector('[data-testid="brand-select-dropdown-input"]');
+            if (el) el.scrollIntoView({block: 'center'});
+        """)
+        page.wait_for_timeout(500)
+        _dismiss_cookie_banner(page)
+        page.wait_for_timeout(300)
+        loc.click(force=True)
+        page.wait_for_timeout(1000)
+        if content.is_visible():
+            print("  [brand_dropdown] opened via attempt 4 (force click)")
+            return True
+    except Exception:
+        pass
+
+    # Attempt 5: focus element then press Enter via keyboard
+    try:
+        loc.focus()
+        page.wait_for_timeout(200)
+        page.keyboard.press("Enter")
+        page.wait_for_timeout(800)
+        if content.is_visible():
+            print("  [brand_dropdown] opened via attempt 5 (keyboard Enter)")
+            return True
+    except Exception:
+        pass
+
+    print("  [brand_dropdown] all 5 attempts failed")
     return False
 
 
@@ -488,7 +902,9 @@ def _select_brand(page: Page, brand: str | None) -> None:
     page.wait_for_timeout(300)
 
     if not _open_brand_dropdown(page):
-        print("  Warning: brand dropdown would not open, skipping brand")
+        shot = _screenshot(page, "brand_dropdown_failed")
+        print("  Warning: brand dropdown would not open, skipping brand"
+              + (f" — screenshot: {shot}" if shot else ""))
         return
 
     content = page.locator('[data-testid="brand-select-dropdown-content"]')
@@ -531,19 +947,28 @@ def _select_brand(page: Page, brand: str | None) -> None:
 
 
 def _wl_candidates(size: str) -> list[str]:
-    """Generate W/L format variants to try against Vinted's size list.
-    Input 'W33 L34' → ['W33 L34', 'W33/L34', 'W 33 / L 34', '33/34', 'W33']
+    """Generate W/L format variants for jeans sizes.
+
+    "W34 L32" → ["W34 L32", "W34/L32", "W34 / L32", "W 34 / L 32",
+                  "34/32", "34 / 32", "34 32", "W34", "34"]
     """
-    m = re.match(r"[Ww]?\s*(\d+)\s*[/\s]?\s*[Ll]?\s*(\d+)", size)
+    # Require either a W prefix ("W34 L32") or an explicit slash separator ("34/32")
+    # to avoid false matches on suit sizes like "44R" (two digits, no separator).
+    m = re.match(r"[Ww]\s*(\d+)\s*(?:[/\s]+|[Ll]\s*)(\d+)", size.strip()) or \
+        re.match(r"(\d+)\s*/\s*(\d+)", size.strip())
     if not m:
         return []
     w, l = m.group(1), m.group(2)
     return [
-        f"W{w} L{l}",
-        f"W{w}/L{l}",
-        f"W {w} / L {l}",
-        f"{w}/{l}",
-        f"W{w}",
+        f"W{w} L{l}",       # "W34 L32"  — most common UK resale format
+        f"W{w}/L{l}",       # "W34/L32"
+        f"W{w} / L{l}",     # "W34 / L32"
+        f"W {w} / L {l}",   # "W 34 / L 32"
+        f"{w}/{l}",          # "34/32"
+        f"{w} / {l}",        # "34 / 32"   — Vinted sometimes uses this
+        f"{w} {l}",          # "34 32"
+        f"W{w}",             # "W34"       — waist-only fallback
+        f"{w}",              # "34"        — bare number
     ]
 
 
@@ -551,23 +976,38 @@ def _select_size(page: Page, tagged_size: str | None) -> None:
     if not tagged_size:
         return
     _pw_click(page, "size-select-dropdown-input")
+    page.wait_for_timeout(600)  # wait for size options to render
     options: list[str] = page.evaluate("""() => {
         const content = document.querySelector('[data-testid="size-select-dropdown-content"]');
         if (!content) return [];
         return Array.from(content.querySelectorAll('[role="button"]')).map(el => el.innerText.trim());
     }""")
     size = tagged_size.strip()
-    # Build candidate list: standard suffixes + W/L variants for jeans
-    candidates = [size, size + "R", size + "S", size + "L"]
-    if re.search(r"[Ww]\d", size) or re.search(r"\d\s*/\s*\d", size):
-        candidates = _wl_candidates(size) + candidates
+    # Build candidate list: W/L variants (jeans) + standard suit/letter suffixes
+    is_wl = bool(re.search(r"[Ww]\d", size) or re.search(r"\d\s*/\s*\d", size))
+    candidates = _wl_candidates(size) if is_wl else []
+    candidates += [size, size + "R", size + "S", size + "L"]
+
+    # 1. Try explicit candidates (exact match)
     for candidate in candidates:
         if candidate in options:
             _dropdown_click_option(page, "size-select-dropdown-content", candidate)
             print(f"  Size: {candidate} (tagged: {tagged_size})")
             return
+
+    # 2. Try _match_option (normalised + contains) for each candidate
+    for candidate in candidates:
+        result = _match_option(candidate, options)
+        if result:
+            matched, method = result
+            _dropdown_click_option(page, "size-select-dropdown-content", matched)
+            print(f"  Size: {matched} (tagged: {tagged_size}, matched via {method})")
+            return
+
     _close_dropdown(page)
-    print(f"  Warning: size '{tagged_size}' not found in options, skipping")
+    shot = _screenshot(page, f"size_{safe_label(tagged_size)}")
+    print(f"  Warning: size '{tagged_size}' not found in options. Available: {options}"
+          + (f" — screenshot: {shot}" if shot else ""))
 
 
 _CONDITION_ID: dict[str, int] = {
@@ -596,25 +1036,61 @@ def _select_condition(page: Page, condition_summary: str | None) -> None:
     condition_id = _CONDITION_ID[vinted]
     _pw_click(page, "category-condition-single-list-input")
     page.wait_for_timeout(600)
+
+    clicked = None
     try:
-        # The radio inputs are visually hidden — using scroll_into_view on them
-        # causes Playwright to scroll the whole page in a loop.
-        # Use JS direct click on the parent cell (the visible label/wrapper).
+        # Attempt 1: data-testid by condition ID
         clicked = page.evaluate(f"""() => {{
-            // Try parent condition cell first (visible)
             let el = document.querySelector('[data-testid="condition-{condition_id}"]');
-            if (el) {{ el.click(); return 'cell'; }}
-            // Fallback: direct JS click on the hidden radio input (no scroll)
+            if (el) {{ el.click(); return 'id'; }}
             el = document.querySelector('[data-testid="condition-radio-{condition_id}--input"]');
-            if (el) {{ el.click(); return 'radio'; }}
+            if (el) {{ el.click(); return 'radio-id'; }}
             return null;
         }}""")
-        if not clicked:
-            print(f"  Warning: condition {condition_id} not found")
-    except Exception as e:
-        print(f"  Warning: condition radio {condition_id} error: {e}")
+    except Exception:
+        pass
+
+    if not clicked:
+        # Attempt 2: read live options and use _match_option (normalised + contains)
+        try:
+            live_options: list[str] = page.evaluate("""() => {
+                const c = document.querySelector(
+                    '[data-testid="category-condition-single-list-content"]'
+                );
+                if (!c) return [];
+                return Array.from(
+                    c.querySelectorAll('[role="button"], label, li')
+                ).map(el => el.innerText.trim()).filter(Boolean);
+            }""")
+            result = _match_option(vinted, live_options)
+            if result:
+                matched, method = result
+                clicked = page.evaluate(f"""() => {{
+                    const text = {json.dumps(matched)};
+                    const c = document.querySelector(
+                        '[data-testid="category-condition-single-list-content"]'
+                    );
+                    if (!c) return null;
+                    for (const el of c.querySelectorAll('[role="button"], label, li')) {{
+                        if (el.innerText && el.innerText.trim() === text) {{
+                            el.click(); return 'text-' + {json.dumps(method)};
+                        }}
+                    }}
+                    return null;
+                }}""")
+            if not clicked:
+                shot = _screenshot(page, f"condition_{safe_label(vinted)}")
+                print(f"  Warning: condition '{vinted}' not found. "
+                      f"Available: {live_options}"
+                      + (f" — screenshot: {shot}" if shot else ""))
+        except Exception as e:
+            print(f"  Warning: condition fallback error: {e}")
+
     page.wait_for_timeout(400)
-    print(f"  Condition: {vinted}")
+    if clicked:
+        print(f"  Condition: {vinted} (via {clicked})")
+    else:
+        print(f"  Condition: {vinted} (click may have failed)")
 
 
 def _select_colour(page: Page, colour: str | None, colour_secondary: str | None = None) -> None:
@@ -634,14 +1110,38 @@ def _select_colour(page: Page, colour: str | None, colour_secondary: str | None 
         return
 
     _pw_click(page, "color-select-dropdown-input")
-    _dropdown_click_option(page, "color-select-dropdown-content", primary)
-    print(f"  Colour 1: {primary} (from '{colour}')")
+    # Read live options to allow normalised/contains fallback
+    colour_options: list[str] = page.evaluate("""() => {
+        const c = document.querySelector('[data-testid="color-select-dropdown-content"]');
+        if (!c) return [];
+        return Array.from(c.querySelectorAll('[role="button"]')).map(el => el.innerText.trim());
+    }""")
+
+    def _click_colour(label: str) -> bool:
+        """Try exact dropdown click, then _match_option fallback."""
+        if _dropdown_click_option(page, "color-select-dropdown-content", label):
+            return True
+        result = _match_option(label, colour_options)
+        if result:
+            matched, method = result
+            if _dropdown_click_option(page, "color-select-dropdown-content", matched):
+                print(f"  [colour] matched '{label}' → '{matched}' via {method}")
+                return True
+        return False
+
+    if _click_colour(primary):
+        print(f"  Colour 1: {primary} (from '{colour}')")
+    else:
+        shot = _screenshot(page, f"colour_{safe_label(primary)}")
+        print(f"  Warning: colour '{primary}' not found in dropdown. "
+              f"Available: {colour_options}"
+              + (f" — screenshot: {shot}" if shot else ""))
 
     if colour_secondary:
         secondary = _lookup(colour_secondary)
         if secondary and secondary != primary:
-            _dropdown_click_option(page, "color-select-dropdown-content", secondary)
-            print(f"  Colour 2: {secondary} (from '{colour_secondary}')")
+            if _click_colour(secondary):
+                print(f"  Colour 2: {secondary} (from '{colour_secondary}')")
 
     page.keyboard.press("Escape")
 
@@ -706,20 +1206,63 @@ def _select_package_size(page: Page, item_type: str | None) -> None:
     # Close any open dropdown (condition picker may still be active)
     _close_dropdown(page)
     page.wait_for_timeout(500)
+    label_text = {1: "Small", 2: "Medium", 3: "Large"}[pkg]
+    clicked = None
     try:
-        # Package size inputs are also hidden radios — use JS click to avoid page scroll
+        # Attempt 1: data-testid by package index
         clicked = page.evaluate(f"""() => {{
             const el = document.querySelector('[data-testid="package_type_selector_{pkg}--input"]');
-            if (el) {{ el.scrollIntoView({{block: 'nearest'}}); el.click(); return true; }}
-            return false;
+            if (el) {{ el.scrollIntoView({{block: 'nearest'}}); el.click(); return 'testid'; }}
+            return null;
         }}""")
-        if not clicked:
-            print(f"  Warning: package size selector {pkg} not found")
-    except Exception as e:
-        print(f"  Warning: package size selector {pkg} error: {e}")
+    except Exception:
+        pass
+
+    if not clicked:
+        # Attempt 2: read live package options and use _match_option
+        try:
+            live_opts: list[str] = page.evaluate("""() => {
+                return Array.from(
+                    document.querySelectorAll('label, [role="radio"], [role="button"]')
+                ).map(el => el.innerText.trim()).filter(Boolean);
+            }""")
+            result = _match_option(label_text, live_opts)
+            if result:
+                matched, method = result
+                clicked = page.evaluate(f"""() => {{
+                    const text = {json.dumps(matched)};
+                    for (const el of document.querySelectorAll(
+                        'label, [role="radio"], [role="button"]'
+                    )) {{
+                        if (el.innerText && el.innerText.trim() === text) {{
+                            el.scrollIntoView({{block: 'nearest'}}); el.click();
+                            return 'text-' + {json.dumps(method)};
+                        }}
+                    }}
+                    return null;
+                }}""")
+            if not clicked:
+                # Attempt 3: input with matching value
+                clicked = page.evaluate(f"""() => {{
+                    const inp = document.querySelector(
+                        'input[name*="package"][value="{pkg}"]'
+                    );
+                    if (inp) {{ inp.click(); return 'input-value'; }}
+                    return null;
+                }}""")
+            if not clicked:
+                shot = _screenshot(page, f"package_{safe_label(label_text)}")
+                print(f"  Warning: package size '{label_text}' not found. "
+                      f"Tried options: {live_opts[:10]}"
+                      + (f" — screenshot: {shot}" if shot else ""))
+        except Exception as e:
+            print(f"  Warning: package size fallback error: {e}")
+
     page.wait_for_timeout(200)
-    label = {1: "Small", 2: "Medium", 3: "Large"}[pkg]
-    print(f"  Package size: {label}")
+    if clicked:
+        print(f"  Package size: {label_text} (via {clicked})")
+    else:
+        print(f"  Package size: {label_text} (click may have failed)")
 
 
 # ---------------------------------------------------------------------------
@@ -738,7 +1281,6 @@ def create_draft(listing: dict, item_folder: Path | str) -> str | None:
         URL of the saved draft, or None if save failed.
     """
     folder = Path(item_folder)
-    cookies = _load_cookies()
 
     with sync_playwright() as p:
         browser = p.chromium.launch(
@@ -746,27 +1288,20 @@ def create_draft(listing: dict, item_folder: Path | str) -> str | None:
             channel="chrome",
             args=["--disable-blink-features=AutomationControlled"],
         )
-        context = browser.new_context(
-            user_agent=(
-                "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
-                "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
-            ),
-            viewport={"width": 1280, "height": 900},
-        )
-        context.add_init_script(_STEALTH_SCRIPT)
-        context.add_cookies(cookies)
+        context = _build_context(browser)
         page = context.new_page()
+
+        _probe_auth(page)
 
         print("Opening Vinted sell page...")
         page.goto(f"{VINTED_URL}/items/new", wait_until="domcontentloaded", timeout=30000)
         page.wait_for_timeout(2000)
 
-        # Check we're actually on the sell page (cookies may have expired)
+        # Check we're actually on the sell page (belt-and-braces after probe)
         if "/items/new" not in page.url:
             browser.close()
-            raise RuntimeError(
-                f"Redirected to {page.url} — session cookies may have expired. "
-                "Re-export cookies from your browser using Cookie-Editor."
+            raise VintedAuthError(
+                f"Redirected to {page.url} — session expired. Reconnect via the app."
             )
 
         _dismiss_cookie_banner(page)
@@ -842,7 +1377,6 @@ def edit_draft(listing: dict, item_folder: Path | str, draft_url: str) -> str | 
 
     item_id = m.group(1)
     edit_url = f"{VINTED_URL}/items/{item_id}/edit"
-    cookies = _load_cookies()
 
     with sync_playwright() as p:
         browser = p.chromium.launch(
@@ -850,27 +1384,20 @@ def edit_draft(listing: dict, item_folder: Path | str, draft_url: str) -> str | 
             channel="chrome",
             args=["--disable-blink-features=AutomationControlled"],
         )
-        context = browser.new_context(
-            user_agent=(
-                "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
-                "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
-            ),
-            viewport={"width": 1280, "height": 900},
-        )
-        context.add_init_script(_STEALTH_SCRIPT)
-        context.add_cookies(cookies)
+        context = _build_context(browser)
         page = context.new_page()
+
+        _probe_auth(page)
 
         print(f"Opening Vinted edit page: {edit_url}")
         page.goto(edit_url, wait_until="domcontentloaded", timeout=30000)
         page.wait_for_timeout(2000)
 
-        # If redirected away from edit page, session may have expired
+        # Belt-and-braces check after probe
         if "/items/new" not in page.url and f"/items/{item_id}" not in page.url:
             browser.close()
-            raise RuntimeError(
-                f"Redirected to {page.url} — session cookies may have expired. "
-                "Re-export cookies from your browser using Cookie-Editor."
+            raise VintedAuthError(
+                f"Redirected to {page.url} — session expired. Reconnect via the app."
             )
 
         _dismiss_cookie_banner(page)

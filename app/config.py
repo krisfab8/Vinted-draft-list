@@ -31,4 +31,14 @@ CONFIDENCE_THRESHOLD = float(os.getenv("CONFIDENCE_THRESHOLD", "0.5"))
 
 # Core photos to analyse (in priority order)
 # Slots 1-4 are the primary analysis photos; back (slot 5) is optional but analyzed if present
-CORE_PHOTOS = ["front", "brand", "model_size", "material", "back"]
+CORE_PHOTOS = ["front", "brand", "model_size", "material"]
+
+# Feature flags — set env vars to "0" to disable
+# ENABLE_LABEL_AUTOCROP: crop OCR-critical label photos to remove background before sending
+ENABLE_LABEL_AUTOCROP = os.getenv("ENABLE_LABEL_AUTOCROP", "1") == "1"
+# ENABLE_CATEGORY_ITEM_TYPE_SLICE: further reduce category_rules prompt by item type
+ENABLE_CATEGORY_ITEM_TYPE_SLICE = os.getenv("ENABLE_CATEGORY_ITEM_TYPE_SLICE", "1") == "1"
+# ENABLE_PARALLEL_REREADS: run brand and material rereads concurrently (ThreadPoolExecutor)
+ENABLE_PARALLEL_REREADS = os.getenv("ENABLE_PARALLEL_REREADS", "1") == "1"
+# ENABLE_PRICE_MEMORY: inject price memory hints into listing writer prompt
+ENABLE_PRICE_MEMORY = os.getenv("ENABLE_PRICE_MEMORY", "1") == "1"

@@ -1,0 +1,767 @@
+{% extends "base.html" %}
+{% block title %}Review — {{ listing.brand or "Item" }} {{ listing.item_type or "" }}{% endblock %}
+
+{% block head %}
+<style>
+  /* ── Back nav ── */
+  .review-back {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--gray-7);
+    text-decoration: none;
+    margin-bottom: 18px;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .review-back:hover { color: var(--black); }
+
+  /* ── Warning bar ── */
+  .warnings-bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 18px;
+  }
+
+  .warn-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 5px 11px;
+    border-radius: var(--r-pill);
+    font-size: 12px;
+    font-weight: 600;
+    background: var(--gold-bg);
+    color: #b86a00;
+    border: 1px solid rgba(184,106,0,0.15);
+  }
+
+  .warn-chip.error {
+    background: var(--error-bg);
+    color: var(--error);
+    border-color: rgba(255,59,48,0.15);
+  }
+
+  /* ── Graphic/plain conflict banner ── */
+  .conflict-banner {
+    background: #fff8e6;
+    border: 1.5px solid #f5c842;
+    border-radius: var(--r-lg);
+    padding: 14px 16px;
+    margin-bottom: 14px;
+    font-size: 14px;
+    color: #7a5800;
+    line-height: 1.5;
+  }
+  .conflict-banner strong { font-weight: 700; }
+  .conflict-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 10px;
+  }
+  .conflict-btn {
+    font-size: 13px;
+    font-weight: 600;
+    padding: 7px 16px;
+    border-radius: var(--r-sm);
+    border: none;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .conflict-btn.yes {
+    background: var(--brand);
+    color: #fff;
+  }
+  .conflict-btn.no {
+    background: var(--gray-1);
+    color: var(--gray-9);
+  }
+
+  /* ── Section cards ── */
+  .review-section {
+    background: var(--white);
+    border-radius: var(--r-lg);
+    box-shadow: var(--shadow-sm);
+    margin-bottom: 14px;
+    overflow: hidden;
+  }
+
+  .review-section-title {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.6px;
+    text-transform: uppercase;
+    color: var(--gray-5);
+    padding: 14px 16px 0;
+  }
+
+  /* ── Field rows ── */
+  .field-row {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    padding: 11px 16px;
+    border-bottom: 1px solid var(--gray-1);
+    gap: 8px;
+  }
+
+  .field-row:last-child { border-bottom: none; }
+
+  .field-label {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    color: var(--gray-5);
+    min-width: 90px;
+    flex-shrink: 0;
+    padding-top: 2px;
+  }
+
+  .field-value {
+    flex: 1;
+    font-size: 14px;
+    color: var(--black);
+    word-break: break-word;
+    line-height: 1.45;
+  }
+
+  .field-value.description {
+    font-size: 13px;
+    color: var(--gray-9);
+    white-space: pre-wrap;
+    line-height: 1.6;
+  }
+
+  .field-edit-wrap {
+    display: flex;
+    align-items: flex-start;
+    gap: 6px;
+    flex: 1;
+    min-width: 0;
+  }
+
+  /* Inline editable inputs */
+  .field-input {
+    flex: 1;
+    font-size: 14px;
+    font-family: inherit;
+    color: var(--black);
+    border: 1.5px solid var(--gray-2);
+    border-radius: var(--r-sm);
+    padding: 6px 10px;
+    background: var(--white);
+    min-width: 0;
+    transition: border-color 150ms ease;
+  }
+
+  .field-input:focus {
+    outline: none;
+    border-color: var(--brand);
+    box-shadow: 0 0 0 3px var(--brand-glow);
+  }
+
+  .btn-save-field {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--brand-dark);
+    background: var(--brand-pale);
+    border: none;
+    border-radius: var(--r-sm);
+    padding: 6px 12px;
+    cursor: pointer;
+    white-space: nowrap;
+    flex-shrink: 0;
+    transition: background 150ms ease;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .btn-save-field:hover { background: #d6f4f5; }
+  .btn-save-field.saved { color: var(--success-dark); background: var(--success-bg); }
+
+  /* ── Confidence badges ── */
+  .conf-badge {
+    display: inline-block;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 2px 7px;
+    border-radius: var(--r-pill);
+    margin-left: 6px;
+    vertical-align: middle;
+  }
+
+  .conf-high    { background: var(--success-bg); color: var(--success-dark); }
+  .conf-medium  { background: var(--gold-bg);    color: #b86a00; }
+  .conf-low     { background: var(--error-bg);   color: var(--error); }
+
+  /* ── Materials chips ── */
+  .mat-chips { display: flex; flex-wrap: wrap; gap: 5px; }
+
+  .mat-chip {
+    background: var(--brand-pale);
+    color: var(--brand-dark);
+    font-size: 12px;
+    font-weight: 600;
+    padding: 4px 10px;
+    border-radius: var(--r-pill);
+  }
+
+  /* ── Photos strip ── */
+  .photos-strip {
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    padding: 14px 16px;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+
+  .photos-strip::-webkit-scrollbar { display: none; }
+
+  .photo-thumb {
+    flex-shrink: 0;
+    width: 80px;
+    height: 107px;
+    border-radius: var(--r-md);
+    overflow: hidden;
+    background: var(--gray-1);
+  }
+
+  .photo-thumb img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+
+  .photo-label {
+    font-size: 9px;
+    font-weight: 600;
+    text-align: center;
+    color: var(--gray-5);
+    margin-top: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+  }
+
+  /* ── Error taxonomy ── */
+  .error-tag-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 14px 16px;
+  }
+
+  .error-tag-btn {
+    font-size: 13px;
+    font-weight: 600;
+    font-family: inherit;
+    padding: 8px 16px;
+    border-radius: var(--r-pill);
+    border: 1.5px solid var(--gray-2);
+    background: var(--white);
+    color: var(--gray-7);
+    cursor: pointer;
+    transition: all 150ms ease;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .error-tag-btn.active {
+    background: var(--error-bg);
+    border-color: var(--error);
+    color: var(--error);
+  }
+
+  .error-tag-btn:hover:not(.active) { background: var(--gray-1); }
+
+  /* ── Actions ── */
+  .review-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 0 0 8px;
+  }
+
+  .btn-primary {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    width: 100%;
+    padding: 16px;
+    background: var(--brand);
+    color: white;
+    border: none;
+    border-radius: var(--r-lg);
+    font-size: 15px;
+    font-weight: 700;
+    font-family: inherit;
+    cursor: pointer;
+    transition: background 150ms ease;
+    -webkit-tap-highlight-color: transparent;
+    text-decoration: none;
+  }
+
+  .btn-primary:hover { background: var(--brand-dark); }
+
+  .btn-secondary {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    width: 100%;
+    padding: 14px;
+    background: var(--gray-1);
+    color: var(--gray-9);
+    border: none;
+    border-radius: var(--r-lg);
+    font-size: 14px;
+    font-weight: 600;
+    font-family: inherit;
+    cursor: pointer;
+    transition: background 150ms ease;
+    -webkit-tap-highlight-color: transparent;
+    text-decoration: none;
+  }
+
+  .btn-secondary:hover { background: var(--gray-2); }
+
+  /* ── Toast ── */
+  .toast {
+    position: fixed;
+    bottom: calc(var(--nav-h) + 16px);
+    left: 50%;
+    transform: translateX(-50%) translateY(20px);
+    background: var(--black);
+    color: white;
+    font-size: 13px;
+    font-weight: 600;
+    padding: 10px 20px;
+    border-radius: var(--r-pill);
+    opacity: 0;
+    transition: opacity 250ms ease, transform 250ms ease;
+    pointer-events: none;
+    z-index: 100;
+    white-space: nowrap;
+  }
+
+  .toast.show {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<a href="/drafts" class="review-back">← Drafts</a>
+
+{% set warnings = listing.warnings or [] %}
+{% set error_tags_set = listing.error_tags or [] %}
+
+{% if warnings %}
+<div class="warnings-bar">
+  {% for w in warnings %}
+    {% if w == "low_brand_confidence" %}
+      <span class="warn-chip">⚠ Low brand confidence</span>
+    {% elif w == "low_material_confidence" %}
+      <span class="warn-chip">⚠ Low material confidence</span>
+    {% elif w == "no_price_memory" %}
+      <span class="warn-chip">⚠ No price reference</span>
+    {% elif w == "low_confidence_fields" %}
+      <span class="warn-chip">⚠ Low confidence fields: {{ (listing.low_confidence_fields or []) | join(", ") }}</span>
+    {% elif w == "reread_failed" %}
+      <span class="warn-chip error">✕ Reread failed</span>
+    {% endif %}
+  {% endfor %}
+</div>
+{% endif %}
+
+{% if listing.pattern == "Graphic" and listing.category and "Plain" in listing.category %}
+<div class="conflict-banner" id="graphic-conflict">
+  <strong>Category conflict</strong><br>
+  This item has a <strong>Graphic</strong> pattern but the category is set to
+  <strong>{{ listing.category }}</strong>.<br>
+  Does it have a visible print, image or graphic on it?
+  <div class="conflict-actions">
+    <button class="conflict-btn yes" onclick="resolveGraphicConflict(true)">Yes — change to Print</button>
+    <button class="conflict-btn no"  onclick="resolveGraphicConflict(false)">No — keep as Plain</button>
+  </div>
+</div>
+{% endif %}
+
+<!-- ── Listing fields ── -->
+<div class="review-section">
+  <div class="review-section-title">Listing</div>
+
+  <div class="field-row">
+    <div class="field-label">Title</div>
+    <div class="field-edit-wrap">
+      <input class="field-input" id="f-title" value="{{ listing.title or '' }}" maxlength="70">
+      <button class="btn-save-field" onclick="saveField('title', document.getElementById('f-title').value)">Save</button>
+    </div>
+  </div>
+
+  <div class="field-row">
+    <div class="field-label">Brand</div>
+    <div class="field-edit-wrap">
+      <input class="field-input" id="f-brand" value="{{ listing.brand or '' }}">
+      <button class="btn-save-field" onclick="saveField('brand', document.getElementById('f-brand').value)">Save</button>
+    </div>
+    {% if listing.brand_confidence %}
+      <span class="conf-badge conf-{{ listing.brand_confidence }}">{{ listing.brand_confidence }}</span>
+    {% endif %}
+  </div>
+
+  <div class="field-row">
+    <div class="field-label">Item type</div>
+    <div class="field-value">{{ listing.item_type or "—" }}</div>
+  </div>
+
+  <div class="field-row">
+    <div class="field-label">Category</div>
+    <div class="field-edit-wrap">
+      <input class="field-input" id="f-category" value="{{ listing.category or '' }}">
+      <button class="btn-save-field" onclick="saveField('category', document.getElementById('f-category').value)">Save</button>
+    </div>
+  </div>
+
+  <div class="field-row">
+    <div class="field-label">Gender</div>
+    <div class="field-value">{{ listing.gender or "—" }}</div>
+  </div>
+
+  <div class="field-row">
+    <div class="field-label">Size</div>
+    <div class="field-value">
+      {% if listing.tagged_size and listing.normalized_size and listing.tagged_size != listing.normalized_size %}
+        tagged: <strong>{{ listing.tagged_size }}</strong> &nbsp;·&nbsp; normalized: <strong>{{ listing.normalized_size }}</strong>
+      {% else %}
+        <strong>{{ listing.normalized_size or listing.tagged_size or "—" }}</strong>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="field-row">
+    <div class="field-label">Materials</div>
+    <div style="flex:1">
+      {% if listing.materials %}
+        <div class="mat-chips" style="margin-bottom:8px">
+          {% for m in listing.materials %}
+            <span class="mat-chip">{{ m }}</span>
+          {% endfor %}
+        </div>
+      {% endif %}
+      <div class="field-edit-wrap">
+        <input class="field-input" id="f-materials" placeholder="e.g. 80% Wool, 20% Cashmere"
+               value="{{ (listing.materials or []) | join(', ') }}">
+        <button class="btn-save-field" onclick="saveMaterials()">Save</button>
+      </div>
+    </div>
+    {% if listing.material_confidence %}
+      <span class="conf-badge conf-{{ listing.material_confidence }}">{{ listing.material_confidence }}</span>
+    {% endif %}
+  </div>
+
+  <div class="field-row">
+    <div class="field-label">Colour</div>
+    <div class="field-value">
+      {{ listing.colour or "—" }}{% if listing.colour_secondary %} / {{ listing.colour_secondary }}{% endif %}
+    </div>
+  </div>
+
+  <div class="field-row">
+    <div class="field-label">Pattern</div>
+    <div class="field-value">{{ listing.pattern or "Plain" }}</div>
+  </div>
+
+  {% if listing.fabric_mill %}
+  <div class="field-row">
+    <div class="field-label">Fabric mill</div>
+    <div class="field-value">{{ listing.fabric_mill }}</div>
+  </div>
+  {% endif %}
+
+  <div class="field-row">
+    <div class="field-label">Made in</div>
+    <div class="field-edit-wrap">
+      <input class="field-input" id="f-made-in" type="text"
+             value="{{ listing.made_in or '' }}"
+             placeholder="e.g. Italy, Portugal, Japan">
+      <button class="btn-save-field" onclick="saveField('made_in', document.getElementById('f-made-in').value)">Save</button>
+    </div>
+  </div>
+
+  <div class="field-row">
+    <div class="field-label">Condition</div>
+    <div class="field-edit-wrap">
+      <select class="field-input" id="f-condition" onchange="saveCondition()">
+        {% set cond_raw = listing.condition_summary or "" %}
+        {% set cond_level = cond_raw.split("—")[0].strip() if "—" in cond_raw else cond_raw %}
+        <option value="Excellent used condition" {% if "Excellent" in cond_level %}selected{% endif %}>Excellent</option>
+        <option value="Very good used condition" {% if "Very good" in cond_level %}selected{% endif %}>Very good</option>
+        <option value="Good used condition" {% if cond_level.startswith("Good") %}selected{% endif %}>Good</option>
+        <option value="New with tags — original labels attached." {% if "New with tags" in cond_level %}selected{% endif %}>New with tags</option>
+        <option value="New without tags — unworn, no original tags." {% if "New without tags" in cond_level %}selected{% endif %}>New without tags</option>
+      </select>
+    </div>
+  </div>
+
+  {% if listing.flaws_note %}
+  <div class="field-row">
+    <div class="field-label">Flaws</div>
+    <div class="field-value" style="color:var(--error)">{{ listing.flaws_note }}</div>
+  </div>
+  {% endif %}
+
+  <div class="field-row">
+    <div class="field-label">Price</div>
+    <div class="field-edit-wrap">
+      <input class="field-input" id="f-price" type="number" step="0.5" min="0"
+             value="{{ listing.price_gbp or '' }}" style="max-width:100px">
+      <button class="btn-save-field" onclick="saveField('price_gbp', parseFloat(document.getElementById('f-price').value))">Save</button>
+    </div>
+    {% if listing.price_memory_match %}
+      <span class="conf-badge conf-medium" title="Price memory match">{{ listing.price_memory_match }}</span>
+    {% else %}
+      <span class="conf-badge conf-low" title="No price reference">no ref</span>
+    {% endif %}
+  </div>
+</div>
+
+<!-- ── Description ── -->
+<div class="review-section">
+  <div class="review-section-title">Description</div>
+  <div class="field-row" style="border-bottom:none">
+    <div class="field-value description" style="font-size:13px">{{ listing.description or "—" }}</div>
+  </div>
+</div>
+
+<!-- ── Quality signals ── -->
+<div class="review-section">
+  <div class="review-section-title">Quality signals</div>
+
+  <div class="field-row">
+    <div class="field-label">Confidence</div>
+    <div class="field-value">
+      {% set conf_pct = (listing.confidence or 0) * 100 | round | int %}
+      {{ conf_pct }}%
+      <span class="conf-badge {% if conf_pct >= 80 %}conf-high{% elif conf_pct >= 60 %}conf-medium{% else %}conf-low{% endif %}">
+        {% if conf_pct >= 80 %}high{% elif conf_pct >= 60 %}medium{% else %}low{% endif %}
+      </span>
+    </div>
+  </div>
+
+  <div class="field-row">
+    <div class="field-label">Brand conf.</div>
+    <div class="field-value">
+      <span class="conf-badge conf-{{ listing.brand_confidence or 'low' }}">{{ listing.brand_confidence or "?" }}</span>
+    </div>
+  </div>
+
+  <div class="field-row">
+    <div class="field-label">Material conf.</div>
+    <div class="field-value">
+      <span class="conf-badge conf-{{ listing.material_confidence or 'low' }}">{{ listing.material_confidence or "?" }}</span>
+    </div>
+  </div>
+
+  <div class="field-row">
+    <div class="field-label">Price ref</div>
+    <div class="field-value">
+      {% if listing.price_memory_match %}
+        <span class="conf-badge conf-high">{{ listing.price_memory_match }}</span>
+      {% else %}
+        <span class="conf-badge conf-low">no match</span>
+      {% endif %}
+    </div>
+  </div>
+
+  {% if listing.low_confidence_fields %}
+  <div class="field-row">
+    <div class="field-label">Uncertain</div>
+    <div class="field-value" style="color:var(--gold)">{{ listing.low_confidence_fields | join(", ") }}</div>
+  </div>
+  {% endif %}
+</div>
+
+<!-- ── Photos ── -->
+{% if photos %}
+<div class="review-section">
+  <div class="review-section-title">Photos</div>
+  <div class="photos-strip">
+    {% for photo in photos %}
+    <div>
+      <div class="photo-thumb">
+        <img src="/items/{{ folder }}/{{ photo }}" alt="{{ photo }}" loading="lazy">
+      </div>
+      <div class="photo-label">{{ photo.split('.')[0] }}</div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+<!-- ── Error taxonomy (Step 4) ── -->
+<div class="review-section">
+  <div class="review-section-title" style="padding-bottom:2px">Error tags</div>
+  <div style="padding: 4px 16px 8px; font-size:12px; color:var(--gray-5)">
+    Tag this listing if you spot a mistake — used for future quality improvements.
+  </div>
+  <div class="error-tag-grid" id="errorTagGrid">
+    {% for cat in error_categories %}
+    <button class="error-tag-btn {% if cat in error_tags_set %}active{% endif %}"
+            id="etag-{{ cat }}" onclick="toggleErrorTag('{{ cat }}')">
+      {{ cat | replace("_", " ") | title }}
+    </button>
+    {% endfor %}
+  </div>
+</div>
+
+<!-- ── Actions ── -->
+<div class="review-actions">
+  {% if listing.draft_url %}
+    <a class="btn-primary" href="{{ listing.draft_url }}" target="_blank">Open on Vinted →</a>
+  {% else %}
+    <button class="btn-primary" id="btnDraft" onclick="createDraft()">Create Vinted Draft ↑</button>
+  {% endif %}
+  <button class="btn-secondary" onclick="regenListing()">Regenerate listing ↺</button>
+</div>
+
+<div class="toast" id="toast"></div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const FOLDER = {{ folder | tojson }};
+let _errorTags = {{ (listing.error_tags or []) | tojson }};
+
+function showToast(msg, duration = 2000) {
+  const t = document.getElementById("toast");
+  t.textContent = msg;
+  t.classList.add("show");
+  setTimeout(() => t.classList.remove("show"), duration);
+}
+
+async function saveField(field, value) {
+  const resp = await fetch(`/listing/${encodeURIComponent(FOLDER)}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ [field]: value }),
+  });
+  if (resp.ok) {
+    showToast("Saved");
+  } else {
+    const d = await resp.json().catch(() => ({}));
+    showToast("Error: " + (d.error || "unknown"));
+  }
+}
+
+async function saveMaterials() {
+  const raw = document.getElementById("f-materials").value;
+  const mats = raw.split(",").map(s => s.trim()).filter(Boolean);
+  await saveField("materials", mats);
+}
+
+async function saveCondition() {
+  const val = document.getElementById("f-condition").value;
+  await saveField("condition_summary", val);
+}
+
+async function toggleErrorTag(cat) {
+  const idx = _errorTags.indexOf(cat);
+  if (idx >= 0) {
+    _errorTags.splice(idx, 1);
+  } else {
+    _errorTags.push(cat);
+  }
+  // Update button states
+  document.querySelectorAll(".error-tag-btn").forEach(btn => {
+    const c = btn.id.replace("etag-", "");
+    btn.classList.toggle("active", _errorTags.includes(c));
+  });
+  // Persist
+  const resp = await fetch(`/listing/${encodeURIComponent(FOLDER)}/error-tags`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ tags: _errorTags }),
+  });
+  if (resp.ok) {
+    showToast(_errorTags.length ? "Tags saved" : "Tags cleared");
+  }
+}
+
+async function createDraft() {
+  const btn = document.getElementById("btnDraft");
+  if (!btn) return;
+  btn.textContent = "Creating…";
+  btn.disabled = true;
+  try {
+    const resp = await fetch("/create-draft", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ folder: FOLDER }),
+    });
+    const data = await resp.json();
+    if (resp.ok && data.draft_url) {
+      btn.outerHTML = `<a class="btn-primary" href="${data.draft_url}" target="_blank">Open on Vinted →</a>`;
+    } else {
+      btn.textContent = "Create Vinted Draft ↑";
+      btn.disabled = false;
+      showToast("Error: " + (data.error || "unknown"), 3000);
+    }
+  } catch (e) {
+    btn.textContent = "Create Vinted Draft ↑";
+    btn.disabled = false;
+  }
+}
+
+async function regenListing() {
+  const btn = document.querySelector('[onclick="regenListing()"]');
+  btn.textContent = "Regenerating…";
+  btn.disabled = true;
+  try {
+    const resp = await fetch(`/regen/${encodeURIComponent(FOLDER)}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ updates: {} }),
+    });
+    if (resp.ok) {
+      showToast("Regenerated — reloading…");
+      setTimeout(() => location.reload(), 1200);
+    } else {
+      const d = await resp.json().catch(() => ({}));
+      btn.textContent = "Regenerate listing ↺";
+      btn.disabled = false;
+      showToast("Error: " + (d.error || "unknown"), 3000);
+    }
+  } catch (e) {
+    btn.textContent = "Regenerate listing ↺";
+    btn.disabled = false;
+  }
+}
+
+async function resolveGraphicConflict(hasGraphic) {
+  const banner = document.getElementById("graphic-conflict");
+  const currentCat = document.getElementById("f-category").value;
+  // Derive the graphic/plain variant by swapping the last segment
+  const graphicCat = currentCat.replace(/>\s*Plain\s*$/, "> Graphic").trimEnd();
+  const plainCat   = currentCat.replace(/>\s*Graphic\s*$/, "> Plain").trimEnd();
+
+  if (hasGraphic) {
+    // Has a print → switch category to Graphic, keep pattern as Graphic
+    await saveField("category", graphicCat);
+    await saveField("style", "Graphic");
+    document.getElementById("f-category").value = graphicCat;
+    showToast("Category changed to Print/Graphic");
+  } else {
+    // No print → keep Plain category, correct pattern to Plain
+    await saveField("pattern", "Plain");
+    await saveField("style", "Plain");
+    showToast("Pattern corrected to Plain");
+  }
+  banner.remove();
+}
+</script>
+{% endblock %}

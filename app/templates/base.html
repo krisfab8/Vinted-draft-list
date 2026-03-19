@@ -72,12 +72,43 @@
       padding: 14px 20px;
       display: flex;
       align-items: center;
+      justify-content: space-between;
       position: sticky;
       top: 0;
       z-index: 40;
       /* Subtle bottom border */
       border-bottom: 1px solid rgba(255,255,255,0.06);
     }
+
+    .vinted-status-link {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      font-size: 13px;
+      font-weight: 600;
+      color: rgba(255,255,255,0.55);
+      text-decoration: none;
+      padding: 5px 11px 5px 8px;
+      border-radius: var(--r-sm);
+      border: 1px solid rgba(255,255,255,0.12);
+      transition: color 150ms, border-color 150ms;
+      white-space: nowrap;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .vinted-status-link:hover {
+      color: rgba(255,255,255,0.85);
+      border-color: rgba(255,255,255,0.3);
+    }
+    .vinted-dot {
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      background: var(--gray-5);
+      transition: background 400ms;
+      flex-shrink: 0;
+    }
+    .vinted-status-link.connected    .vinted-dot { background: #34c759; }
+    .vinted-status-link.disconnected .vinted-dot { background: #ff3b30; }
 
     .logo {
       display: flex;
@@ -268,7 +299,12 @@
         <div class="logo-sub">AI-powered listings</div>
       </div>
     </a>
-    {% block header_right %}{% endblock %}
+    {% block header_right %}
+    <a href="/connect" class="vinted-status-link" id="header-vinted-status">
+      <span class="vinted-dot"></span>
+      <span>Vinted</span>
+    </a>
+    {% endblock %}
   </header>
 
   <main class="page">
@@ -307,5 +343,22 @@
   </nav>
 
   {% block scripts %}{% endblock %}
+  <script>
+    (async () => {
+      try {
+        const r = await fetch("/auth/status");
+        const d = await r.json();
+        const el = document.getElementById("header-vinted-status");
+        if (!el) return;
+        if (d.logged_in === "likely") {
+          el.classList.add("connected");
+          el.classList.remove("disconnected");
+        } else {
+          el.classList.add("disconnected");
+          el.classList.remove("connected");
+        }
+      } catch(_) {}
+    })();
+  </script>
 </body>
 </html>

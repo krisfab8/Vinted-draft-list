@@ -42,3 +42,14 @@ items/*/*.heic
 # Allow sample item README
 !items/_sample_item/README.md
 vinted_cookies.json
+auth_state.json
+
+# Runtime data
+data/run_logs.jsonl
+data/corrections.jsonl
+
+# Debug / capture artifacts
+debug_screenshots/
+inspection/
+cat_screenshots/
+vinted-logo-capture.png

@@ -31,10 +31,28 @@ Flannel shirt        -> Men > Shirts > Checked
 Oxford shirt         -> Men > Shirts > Plain
 Polo shirt           -> Men > Polo Shirts
 T-shirt              -> Men > T-shirts
+Graphic t-shirt      -> Men > T-shirts > Graphic
+Band t-shirt         -> Men > T-shirts > Graphic
+Printed t-shirt      -> Men > T-shirts > Graphic
+Trainers             -> Men > Shoes > Trainers
+Sneakers             -> Men > Shoes > Trainers
+Running shoes        -> Men > Shoes > Trainers
+Canvas shoes         -> Men > Shoes > Trainers
+Plimsolls            -> Men > Shoes > Trainers
 Walking boots        -> Men > Shoes > Boots > Desert
 Chelsea boots        -> Men > Shoes > Boots > Chelsea
+Desert boots         -> Men > Shoes > Boots > Desert
+Wellington boots     -> Men > Shoes > Boots > Wellington
+Ankle boots          -> Men > Shoes > Boots > Chelsea
+Work boots           -> Men > Shoes > Boots > Other
+Hiking boots         -> Men > Shoes > Boots > Other
 Brogue shoes         -> Men > Shoes > Formal
+Oxford shoes         -> Men > Shoes > Formal
+Derby shoes          -> Men > Shoes > Formal
 Loafers              -> Men > Shoes > Loafers
+Sandals              -> Men > Shoes > Sandals
+Slippers             -> Men > Shoes > Home Shoes
+Mules                -> Men > Shoes > Sandals
 Corduroy trousers    -> Men > Trousers
 Chino trousers       -> Men > Trousers > Chinos
 Slim fit jeans       -> Men > Jeans > Slim
@@ -68,9 +86,26 @@ T-shirt              -> Women > Tops > T-shirt
 Midi dress           -> Women > Dresses > Midi
 Maxi dress           -> Women > Dresses > Maxi
 Mini dress           -> Women > Dresses > Mini
+Trainers             -> Women > Shoes > Trainers
+Sneakers             -> Women > Shoes > Trainers
+Running shoes        -> Women > Shoes > Trainers
+Canvas shoes         -> Women > Shoes > Trainers
+Plimsolls            -> Women > Shoes > Trainers
 Ankle boots          -> Women > Shoes > Boots > Ankle
 Chelsea boots        -> Women > Shoes > Boots > Ankle
+Knee boots           -> Women > Shoes > Boots > Knee
+Wellington boots     -> Women > Shoes > Boots > Wellington
+Court shoes          -> Women > Shoes > Court Shoes
+High heels           -> Women > Shoes > Heels
+Stilettos            -> Women > Shoes > Heels
+Wedge heels          -> Women > Shoes > Wedges
+Ballet flats         -> Women > Shoes > Flats
+Mules                -> Women > Shoes > Mules
 Loafers              -> Women > Shoes > Loafers
+Sandals              -> Women > Shoes > Sandals
+Flip flops           -> Women > Shoes > Flip Flops
+Slippers             -> Women > Shoes > Home Shoes
+Espadrilles          -> Women > Shoes > Sandals
 Corduroy trousers    -> Women > Trousers & Leggings
 Straight jeans       -> Women > Jeans > Straight
 Skinny jeans         -> Women > Jeans > Skinny
@@ -91,6 +126,8 @@ Maxi skirt           -> Women > Skirts > Maxi
 Skirt                -> Women > Skirts
 
 # Notes
+# - Shoes fallback: if subtype unclear, use Men > Shoes or Women > Shoes (no sub-category).
+# - Trainers covers: sneakers, running shoes, canvas shoes, plimsolls.
 # - When in doubt, prefer the more specific sub-category.
 # - Men's jeans: only Slim fit, Skinny, Straight fit, Ripped exist on Vinted UK.
 # - Women's jeans: no "Slim fit" — use Straight jeans as fallback.

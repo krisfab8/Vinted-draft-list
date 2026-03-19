@@ -1247,6 +1247,10 @@
       </select>
     </div>
     <div class="field">
+      <label for="hintMadeIn">Made in <span>— optional</span></label>
+      <input type="text" id="hintMadeIn" placeholder="e.g. Italy, Portugal, Japan" autocomplete="off">
+    </div>
+    <div class="field">
       <label for="hintDamages">Damages <span>— optional</span></label>
       <input type="text" id="hintDamages" placeholder="e.g. small stain on left knee, 1cm" autocomplete="off">
     </div>
@@ -1429,11 +1433,13 @@
       const hintBrand   = document.getElementById("hintBrand").value.trim();
       const hintSize    = document.getElementById("hintSize").value.trim();
       const hintGender  = document.getElementById("hintGender").value;
+      const hintMadeIn  = document.getElementById("hintMadeIn").value.trim();
       const hintDamages = document.getElementById("hintDamages").value.trim();
-      if (hintBrand)   form.append("hint_brand",   hintBrand);
-      if (hintSize)    form.append("hint_size",    hintSize);
-      if (hintGender)  form.append("hint_gender",  hintGender);
-      if (hintDamages) form.append("hint_damages", hintDamages);
+      if (hintBrand)   form.append("hint_brand",    hintBrand);
+      if (hintSize)    form.append("hint_size",     hintSize);
+      if (hintGender)  form.append("hint_gender",   hintGender);
+      if (hintMadeIn)  form.append("hint_made_in",  hintMadeIn);
+      if (hintDamages) form.append("hint_damages",  hintDamages);
 
       const resp = await fetch("/upload", { method: "POST", body: form });
       const data = await resp.json();

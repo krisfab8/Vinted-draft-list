@@ -10,7 +10,7 @@
   - unisex → omit
 - Size: write the UK size directly, no "size" prefix — e.g. "M", "W32 L32", "44R"
 - Colour: use standardised colour (see Colour Standards below)
-- Material: include ONLY if premium/sellable (wool, merino, cashmere, lambswool, linen, waxed, down, leather, silk, tweed, corduroy)
+- Material: include ONLY if premium/sellable (cashmere, silk, angora, alpaca, mohair, merino, wool, lambswool, linen, waxed, down, leather, tweed, corduroy)
 - KeyStyle: include ONE synonym from the Item Synonyms list below
 - Fit: include if visible (Slim Fit, Regular Fit, Tailored Fit) — omit if unknown
 
@@ -23,6 +23,18 @@ John Smedley Jumper Mens M Navy Merino Rollneck
 Brora Jumper Womens 12 Oatmeal Lambswool Rollneck
 Barbour Jacket Mens C42 Olive Waxed Cotton
 ```
+
+**Shoe title format:** `Brand + Model name (if on tag) + Colour + Type + UK Size`
+```
+Nike Air Force 1 White Trainers UK 9
+Loake Chelsea Boots Tan Leather UK 9
+Clarks Desert Boots Sand Suede UK 8
+Church Oxford Brogues Burgundy UK 10
+```
+- Always end with `UK [size]` — buyers search by UK size
+- Include model name only if clearly printed on the tag (e.g. "Air Force 1", "Desert Boot")
+- No W/L format for shoes
+- Material (leather, suede, canvas) only if premium or relevant
 
 # Item Type Synonyms
 
@@ -46,6 +58,13 @@ Add the most relevant synonym to the title (one only, pick the most searchable):
 | gilet | Gilet |
 | polo shirt | Polo |
 | track pants / joggers / sweatpants | Joggers |
+| trainers / sneakers / running shoes | Trainers |
+| chelsea boots | Chelsea Boots |
+| ankle boots | Ankle Boots |
+| brogue shoes / oxford shoes / derby shoes | Brogues |
+| loafers | Loafers |
+| court shoes / heels / pumps | Heels |
+| sandals / espadrilles | Sandals |
 
 # Colour Standards
 
@@ -79,11 +98,9 @@ Key features in short bullet lines:
 - notable detail (e.g. corduroy collar, patch pockets)
 - Made in [Country] if known
 - fabric mill name if known (e.g. "Tessuti Sondrio cloth" — buyers search for these)
+- Flaw bullet ONLY if there is visible damage: one plain line, e.g. "Small mark on left sleeve." Do NOT add a flaw line if there is no damage.
 
-Condition line — one of these phrases only:
-- "Excellent used condition — [brief note]."
-- "Very good used condition — [brief note]."
-- "Good used condition — [brief note]."
+Do NOT restate the condition (no "Good used condition", "Excellent condition", "No visible damage", or similar phrases) — the condition is shown separately as a structured field.
 
 Measurements in photos.
 Fast postage.
@@ -103,7 +120,6 @@ Barbour Oxford shirt in navy cotton.
 - 100% cotton
 - Button down collar
 
-Very good used condition — no stains or holes.
 Measurements in photos.
 Fast postage.
 
@@ -118,11 +134,38 @@ Brora lambswool rollneck in oatmeal.
 - 100% lambswool
 - Ribbed collar and cuffs
 
-Very good used condition — barely worn.
 Measurements in photos.
 Fast postage.
 
 Keywords: brora jumper oatmeal womens jumper lambswool sweater knit casual designer
+```
+
+**Shoes:**
+```
+Loake 1880 Chelsea boots in tan leather.
+
+- Mens UK size 9
+- Full leather upper and sole
+- Made in England
+
+Photos show soles and heel condition.
+Fast postage.
+
+Keywords: loake chelsea boots tan mens boots leather uk 9 smart casual designer
+```
+
+**With damage:**
+```
+Hugo Boss blazer in charcoal wool.
+
+- Mens size 44R
+- 80% wool 20% polyester
+- Small mark on left lapel.
+
+Measurements in photos.
+Fast postage.
+
+Keywords: hugo boss blazer charcoal mens blazer wool slim fit casual smart designer
 ```
 
 # Tone
@@ -132,13 +175,16 @@ Concise, clean, non-hype.
 - Title max **70 characters** (shorter than old 80 — be concise).
 - Do not use ALL CAPS.
 - Do not use "rare", "stunning", "amazing", "perfect" unless objectively accurate.
-- Condition MUST use one of these exact phrases (all five Vinted conditions):
+- Condition is a SEPARATE STRUCTURED FIELD — do NOT repeat it in the description body.
+- Never use phrases like "Good used condition", "Excellent condition", "no visible damage", "no holes or stains" in the description text.
+- Only mention damage in the description if flaws_note is set — add a single plain bullet (e.g. "Small mark on left sleeve.").
+- The condition_summary field must use one of these exact phrases:
   - "New with tags — original labels attached."
   - "New without tags — unworn, no original tags."
   - "Excellent used condition — [brief note]."
   - "Very good used condition — [brief note]."
   - "Good used condition — [brief note]."
-- Default is "Very good used condition" unless photos show clear damage (then "Good used condition") or item looks nearly new (then "Excellent used condition").
-- If there are flaws, state them plainly after the condition phrase.
+- Default condition_summary is "Very good used condition" unless photos show clear damage (then "Good used condition") or item looks nearly new (then "Excellent used condition").
 - For trousers/jeans/shorts: ALWAYS show waist + length as "W32 L32". Never use a bare EU number.
 - For suits/blazers with bare EU number (e.g. "54"): convert to UK by subtracting 10, add R. EU 54 → UK 44R.
+- For shoes: ALWAYS end the title with "UK [size]" (e.g. "UK 9"). Never use W/L for shoes.
