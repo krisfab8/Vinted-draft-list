@@ -10,7 +10,6 @@ POST /create-listing
 """
 import csv
 import json
-import re
 import threading
 import time
 import traceback
@@ -23,6 +22,7 @@ from flask import Flask, jsonify, render_template, request, send_from_directory
 
 from app.config import ITEMS_DIR, ROOT
 from app import extractor, listing_writer, run_logger
+from app.services import pipeline as pipeline_svc
 
 # ── Vinted login session (for cookie refresh flow) ───────────────────────────
 _vinted_login: dict = {}   # holds playwright/browser/context while login window is open
@@ -114,12 +114,10 @@ def create_listing():
 
     try:
         _t0 = time.perf_counter()
-        item, extract_usage = extractor.extract(item_path, hints=hints or None)
-        extract_log = item.pop("_extract_log", {})
-        if "buy_price_gbp" in body:
-            item["buy_price_gbp"] = float(body["buy_price_gbp"])
-        listing, write_usage = listing_writer.write(item, hints=hints or None)
-        write_log = write_usage.pop("_write_log", {})
+        buy_price = float(body["buy_price_gbp"]) if "buy_price_gbp" in body else None
+        listing, extract_usage, write_usage, extract_log, write_log = pipeline_svc.run_pipeline(
+            item_path, hints, buy_price_gbp=buy_price
+        )
 
         # Save listing JSON next to the photos
         out_path = item_path / "listing.json"
@@ -285,16 +283,15 @@ def upload_listing():
 
     try:
         _t0 = time.perf_counter()
-        item, extract_usage = extractor.extract(item_path, hints=hints or None)
-        extract_log = item.pop("_extract_log", {})
-        if buy_price:
-            item["buy_price_gbp"] = float(buy_price)
-        listing, write_usage = listing_writer.write(item, hints=hints or None)
-        write_log = write_usage.pop("_write_log", {})
+        buy_price_gbp = float(buy_price) if buy_price else None
+        listing, extract_usage, write_usage, extract_log, write_log = pipeline_svc.run_pipeline(
+            item_path, hints, buy_price_gbp=buy_price_gbp
+        )
 
         out_path = item_path / "listing.json"
         out_path.write_text(json.dumps(listing, indent=2))
 
+        # upload adds cost fields to the listing (not present in create-listing response)
         cost_usd = _calc_cost_usd(extract_usage) + _calc_cost_usd(write_usage)
         cost_gbp = cost_usd * _USD_TO_GBP
         listing["cost_gbp"] = round(cost_gbp, 4)
@@ -569,16 +566,13 @@ def reprice_listing(folder):
         return jsonify({"error": "listing not found"}), 404
 
     existing = json.loads(listing_path.read_text())
+    hints = pipeline_svc.build_hints_from_listing(existing)
     try:
-        new_listing, write_usage = listing_writer.write(existing)
+        new_listing, _ = listing_writer.write(existing, hints=hints or None)
     except Exception:
         return jsonify({"error": traceback.format_exc()}), 500
 
-    # Preserve fields that listing_writer doesn't re-generate
-    for field in ("draft_url", "draft_error", "cost_gbp", "cost_tokens", "listed_date", "photos_folder"):
-        if field in existing:
-            new_listing.setdefault(field, existing[field])
-
+    pipeline_svc.preserve_user_fields(existing, new_listing)
     new_listing["folder"] = safe_folder
     listing_path.write_text(json.dumps(new_listing, indent=2))
     return jsonify(new_listing), 200
@@ -600,66 +594,14 @@ def regen_listing(folder):
 
     existing = json.loads(listing_path.read_text())
     existing.update(updates)
-
-    # Build hints — updates take priority, then fall back to existing confirmed values.
-    # This ensures previously confirmed fields are never discarded on partial edits.
-    hints = {}
-
-    hints["brand"] = updates.get("brand") or existing.get("brand") or ""
-    if not hints["brand"]:
-        del hints["brand"]
-
-    gender_val = updates.get("gender") or existing.get("gender")
-    if gender_val:
-        hints["gender"] = gender_val
-
-    made_in_val = updates.get("made_in") or existing.get("made_in")
-    if made_in_val:
-        hints["made_in"] = made_in_val
-
-    if updates.get("item_type"):
-        hints["item_type"] = updates["item_type"]
-
-    # Size: explicit update > preserve existing W/L > build W/L from waist+length (non-activewear only)
-    _wl_pat = re.compile(r"^W\d+\s*L\d+$", re.IGNORECASE)
-    _letter_pat = re.compile(r"^(XS|S|M|L|XL|XXL|XXXL)$", re.IGNORECASE)
-    existing_size = str(existing.get("normalized_size") or "")
-    if updates.get("normalized_size"):
-        hints["size"] = updates["normalized_size"]
-    elif _wl_pat.match(existing_size):
-        hints["size"] = existing_size  # already confirmed W/L — preserve it
-    elif _letter_pat.match(existing_size.strip()):
-        hints["size"] = existing_size  # activewear letter size — never replace with W/L
-    else:
-        w = updates.get("trouser_waist") or existing.get("trouser_waist")
-        l = updates.get("trouser_length") or existing.get("trouser_length")
-        if w and l:
-            hints["size"] = f"W{w} L{l}"
+    hints = pipeline_svc.build_hints_from_listing(existing, updates)
 
     try:
         new_listing, _ = listing_writer.write(existing, hints=hints or None)
     except Exception:
         return jsonify({"error": traceback.format_exc()}), 500
 
-    # Preserve meta fields that listing_writer doesn't touch
-    for field in ("draft_url", "draft_error", "cost_gbp", "cost_tokens", "listed_date", "photos_folder"):
-        if field in existing:
-            new_listing.setdefault(field, existing[field])
-
-    # Preserve user-confirmed condition — regen must never reset what the user chose in the dropdown
-    # (condition is changed via PATCH directly, so existing always holds the latest user choice)
-    if existing.get("condition_summary") and not updates.get("condition_summary"):
-        new_listing["condition_summary"] = existing["condition_summary"]
-
-    # Preserve style if the user explicitly set it (AI might omit nullable fields)
-    if existing.get("style") and not new_listing.get("style"):
-        new_listing["style"] = existing["style"]
-
-    # Restore locked fields — user edits take priority over AI
-    if existing.get("category_locked") and existing.get("category"):
-        new_listing["category"] = existing["category"]
-        new_listing["category_locked"] = True
-
+    pipeline_svc.preserve_user_fields(existing, new_listing, updates)
     new_listing["folder"] = safe_folder
     listing_path.write_text(json.dumps(new_listing, indent=2))
     return jsonify(new_listing), 200
