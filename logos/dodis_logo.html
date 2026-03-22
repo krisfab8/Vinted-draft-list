@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dodis — Stacked</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@800&display=swap" rel="stylesheet">
+
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: #111;
+  min-height: 100vh;
+  padding: 56px 24px 100px;
+  font-family: system-ui, sans-serif;
+}
+.eyebrow {
+  text-align: center;
+  font-size: 10px; font-weight: 700; letter-spacing: 3px;
+  text-transform: uppercase; color: rgba(255,255,255,0.18);
+  margin-bottom: 64px;
+}
+.max { max-width: 900px; margin: 0 auto; }
+
+.grid { display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-start; }
+
+.stage {
+  border-radius: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 52px 48px;
+}
+.on-dark  { background: #0D0D0D; border: 1px solid rgba(255,255,255,0.05); }
+.on-black { background: #000; }
+.on-white { background: #fff; }
+.on-cream { background: #F4F0EB; }
+.on-red   { background: #C41E1E; }
+
+.f {
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-weight: 800;
+  line-height: 0.88;
+  letter-spacing: -0.03em;
+}
+
+.lbl {
+  font-size: 10px; letter-spacing: 1.5px;
+  text-transform: uppercase; color: rgba(255,255,255,0.2);
+  text-align: center; margin-top: 12px;
+}
+.lbl-dark {
+  font-size: 10px; letter-spacing: 1.5px;
+  text-transform: uppercase; color: rgba(0,0,0,0.25);
+  text-align: center; margin-top: 12px;
+}
+
+/* The mark */
+.mark {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+.mark .do { color: #C41E1E; }
+.mark .is { color: rgba(255,255,255,0.93); }
+.mark .is-dark { color: #0F172A; }
+.mark .is-red  { color: rgba(255,255,255,0.93); }
+</style>
+
+</head>
+<body>
+
+<p class="eyebrow">Dodis · Stacked</p>
+
+<div class="max">
+
+  <div class="grid">
+
+    <!-- Dark -->
+    <div>
+      <div class="stage on-dark">
+        <div class="mark">
+          <span class="f do" style="font-size:96px">Do</span>
+          <span class="f is" style="font-size:96px">is</span>
+        </div>
+      </div>
+      <p class="lbl">Dark</p>
+    </div>
+
+    <!-- Black -->
+    <div>
+      <div class="stage on-black">
+        <div class="mark">
+          <span class="f do" style="font-size:96px">Do</span>
+          <span class="f is" style="font-size:96px">is</span>
+        </div>
+      </div>
+      <p class="lbl">Black</p>
+    </div>
+
+    <!-- White -->
+    <div>
+      <div class="stage on-white">
+        <div class="mark">
+          <span class="f do" style="font-size:96px">Do</span>
+          <span class="f is-dark" style="font-size:96px">is</span>
+        </div>
+      </div>
+      <p class="lbl-dark" style="color:rgba(0,0,0,0.25)">White</p>
+    </div>
+
+    <!-- Red -->
+    <div>
+      <div class="stage on-red">
+        <div class="mark">
+          <span class="f" style="font-size:96px;color:rgba(255,255,255,0.93)">Do</span>
+          <span class="f" style="font-size:96px;color:rgba(255,255,255,0.93)">is</span>
+        </div>
+      </div>
+      <p class="lbl">Red</p>
+    </div>
+
+    <!-- Cream -->
+    <div>
+      <div class="stage on-cream">
+        <div class="mark">
+          <span class="f do" style="font-size:96px">Do</span>
+          <span class="f is-dark" style="font-size:96px">is</span>
+        </div>
+      </div>
+      <p class="lbl-dark">Cream</p>
+    </div>
+
+  </div>
+
+
+  <!-- Icon scale row -->
+  <div style="margin-top:64px">
+    <p style="font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:rgba(255,255,255,0.18);margin-bottom:20px">Icon scale</p>
+    <div style="display:flex;flex-wrap:wrap;gap:16px;align-items:flex-end">
+
+      <!-- 120 dark circle -->
+      <div style="display:flex;flex-direction:column;gap:8px;align-items:center">
+        <div style="width:120px;height:120px;border-radius:50%;background:#0D0D0D;border:1px solid rgba(255,255,255,0.07);display:flex;align-items:center;justify-content:center">
+          <div class="mark">
+            <span class="f do" style="font-size:42px">Do</span>
+            <span class="f is" style="font-size:42px">is</span>
+          </div>
+        </div>
+        <span class="lbl">120 · dark</span>
+      </div>
+
+      <!-- 120 red circle -->
+      <div style="display:flex;flex-direction:column;gap:8px;align-items:center">
+        <div style="width:120px;height:120px;border-radius:50%;background:#C41E1E;display:flex;align-items:center;justify-content:center">
+          <div class="mark">
+            <span class="f" style="font-size:42px;color:rgba(255,255,255,0.93)">Do</span>
+            <span class="f" style="font-size:42px;color:rgba(255,255,255,0.93)">is</span>
+          </div>
+        </div>
+        <span class="lbl">120 · red</span>
+      </div>
+
+      <!-- iOS square 120 red -->
+      <div style="display:flex;flex-direction:column;gap:8px;align-items:center">
+        <div style="width:120px;height:120px;border-radius:26px;background:#C41E1E;display:flex;align-items:center;justify-content:center">
+          <div class="mark">
+            <span class="f" style="font-size:42px;color:rgba(255,255,255,0.93)">Do</span>
+            <span class="f" style="font-size:42px;color:rgba(255,255,255,0.93)">is</span>
+          </div>
+        </div>
+        <span class="lbl">iOS · red</span>
+      </div>
+
+      <!-- iOS square 120 dark -->
+      <div style="display:flex;flex-direction:column;gap:8px;align-items:center">
+        <div style="width:120px;height:120px;border-radius:26px;background:#0D0D0D;border:1px solid rgba(255,255,255,0.07);display:flex;align-items:center;justify-content:center">
+          <div class="mark">
+            <span class="f do" style="font-size:42px">Do</span>
+            <span class="f is" style="font-size:42px">is</span>
+          </div>
+        </div>
+        <span class="lbl">iOS · dark</span>
+      </div>
+
+      <!-- 80 -->
+      <div style="display:flex;flex-direction:column;gap:8px;align-items:center">
+        <div style="width:80px;height:80px;border-radius:50%;background:#0D0D0D;border:1px solid rgba(255,255,255,0.07);display:flex;align-items:center;justify-content:center">
+          <div class="mark">
+            <span class="f do" style="font-size:27px">Do</span>
+            <span class="f is" style="font-size:27px">is</span>
+          </div>
+        </div>
+        <span class="lbl">80</span>
+      </div>
+
+      <!-- 56 -->
+      <div style="display:flex;flex-direction:column;gap:8px;align-items:center">
+        <div style="width:56px;height:56px;border-radius:50%;background:#C41E1E;display:flex;align-items:center;justify-content:center">
+          <div class="mark">
+            <span class="f" style="font-size:19px;color:#fff">Do</span>
+            <span class="f" style="font-size:19px;color:#fff">is</span>
+          </div>
+        </div>
+        <span class="lbl">56</span>
+      </div>
+
+    </div>
+  </div>
+
+</div>
+</body>
+</html>

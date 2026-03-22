@@ -1,0 +1,659 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dodis — Candle Concept · Font Variants</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@800&family=Fraunces:opsz,wght@72,700&family=Space+Grotesk:wght@700&family=Raleway:wght@700&family=Syne:wght@700&display=swap" rel="stylesheet">
+
+<style>
+
+:root {
+  --teal:    #0B8A98;
+  --teal-lt: #1DC8DC;
+  --green:   #16C784;
+  --amber:   #FF8C00;
+  --flame-h: #FFE55C;
+  --flame-m: #FF9500;
+  --flame-b: #FF4500;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: #07111C;
+  min-height: 100vh;
+  padding: 56px 24px 100px;
+  font-family: 'Space Grotesk', system-ui, sans-serif;
+}
+
+/* ── Page header ── */
+.page-eyebrow {
+  text-align: center;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  color: rgba(255,255,255,0.2);
+  margin-bottom: 8px;
+}
+.page-heading {
+  text-align: center;
+  font-size: 13px;
+  color: rgba(255,255,255,0.4);
+  margin-bottom: 64px;
+  font-weight: 400;
+  letter-spacing: 0.3px;
+}
+
+/* ── Font rows ── */
+.font-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 64px;
+  max-width: 700px;
+  margin: 0 auto;
+}
+
+.font-row {}
+
+.font-meta {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 18px;
+}
+.font-num {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  color: rgba(255,255,255,0.18);
+  text-transform: uppercase;
+}
+.font-name {
+  font-size: 12px;
+  font-weight: 600;
+  color: rgba(255,255,255,0.3);
+  letter-spacing: 0.2px;
+}
+.font-note {
+  font-size: 11px;
+  color: rgba(255,255,255,0.18);
+  margin-left: auto;
+  font-style: italic;
+}
+
+/* Two bg stages side by side */
+.stages {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+.stage {
+  border-radius: 16px;
+  height: 160px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: visible;
+}
+.on-dark  { background: #060F1A; border: 1px solid rgba(255,255,255,0.05); }
+.on-light { background: #F3F7FA; }
+
+/* Icon row */
+.icon-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.icon-label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: rgba(255,255,255,0.18);
+  margin-right: 4px;
+}
+.icon-frame {
+  width: 56px;
+  height: 56px;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: visible;
+  flex-shrink: 0;
+}
+.if-teal  { background: linear-gradient(145deg, #0EA8BA, #065F6B); }
+.if-dark  { background: #060F1A; border: 1px solid rgba(255,255,255,0.09); }
+.if-light { background: #F3F7FA; }
+
+/* Divider */
+.divider {
+  height: 1px;
+  background: rgba(255,255,255,0.04);
+  margin-top: 72px;
+}
+
+
+/* ═══════════════════════════════════════════════
+   WORDMARK WRAPPER — shared
+═══════════════════════════════════════════════ */
+
+.wordmark {
+  display: inline-flex;
+  align-items: baseline;
+  line-height: 1.2;
+  letter-spacing: -1px;
+  color: var(--teal-lt);
+  white-space: nowrap;
+}
+
+/* The "i" — wrapped for candle positioning */
+.ci {
+  position: relative;
+  display: inline-block;
+}
+
+/* Dark bg: light text; Light bg: dark text */
+.on-dark  .wordmark { color: #1DC8DC; }
+.on-light .wordmark { color: #0B7A88; }
+
+/* Icon variant: white */
+.icon-frame .wordmark { color: white; }
+
+
+/* ═══════════════════════════════════════════════
+   FONT FAMILIES
+═══════════════════════════════════════════════ */
+
+.f-nunito       { font-family: 'Nunito',        sans-serif; font-size: 64px; font-weight: 800; }
+.f-fraunces     { font-family: 'Fraunces',      serif;      font-size: 64px; font-weight: 700; letter-spacing: -2px; }
+.f-space-grotesk{ font-family: 'Space Grotesk', sans-serif; font-size: 60px; font-weight: 700; letter-spacing: -2px; }
+.f-raleway      { font-family: 'Raleway',       sans-serif; font-size: 64px; font-weight: 700; letter-spacing: 2px; }
+.f-syne         { font-family: 'Syne',          sans-serif; font-size: 62px; font-weight: 700; letter-spacing: -1px; }
+
+/* Scaled down for icons */
+.sm .f-nunito        { font-size: 26px; }
+.sm .f-fraunces      { font-size: 26px; letter-spacing: -1px; }
+.sm .f-space-grotesk { font-size: 24px; letter-spacing: -1px; }
+.sm .f-raleway       { font-size: 26px; letter-spacing: 1px; }
+.sm .f-syne          { font-size: 25px; }
+
+
+/* ═══════════════════════════════════════════════
+   CANDLE + FLAME
+═══════════════════════════════════════════════ */
+
+/*
+  Structure inside .ci:
+    .flame-assembly
+      .flame-glow       — ambient warm halo
+      .flame            — outer flame shape
+      .flame-inner      — bright core
+      .candle-dot-cover — hides the natural i-dot (matches stage bg)
+      .candle-wick      — tiny dark stub
+*/
+
+.flame-assembly {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  top: var(--dot-top, 4px);   /* font-specific, set per row */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  pointer-events: none;
+  z-index: 4;
+}
+
+/* Ambient glow halo — sits behind flame */
+.flame-glow {
+  position: absolute;
+  top: -14px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255,150,0,0.5) 0%, transparent 70%);
+  animation: glow-flicker 1.8s ease-in-out infinite;
+  z-index: 1;
+}
+
+/* Outer flame */
+.flame {
+  width: 12px;
+  height: 20px;
+  background: linear-gradient(180deg,
+    rgba(255,255,240,0.95) 0%,
+    var(--flame-h) 18%,
+    var(--flame-m) 52%,
+    var(--flame-b) 82%,
+    rgba(180,30,0,0.6) 100%
+  );
+  border-radius: 50% 50% 22% 22% / 58% 58% 42% 42%;
+  transform-origin: bottom center;
+  transform: translateX(0);
+  animation: flicker 1.6s ease-in-out infinite;
+  position: relative;
+  z-index: 3;
+  filter: drop-shadow(0 0 4px rgba(255,140,0,0.7));
+}
+
+/* Inner bright core */
+.flame-inner {
+  position: absolute;
+  bottom: 3px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 5px;
+  height: 11px;
+  background: linear-gradient(180deg, rgba(255,255,255,0.95) 0%, #FFE066 60%, transparent 100%);
+  border-radius: 50% 50% 20% 20% / 60% 60% 40% 40%;
+  z-index: 4;
+  pointer-events: none;
+}
+
+/* Wick — thin dark stub below flame */
+.candle-wick {
+  width: 2px;
+  height: 7px;
+  background: linear-gradient(180deg, #2D1A00 0%, #1A0E00 100%);
+  border-radius: 1px;
+  position: relative;
+  z-index: 3;
+  flex-shrink: 0;
+}
+
+/* Covers the natural i-dot */
+.candle-dot-cover {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  position: relative;
+  z-index: 2;
+  margin-top: -1px; /* overlap wick slightly */
+}
+.on-dark  .candle-dot-cover { background: #060F1A; }
+.on-light .candle-dot-cover { background: #F3F7FA; }
+.if-teal  .candle-dot-cover { background: #0B6B78; } /* approximate mid-gradient */
+.if-dark  .candle-dot-cover { background: #060F1A; }
+.if-light .candle-dot-cover { background: #F3F7FA; }
+
+
+/* ─ Animations ─ */
+
+@keyframes flicker {
+  0%   { transform: rotate(-3deg)  scaleX(1)    scaleY(1);    }
+  12%  { transform: rotate(2.5deg) scaleX(0.91) scaleY(1.07); }
+  26%  { transform: rotate(-4deg)  scaleX(1.06) scaleY(0.93); }
+  38%  { transform: rotate(3.5deg) scaleX(0.93) scaleY(1.09); }
+  52%  { transform: rotate(-2deg)  scaleX(1.03) scaleY(0.96); }
+  65%  { transform: rotate(4deg)   scaleX(0.88) scaleY(1.06); }
+  78%  { transform: rotate(-1.5deg)scaleX(1.02) scaleY(0.98); }
+  90%  { transform: rotate(2deg)   scaleX(0.95) scaleY(1.04); }
+  100% { transform: rotate(-3deg)  scaleX(1)    scaleY(1);    }
+}
+
+@keyframes glow-flicker {
+  0%,100% { opacity: 0.55; transform: translateX(-50%) scale(1);    }
+  25%      { opacity: 0.85; transform: translateX(-50%) scale(1.2);  }
+  55%      { opacity: 0.35; transform: translateX(-50%) scale(0.88); }
+  80%      { opacity: 0.75; transform: translateX(-50%) scale(1.1);  }
+}
+
+
+/* ─ Dot-top per font — how far from top of .ci is the natural dot ─ */
+.f-nunito        { --dot-top: 5px; }
+.f-fraunces      { --dot-top: 4px; }
+.f-space-grotesk { --dot-top: 4px; }
+.f-raleway       { --dot-top: 6px; }
+.f-syne          { --dot-top: 4px; }
+
+/* small icon font: dot is closer proportionally */
+.sm .ci { --dot-top: 2px; }
+.sm .flame       { width: 7px; height: 12px; }
+.sm .flame-inner { width: 3px; height: 6px; bottom: 2px; }
+.sm .candle-wick { width: 1.5px; height: 5px; }
+.sm .candle-dot-cover { width: 9px; height: 9px; }
+.sm .flame-glow  { width: 18px; height: 18px; top: -8px; }
+
+</style>
+</head>
+<body>
+
+<p class="page-eyebrow">Dodis — Candle Concept</p>
+<p class="page-heading">The i as a candle · 4 font directions</p>
+
+<div class="font-rows">
+
+
+  <!-- ────────────────────────────────────────
+       01 · NUNITO — Friendly / Duolingo
+  ──────────────────────────────────────── -->
+  <div class="font-row">
+    <div class="font-meta">
+      <span class="font-num">01</span>
+      <span class="font-name">Nunito 800</span>
+      <span class="font-note">Rounded · friendly · Duolingo energy</span>
+    </div>
+    <div class="stages">
+      <div class="stage on-dark">
+        <div class="wordmark f-nunito">Dod<span class="ci">i
+          <span class="flame-assembly">
+            <span class="flame-glow"></span>
+            <span class="flame"><span class="flame-inner"></span></span>
+            <span class="candle-wick"></span>
+            <span class="candle-dot-cover"></span>
+          </span>
+        </span>s</div>
+      </div>
+      <div class="stage on-light">
+        <div class="wordmark f-nunito">Dod<span class="ci">i
+          <span class="flame-assembly">
+            <span class="flame-glow"></span>
+            <span class="flame"><span class="flame-inner"></span></span>
+            <span class="candle-wick"></span>
+            <span class="candle-dot-cover"></span>
+          </span>
+        </span>s</div>
+      </div>
+    </div>
+    <div class="icon-row">
+      <span class="icon-label">Icon</span>
+      <div class="icon-frame if-teal sm">
+        <div class="wordmark f-nunito" style="color:white">D<span class="ci">i
+          <span class="flame-assembly">
+            <span class="flame-glow"></span>
+            <span class="flame"><span class="flame-inner"></span></span>
+            <span class="candle-wick"></span>
+            <span class="candle-dot-cover"></span>
+          </span>
+        </span></div>
+      </div>
+      <div class="icon-frame if-dark sm">
+        <div class="wordmark f-nunito">D<span class="ci">i
+          <span class="flame-assembly">
+            <span class="flame-glow"></span>
+            <span class="flame"><span class="flame-inner"></span></span>
+            <span class="candle-wick"></span>
+            <span class="candle-dot-cover"></span>
+          </span>
+        </span></div>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ────────────────────────────────────────
+       02 · FRAUNCES — Quirky editorial serif
+  ──────────────────────────────────────── -->
+  <div class="font-row">
+    <div class="font-meta">
+      <span class="font-num">02</span>
+      <span class="font-name">Fraunces 700</span>
+      <span class="font-note">Quirky serif · editorial · unexpected warmth</span>
+    </div>
+    <div class="stages">
+      <div class="stage on-dark">
+        <div class="wordmark f-fraunces">Dod<span class="ci">i
+          <span class="flame-assembly">
+            <span class="flame-glow"></span>
+            <span class="flame"><span class="flame-inner"></span></span>
+            <span class="candle-wick"></span>
+            <span class="candle-dot-cover"></span>
+          </span>
+        </span>s</div>
+      </div>
+      <div class="stage on-light">
+        <div class="wordmark f-fraunces">Dod<span class="ci">i
+          <span class="flame-assembly">
+            <span class="flame-glow"></span>
+            <span class="flame"><span class="flame-inner"></span></span>
+            <span class="candle-wick"></span>
+            <span class="candle-dot-cover"></span>
+          </span>
+        </span>s</div>
+      </div>
+    </div>
+    <div class="icon-row">
+      <span class="icon-label">Icon</span>
+      <div class="icon-frame if-teal sm">
+        <div class="wordmark f-fraunces" style="color:white">D<span class="ci">i
+          <span class="flame-assembly">
+            <span class="flame-glow"></span>
+            <span class="flame"><span class="flame-inner"></span></span>
+            <span class="candle-wick"></span>
+            <span class="candle-dot-cover"></span>
+          </span>
+        </span></div>
+      </div>
+      <div class="icon-frame if-dark sm">
+        <div class="wordmark f-fraunces">D<span class="ci">i
+          <span class="flame-assembly">
+            <span class="flame-glow"></span>
+            <span class="flame"><span class="flame-inner"></span></span>
+            <span class="candle-wick"></span>
+            <span class="candle-dot-cover"></span>
+          </span>
+        </span></div>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ────────────────────────────────────────
+       03 · SPACE GROTESK — Modern / Spotify
+  ──────────────────────────────────────── -->
+  <div class="font-row">
+    <div class="font-meta">
+      <span class="font-num">03</span>
+      <span class="font-name">Space Grotesk 700</span>
+      <span class="font-note">Technical · modern · Spotify-adjacent</span>
+    </div>
+    <div class="stages">
+      <div class="stage on-dark">
+        <div class="wordmark f-space-grotesk">Dod<span class="ci">i
+          <span class="flame-assembly">
+            <span class="flame-glow"></span>
+            <span class="flame"><span class="flame-inner"></span></span>
+            <span class="candle-wick"></span>
+            <span class="candle-dot-cover"></span>
+          </span>
+        </span>s</div>
+      </div>
+      <div class="stage on-light">
+        <div class="wordmark f-space-grotesk">Dod<span class="ci">i
+          <span class="flame-assembly">
+            <span class="flame-glow"></span>
+            <span class="flame"><span class="flame-inner"></span></span>
+            <span class="candle-wick"></span>
+            <span class="candle-dot-cover"></span>
+          </span>
+        </span>s</div>
+      </div>
+    </div>
+    <div class="icon-row">
+      <span class="icon-label">Icon</span>
+      <div class="icon-frame if-teal sm">
+        <div class="wordmark f-space-grotesk" style="color:white">D<span class="ci">i
+          <span class="flame-assembly">
+            <span class="flame-glow"></span>
+            <span class="flame"><span class="flame-inner"></span></span>
+            <span class="candle-wick"></span>
+            <span class="candle-dot-cover"></span>
+          </span>
+        </span></div>
+      </div>
+      <div class="icon-frame if-dark sm">
+        <div class="wordmark f-space-grotesk">D<span class="ci">i
+          <span class="flame-assembly">
+            <span class="flame-glow"></span>
+            <span class="flame"><span class="flame-inner"></span></span>
+            <span class="candle-wick"></span>
+            <span class="candle-dot-cover"></span>
+          </span>
+        </span></div>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ────────────────────────────────────────
+       04 · RALEWAY — Elegant / Spaced
+  ──────────────────────────────────────── -->
+  <div class="font-row">
+    <div class="font-meta">
+      <span class="font-num">04</span>
+      <span class="font-name">Raleway 700</span>
+      <span class="font-note">Elegant · spaced · slightly fashion</span>
+    </div>
+    <div class="stages">
+      <div class="stage on-dark">
+        <div class="wordmark f-raleway">Dod<span class="ci">i
+          <span class="flame-assembly">
+            <span class="flame-glow"></span>
+            <span class="flame"><span class="flame-inner"></span></span>
+            <span class="candle-wick"></span>
+            <span class="candle-dot-cover"></span>
+          </span>
+        </span>s</div>
+      </div>
+      <div class="stage on-light">
+        <div class="wordmark f-raleway">Dod<span class="ci">i
+          <span class="flame-assembly">
+            <span class="flame-glow"></span>
+            <span class="flame"><span class="flame-inner"></span></span>
+            <span class="candle-wick"></span>
+            <span class="candle-dot-cover"></span>
+          </span>
+        </span>s</div>
+      </div>
+    </div>
+    <div class="icon-row">
+      <span class="icon-label">Icon</span>
+      <div class="icon-frame if-teal sm">
+        <div class="wordmark f-raleway" style="color:white">D<span class="ci">i
+          <span class="flame-assembly">
+            <span class="flame-glow"></span>
+            <span class="flame"><span class="flame-inner"></span></span>
+            <span class="candle-wick"></span>
+            <span class="candle-dot-cover"></span>
+          </span>
+        </span></div>
+      </div>
+      <div class="icon-frame if-dark sm">
+        <div class="wordmark f-raleway">D<span class="ci">i
+          <span class="flame-assembly">
+            <span class="flame-glow"></span>
+            <span class="flame"><span class="flame-inner"></span></span>
+            <span class="candle-wick"></span>
+            <span class="candle-dot-cover"></span>
+          </span>
+        </span></div>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ────────────────────────────────────────
+       05 · SYNE — Bold display / distinctive
+  ──────────────────────────────────────── -->
+  <div class="font-row">
+    <div class="font-meta">
+      <span class="font-num">05</span>
+      <span class="font-name">Syne 700</span>
+      <span class="font-note">Bold display · angular · distinctive personality</span>
+    </div>
+    <div class="stages">
+      <div class="stage on-dark">
+        <div class="wordmark f-syne">Dod<span class="ci">i
+          <span class="flame-assembly">
+            <span class="flame-glow"></span>
+            <span class="flame"><span class="flame-inner"></span></span>
+            <span class="candle-wick"></span>
+            <span class="candle-dot-cover"></span>
+          </span>
+        </span>s</div>
+      </div>
+      <div class="stage on-light">
+        <div class="wordmark f-syne">Dod<span class="ci">i
+          <span class="flame-assembly">
+            <span class="flame-glow"></span>
+            <span class="flame"><span class="flame-inner"></span></span>
+            <span class="candle-wick"></span>
+            <span class="candle-dot-cover"></span>
+          </span>
+        </span>s</div>
+      </div>
+    </div>
+    <div class="icon-row">
+      <span class="icon-label">Icon</span>
+      <div class="icon-frame if-teal sm">
+        <div class="wordmark f-syne" style="color:white">D<span class="ci">i
+          <span class="flame-assembly">
+            <span class="flame-glow"></span>
+            <span class="flame"><span class="flame-inner"></span></span>
+            <span class="candle-wick"></span>
+            <span class="candle-dot-cover"></span>
+          </span>
+        </span></div>
+      </div>
+      <div class="icon-frame if-dark sm">
+        <div class="wordmark f-syne">D<span class="ci">i
+          <span class="flame-assembly">
+            <span class="flame-glow"></span>
+            <span class="flame"><span class="flame-inner"></span></span>
+            <span class="candle-wick"></span>
+            <span class="candle-dot-cover"></span>
+          </span>
+        </span></div>
+      </div>
+    </div>
+  </div>
+
+
+</div><!-- /font-rows -->
+
+<script>
+  // Fine-tune candle-dot-cover top position per rendered font
+  // Measures where the i-dot actually sits after fonts load
+  function calibrateFlames() {
+    document.querySelectorAll('.font-row').forEach(row => {
+      // Get font size from first wordmark in row
+      const wm = row.querySelector('.wordmark');
+      if (!wm) return;
+      const fs = parseFloat(window.getComputedStyle(wm).fontSize);
+      const isSm = false;
+
+      row.querySelectorAll('.flame-assembly').forEach(fa => {
+        // Dot for most fonts is ~10-12% of font-size from top of element
+        const dotOffset = Math.round(fs * 0.08);
+        fa.style.top = dotOffset + 'px';
+      });
+    });
+
+    // Small icon variants: dot is proportionally similar
+    document.querySelectorAll('.sm .flame-assembly').forEach(fa => {
+      const wm = fa.closest('.wordmark');
+      if (!wm) return;
+      const fs = parseFloat(window.getComputedStyle(wm).fontSize);
+      fa.style.top = Math.round(fs * 0.09) + 'px';
+    });
+  }
+
+  // Run after fonts load
+  if (document.fonts && document.fonts.ready) {
+    document.fonts.ready.then(calibrateFlames);
+  } else {
+    window.addEventListener('load', calibrateFlames);
+  }
+</script>
+
+</body>
+</html>
