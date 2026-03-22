@@ -47,6 +47,8 @@ auth_state.json
 # Runtime data
 data/run_logs.jsonl
 data/corrections.jsonl
+data/items.db
+data/alias_memory.json
 
 # Debug / capture artifacts
 debug_screenshots/

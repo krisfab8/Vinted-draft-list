@@ -276,6 +276,162 @@
 
   .error-tag-btn:hover:not(.active) { background: var(--gray-1); }
 
+  /* ── Draft error banner ── */
+  .draft-error-banner {
+    background: var(--error-bg);
+    border: 1.5px solid rgba(255,59,48,0.25);
+    border-radius: var(--r-lg);
+    padding: 13px 16px;
+    margin-bottom: 10px;
+    font-size: 13px;
+    color: var(--error);
+    line-height: 1.5;
+  }
+  .draft-error-banner strong { font-weight: 700; display: block; margin-bottom: 3px; }
+
+  /* ── eBay comps box ── */
+  .ebay-comps-box {
+    background: var(--white);
+    border-radius: var(--r-lg);
+    box-shadow: var(--shadow-sm);
+    margin-bottom: 14px;
+    overflow: hidden;
+  }
+  .ebay-comps-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 16px 0;
+  }
+  .ebay-comps-title {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.6px;
+    text-transform: uppercase;
+    color: var(--gray-5);
+  }
+  .btn-fetch-comps {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--brand-dark);
+    background: var(--brand-pale);
+    border: none;
+    border-radius: var(--r-sm);
+    padding: 5px 12px;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    transition: background 150ms ease;
+  }
+  .btn-fetch-comps:hover { background: #d6f4f5; }
+  .btn-fetch-comps:disabled { opacity: 0.5; cursor: default; }
+  .ebay-comps-body {
+    padding: 10px 16px 14px;
+  }
+  .ebay-comps-ranges {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 8px;
+    flex-wrap: wrap;
+  }
+  .ebay-range-block {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .ebay-range-label {
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    color: var(--gray-5);
+  }
+  .ebay-range-value {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--black);
+  }
+  .ebay-comps-note {
+    font-size: 11px;
+    color: var(--gray-5);
+    margin-top: 4px;
+    line-height: 1.4;
+  }
+  .ebay-comps-skipped {
+    padding: 10px 16px 14px;
+    font-size: 13px;
+    color: var(--gray-5);
+  }
+
+  /* ── Listing tracker box ── */
+  .tracker-box {
+    background: var(--white);
+    border-radius: var(--r-lg);
+    box-shadow: var(--shadow-sm);
+    margin-bottom: 14px;
+    overflow: hidden;
+  }
+  .tracker-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 16px 0;
+  }
+  .tracker-title {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.6px;
+    text-transform: uppercase;
+    color: var(--gray-5);
+  }
+  .btn-refresh-tracker {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--brand-dark);
+    background: var(--brand-pale);
+    border: none;
+    border-radius: var(--r-sm);
+    padding: 5px 12px;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    transition: background 150ms ease;
+  }
+  .btn-refresh-tracker:hover { background: #d6f4f5; }
+  .btn-refresh-tracker:disabled { opacity: 0.5; cursor: default; }
+  .tracker-body {
+    padding: 10px 16px 14px;
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+  .tracker-metric {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .tracker-metric-label {
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    color: var(--gray-5);
+  }
+  .tracker-metric-value {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--black);
+  }
+  .tracker-metric-value.sold { color: var(--brand-dark); }
+  .tracker-empty {
+    padding: 10px 16px 14px;
+    font-size: 13px;
+    color: var(--gray-5);
+  }
+  .tracker-scrape-error {
+    padding: 10px 16px 14px;
+    font-size: 12px;
+    color: var(--error);
+  }
+
   /* ── Actions ── */
   .review-actions {
     display: flex;
@@ -502,30 +658,50 @@
         <option value="Excellent used condition" {% if "Excellent" in cond_level %}selected{% endif %}>Excellent</option>
         <option value="Very good used condition" {% if "Very good" in cond_level %}selected{% endif %}>Very good</option>
         <option value="Good used condition" {% if cond_level.startswith("Good") %}selected{% endif %}>Good</option>
+        <option value="Satisfactory" {% if "Satisfactory" in cond_level %}selected{% endif %}>Satisfactory</option>
         <option value="New with tags — original labels attached." {% if "New with tags" in cond_level %}selected{% endif %}>New with tags</option>
         <option value="New without tags — unworn, no original tags." {% if "New without tags" in cond_level %}selected{% endif %}>New without tags</option>
       </select>
     </div>
   </div>
 
-  {% if listing.flaws_note %}
   <div class="field-row">
     <div class="field-label">Flaws</div>
-    <div class="field-value" style="color:var(--error)">{{ listing.flaws_note }}</div>
+    <div class="field-edit-wrap">
+      <input class="field-input" id="f-flaws" type="text"
+             value="{{ listing.flaws_note or '' }}"
+             placeholder="e.g. Small stain on left lapel">
+      <button class="btn-save-field" onclick="saveFlaws()">Save</button>
+    </div>
   </div>
-  {% endif %}
 
   <div class="field-row">
+    <div class="field-label">Desc. line</div>
+    <div class="field-value" id="conditionLineDisplay"
+         style="font-size:13px; color:var(--gray-7); font-style:italic">
+      {{ listing.condition_line or "" }}
+    </div>
+  </div>
+
+  <div class="field-row" style="flex-wrap:wrap; gap:6px 8px;">
     <div class="field-label">Price</div>
-    <div class="field-edit-wrap">
+    <div class="field-edit-wrap" style="flex-shrink:0; min-width:0">
       <input class="field-input" id="f-price" type="number" step="0.5" min="0"
              value="{{ listing.price_gbp or '' }}" style="max-width:100px">
       <button class="btn-save-field" onclick="saveField('price_gbp', parseFloat(document.getElementById('f-price').value))">Save</button>
     </div>
-    {% if listing.price_memory_match %}
-      <span class="conf-badge conf-medium" title="Price memory match">{{ listing.price_memory_match }}</span>
-    {% else %}
-      <span class="conf-badge conf-low" title="No price reference">no ref</span>
+    {% if listing.ai_price_gbp is defined and listing.ai_price_gbp is not none and listing.ai_price_gbp != listing.price_gbp %}
+      <span class="conf-badge conf-medium" title="AI suggested price">AI £{{ listing.ai_price_gbp | int }}</span>
+    {% endif %}
+    {% if listing.profit_warning %}
+      <span class="conf-badge conf-low" title="{{ (listing.pricing_flags or []) | join(', ') }}">
+        {%- if "loss" in (listing.pricing_flags or []) -%}loss{%- else -%}low margin{%- endif -%}
+      </span>
+    {% endif %}
+    {% if listing.price_adjustments and listing.price_adjustments | length > 0 %}
+      <div style="width:100%; padding-left:90px; margin-top:-2px;">
+        <span style="font-size:11px; color:var(--gray-5)">{{ listing.price_adjustments[0] }}</span>
+      </div>
     {% endif %}
   </div>
 </div>
@@ -586,6 +762,58 @@
   {% endif %}
 </div>
 
+<!-- ── eBay market comps ── -->
+<div class="ebay-comps-box" id="ebayCompsBox">
+  <div class="ebay-comps-header">
+    <span class="ebay-comps-title">eBay market comps</span>
+    <button class="btn-fetch-comps" id="btnFetchComps" onclick="fetchEbayComps()">Fetch comps</button>
+  </div>
+  <div id="ebayCompsContent">
+    {% if listing.ebay_suggested_range %}
+      <div class="ebay-comps-body">
+        <div class="ebay-comps-ranges">
+          <div class="ebay-range-block">
+            <span class="ebay-range-label">eBay active (used)</span>
+            <span class="ebay-range-value">£{{ listing.ebay_suggested_range.low }}–£{{ listing.ebay_suggested_range.high }}</span>
+          </div>
+          {% if listing.ebay_vinted_range %}
+          <div class="ebay-range-block">
+            <span class="ebay-range-label">Suggested Vinted</span>
+            <span class="ebay-range-value" style="color:var(--brand-dark)">£{{ listing.ebay_vinted_range.low }}–£{{ listing.ebay_vinted_range.high }}</span>
+          </div>
+          {% endif %}
+          {% if listing.ebay_comps_count %}
+          <div class="ebay-range-block">
+            <span class="ebay-range-label">Listings used</span>
+            <span class="ebay-range-value" style="font-size:14px; color:var(--gray-7)">{{ listing.ebay_comps_count }}</span>
+          </div>
+          {% endif %}
+        </div>
+        {% if listing.ebay_comps_note %}
+          <div class="ebay-comps-note">{{ listing.ebay_comps_note }}</div>
+        {% endif %}
+      </div>
+    {% elif listing.ebay_comps_skipped %}
+      <div class="ebay-comps-skipped">{{ listing.ebay_comps_skipped | replace("_", " ") | capitalize }}</div>
+    {% else %}
+      <div class="ebay-comps-skipped">Not fetched — tap "Fetch comps" to get market guidance.</div>
+    {% endif %}
+  </div>
+</div>
+
+<!-- ── Listing tracker ── -->
+{% if listing.draft_url %}
+<div class="tracker-box" id="trackerBox">
+  <div class="tracker-header">
+    <span class="tracker-title">Listing performance</span>
+    <button class="btn-refresh-tracker" id="btnRefreshTracker" onclick="refreshTracker()">Refresh</button>
+  </div>
+  <div id="trackerContent">
+    <div class="tracker-empty" id="trackerLoading">Loading…</div>
+  </div>
+</div>
+{% endif %}
+
 <!-- ── Photos ── -->
 {% if photos %}
 <div class="review-section">
@@ -621,12 +849,19 @@
 
 <!-- ── Actions ── -->
 <div class="review-actions">
+  {% if listing.draft_error and not listing.draft_url %}
+  <div class="draft-error-banner">
+    <strong>✕ Last draft attempt failed</strong>
+    {{ listing.draft_error }}
+  </div>
+  {% endif %}
   {% if listing.draft_url %}
     <a class="btn-primary" href="{{ listing.draft_url }}" target="_blank">Open on Vinted →</a>
   {% else %}
     <button class="btn-primary" id="btnDraft" onclick="createDraft()">Create Vinted Draft ↑</button>
   {% endif %}
   <button class="btn-secondary" onclick="regenListing()">Regenerate listing ↺</button>
+  <button class="btn-secondary" onclick="markReady()" id="btnMarkReady">Mark as ready ✓</button>
 </div>
 
 <div class="toast" id="toast"></div>
@@ -666,7 +901,45 @@ async function saveMaterials() {
 
 async function saveCondition() {
   const val = document.getElementById("f-condition").value;
-  await saveField("condition_summary", val);
+  const resp = await fetch(`/listing/${encodeURIComponent(FOLDER)}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ condition_summary: val }),
+  });
+  if (resp.ok) {
+    const data = await resp.json();
+    showToast("Saved");
+    _updateConditionLineDisplay(data.condition_line);
+  } else {
+    const d = await resp.json().catch(() => ({}));
+    showToast("Error: " + (d.error || "unknown"));
+  }
+}
+
+async function saveFlaws() {
+  const raw = document.getElementById("f-flaws").value.trim();
+  const val = raw || null;
+  const resp = await fetch(`/listing/${encodeURIComponent(FOLDER)}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ flaws_note: val }),
+  });
+  if (resp.ok) {
+    const data = await resp.json();
+    showToast("Saved");
+    _updateConditionLineDisplay(data.condition_line);
+  } else {
+    const d = await resp.json().catch(() => ({}));
+    showToast("Error: " + (d.error || "unknown"));
+  }
+}
+
+function _updateConditionLineDisplay(line) {
+  const el = document.getElementById("conditionLineDisplay");
+  if (el) {
+    el.textContent = line || "";
+    el.closest(".field-row").style.display = line ? "" : "none";
+  }
 }
 
 async function toggleErrorTag(cat) {
@@ -709,7 +982,13 @@ async function createDraft() {
     } else {
       btn.textContent = "Create Vinted Draft ↑";
       btn.disabled = false;
-      showToast("Error: " + (data.error || "unknown"), 3000);
+      if (data.code === "LOW_BRAND_CONFIDENCE") {
+        showToast("Low brand confidence — confirm the brand, then retry.", 5000);
+      } else if (data.code === "CATEGORY_UNRESOLVED") {
+        showToast(`Category '${data.category}' has no Vinted mapping — correct it, then retry.`, 5000);
+      } else {
+        showToast("Error: " + (data.error || "unknown"), 3000);
+      }
     }
   } catch (e) {
     btn.textContent = "Create Vinted Draft ↑";
@@ -742,6 +1021,30 @@ async function regenListing() {
   }
 }
 
+async function markReady() {
+  const btn = document.getElementById("btnMarkReady");
+  if (!btn) return;
+  btn.textContent = "Saving…";
+  btn.disabled = true;
+  try {
+    const resp = await fetch(`/listing/${encodeURIComponent(FOLDER)}/mark-ready`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+    });
+    if (resp.ok) {
+      showToast("Marked as ready ✓");
+      setTimeout(() => { window.location.href = "/drafts"; }, 1000);
+    } else {
+      btn.textContent = "Mark as ready ✓";
+      btn.disabled = false;
+      showToast("Failed to mark ready");
+    }
+  } catch {
+    btn.textContent = "Mark as ready ✓";
+    btn.disabled = false;
+  }
+}
+
 async function resolveGraphicConflict(hasGraphic) {
   const banner = document.getElementById("graphic-conflict");
   const currentCat = document.getElementById("f-category").value;
@@ -762,6 +1065,154 @@ async function resolveGraphicConflict(hasGraphic) {
     showToast("Pattern corrected to Plain");
   }
   banner.remove();
+}
+
+async function fetchEbayComps() {
+  const btn = document.getElementById("btnFetchComps");
+  if (!btn) return;
+  btn.textContent = "Fetching…";
+  btn.disabled = true;
+  try {
+    const resp = await fetch(`/api/listing/${encodeURIComponent(FOLDER)}/fetch-ebay-comps`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+    });
+    const data = await resp.json();
+    if (!resp.ok) {
+      showToast("Error: " + (data.error || "unknown"), 3000);
+      btn.textContent = "Fetch comps";
+      btn.disabled = false;
+      return;
+    }
+    _renderEbayComps(data);
+    btn.textContent = "Refresh";
+    btn.disabled = false;
+  } catch (e) {
+    showToast("Fetch failed", 3000);
+    btn.textContent = "Fetch comps";
+    btn.disabled = false;
+  }
+}
+
+async function refreshTracker() {
+  const btn = document.getElementById("btnRefreshTracker");
+  const content = document.getElementById("trackerContent");
+  if (!btn || !content) return;
+  btn.textContent = "Scraping…";
+  btn.disabled = true;
+  try {
+    const resp = await fetch(`/tracker/refresh/${encodeURIComponent(FOLDER)}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+    });
+    const data = await resp.json();
+    _renderTracker(data);
+    btn.textContent = "Refresh";
+    btn.disabled = false;
+  } catch (e) {
+    content.innerHTML = '<div class="tracker-scrape-error">Scrape failed — check connection</div>';
+    btn.textContent = "Refresh";
+    btn.disabled = false;
+  }
+}
+
+function _renderTracker(data) {
+  const content = document.getElementById("trackerContent");
+  if (!content) return;
+
+  if (data.scrape_error) {
+    content.innerHTML = `<div class="tracker-scrape-error">${data.scrape_error}</div>`;
+    return;
+  }
+
+  const views = data.views != null ? data.views : "—";
+  const favs = data.favourites != null ? data.favourites : "—";
+  const price = data.price_gbp != null ? `£${data.price_gbp}` : (data.current_price != null ? `£${data.current_price}` : "—");
+  const status = data.status_scraped || data.status || "active";
+  const soldClass = status === "sold" ? " sold" : "";
+  const daysLive = data.days_live != null ? `${data.days_live}d` : "—";
+  const scraped = data.scraped_at || data.last_scraped_at || "";
+  const scrapedShort = scraped ? scraped.slice(0, 16).replace("T", " ") : "";
+
+  content.innerHTML = `
+    <div class="tracker-body">
+      <div class="tracker-metric">
+        <span class="tracker-metric-label">Status</span>
+        <span class="tracker-metric-value${soldClass}">${status}</span>
+      </div>
+      <div class="tracker-metric">
+        <span class="tracker-metric-label">Views</span>
+        <span class="tracker-metric-value">${views}</span>
+      </div>
+      <div class="tracker-metric">
+        <span class="tracker-metric-label">Favourites</span>
+        <span class="tracker-metric-value">${favs}</span>
+      </div>
+      <div class="tracker-metric">
+        <span class="tracker-metric-label">Price</span>
+        <span class="tracker-metric-value">${price}</span>
+      </div>
+      <div class="tracker-metric">
+        <span class="tracker-metric-label">Days live</span>
+        <span class="tracker-metric-value">${daysLive}</span>
+      </div>
+    </div>
+    ${scrapedShort ? `<div style="padding:0 16px 10px;font-size:11px;color:var(--gray-5)">Scraped ${scrapedShort} UTC</div>` : ""}
+  `;
+}
+
+// Auto-load tracker status on page load if draft exists
+(async function initTracker() {
+  const box = document.getElementById("trackerBox");
+  if (!box) return;
+  try {
+    const resp = await fetch(`/tracker/status/${encodeURIComponent(FOLDER)}`);
+    const data = await resp.json();
+    if (data.tracked && (data.views != null || data.last_scraped_at)) {
+      _renderTracker(data);
+    } else {
+      document.getElementById("trackerContent").innerHTML =
+        '<div class="tracker-empty">No data yet — tap Refresh to scrape Vinted.</div>';
+    }
+  } catch {
+    document.getElementById("trackerContent").innerHTML =
+      '<div class="tracker-empty">No data yet — tap Refresh to scrape Vinted.</div>';
+  }
+})();
+
+function _renderEbayComps(data) {
+  const content = document.getElementById("ebayCompsContent");
+  if (!content) return;
+
+  if (data.ebay_comps_skipped) {
+    content.innerHTML = `<div class="ebay-comps-skipped">${data.ebay_comps_skipped.replace(/_/g, " ")}</div>`;
+    return;
+  }
+
+  const r = data.ebay_suggested_range || {};
+  const v = data.ebay_vinted_range || {};
+  const count = data.ebay_comps_count || "";
+  const note = data.ebay_comps_note || "";
+
+  content.innerHTML = `
+    <div class="ebay-comps-body">
+      <div class="ebay-comps-ranges">
+        <div class="ebay-range-block">
+          <span class="ebay-range-label">eBay active (used)</span>
+          <span class="ebay-range-value">£${r.low || "?"}–£${r.high || "?"}</span>
+        </div>
+        ${v.low ? `<div class="ebay-range-block">
+          <span class="ebay-range-label">Suggested Vinted</span>
+          <span class="ebay-range-value" style="color:var(--brand-dark)">£${v.low}–£${v.high}</span>
+        </div>` : ""}
+        ${count ? `<div class="ebay-range-block">
+          <span class="ebay-range-label">Listings used</span>
+          <span class="ebay-range-value" style="font-size:14px;color:var(--gray-7)">${count}</span>
+        </div>` : ""}
+      </div>
+      ${note ? `<div class="ebay-comps-note">${note}</div>` : ""}
+    </div>
+  `;
 }
 </script>
 {% endblock %}

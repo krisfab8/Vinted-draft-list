@@ -41,6 +41,8 @@
     },
     "made_in":          { "type": ["string", "null"] },
     "fabric_mill":      { "type": ["string", "null"] },
+    "fabric_line":      { "type": ["string", "null"] },
+    "material_hint":    { "type": ["string", "null"] },
     "style":            { "type": ["string", "null"] },
     "cut":              { "type": ["string", "null"] },
     "pattern":          { "type": ["string", "null"] },
@@ -48,6 +50,8 @@
       "type": "array",
       "items": { "type": "string" }
     },
-    "tag_keywords_confidence": { "type": ["string", "null"] }
+    "tag_keywords_confidence": { "type": ["string", "null"] },
+    "gender_confidence":  { "type": "string", "enum": ["high", "medium", "low"] },
+    "model_confidence":   { "type": "string", "enum": ["high", "low"] }
   }
 }

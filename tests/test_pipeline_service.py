@@ -151,6 +151,12 @@ class TestPreserveUserFields:
         assert new_listing["category"] == "Men > Shoes > Boots > Chelsea"
         assert new_listing["category_locked"] is True
 
+    def test_error_tags_preserved_across_reprice(self):
+        existing = {"error_tags": ["brand", "size"]}
+        new_listing = {}
+        preserve_user_fields(existing, new_listing)
+        assert new_listing["error_tags"] == ["brand", "size"]
+
     def test_category_not_locked_when_flag_absent(self):
         existing = {"category": "Men > Shoes > Boots > Chelsea"}
         new_listing = {"category": "Men > Shoes > Boots > Desert"}

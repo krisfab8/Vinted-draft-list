@@ -19,6 +19,101 @@ _EU_TO_UK: dict[int, int] = {eu: eu - 10 for eu in range(40, 70, 2)}
 
 _TAILORING_KEYWORDS = {"blazer", "suit jacket", "sports jacket", "sport jacket", "jacket suit"}
 
+# Mills whose presence in a tailoring item warrants title inclusion and a premium signal
+_PREMIUM_MILLS: frozenset[str] = frozenset({
+    "loro piana", "loro piana fabric",
+    "vitale barberis canonico", "vbc",
+    "dormeuil",
+    "holland & sherry",
+    "scabal",
+    "drago",
+    "reda",
+    "ermenegildo zegna fabric", "zegna fabric",
+    "thomas mason",
+    "fratelli tallia di delfino",
+    "tessuti sondrio",
+})
+
+
+_MILL_TRAILING_WORDS = re.compile(
+    r"\s+\b(fabric|cloth|cloths|fabrics|textiles|textile|mills|mill)\b\.?$",
+    re.IGNORECASE,
+)
+
+
+def _normalise_fabric_mill(raw: str | None) -> str | None:
+    """Strip generic trailing words from fabric_mill.
+
+    'Loro Piana fabric' → 'Loro Piana'
+    'Tessuti Sondrio'   → 'Tessuti Sondrio'  (unchanged)
+    """
+    if not raw:
+        return raw
+    return _MILL_TRAILING_WORDS.sub("", raw.strip()).strip() or raw.strip()
+
+
+def _is_premium_mill(fabric_mill: str | None) -> bool:
+    """Return True if fabric_mill matches a known premium mill."""
+    if not fabric_mill:
+        return False
+    low = _normalise_fabric_mill(fabric_mill).lower()
+    return any(pm in low or low in pm for pm in _PREMIUM_MILLS)
+
+# Known fibre/fabric words — any material entry must contain at least one to be kept
+_KNOWN_FIBRES = frozenset({
+    "wool", "merino", "lambswool", "cashmere", "cotton", "linen", "silk",
+    "polyester", "viscose", "elastane", "nylon", "acrylic", "modal", "lyocell",
+    "alpaca", "mohair", "angora", "leather", "suede", "down", "velvet", "tweed",
+    "canvas", "denim", "flannel", "twill", "fleece", "terry", "corduroy",
+    "velour", "microfibre", "microfiber", "satin", "crepe", "chiffon",
+    "spandex", "lycra", "tencel", "bamboo", "hemp", "lining", "shell", "fill",
+    "polyamide", "cupro", "acetate", "rayon",
+})
+
+
+def _clean_materials(materials: list[str]) -> list[str]:
+    """Remove material entries that contain no known fibre keyword.
+
+    Drops hallucinated brand-specific fabric names (e.g. "Chester Chum fabric",
+    "TechWeave Pro") while preserving real composition lines like "80% Wool 20% Nylon".
+    """
+    cleaned = []
+    for entry in materials:
+        low = entry.lower()
+        if any(fibre in low for fibre in _KNOWN_FIBRES):
+            cleaned.append(entry)
+    return cleaned
+
+
+def _format_trouser_size(w: str | None, l: str | None,
+                          w_cm: str | None, l_cm: str | None) -> str | None:
+    """Return deterministic size string: inches first, cm in brackets if available.
+
+    Examples:
+        W32 L32 (81cm / 81cm)
+        W34 L33 (86cm / 84cm)
+        W34 L33          ← if no cm data
+        W34              ← if no length
+    """
+    if not w:
+        return None
+    w = str(w).strip()
+    l = str(l).strip() if l else None
+
+    # Build inches part
+    size = f"W{w}" + (f" L{l}" if l else "")
+
+    # Build cm part (only if at least waist_cm known)
+    if w_cm:
+        w_cm = str(w_cm).replace("cm", "").strip()
+        if l_cm:
+            l_cm = str(l_cm).replace("cm", "").strip()
+            size += f" ({w_cm}cm / {l_cm}cm)"
+        else:
+            size += f" ({w_cm}cm)"
+
+    return size
+
 
 def _convert_eu_suit_size(listing: dict) -> dict:
     """Convert bare EU tagged_size to UK size (e.g. 54 → 44R) for tailoring items.
@@ -173,6 +268,8 @@ _ITEM_TYPE_TO_GROUP: dict[str, str] = {
     # trousers — specific
     "corduroy trousers": "trousers", "chino trousers": "trousers",
     "track pants": "trousers", "sweatpants": "trousers", "leggings": "trousers",
+    "running pants": "trousers", "sweat pants": "trousers",
+    "tracksuit bottom": "trousers", "tracksuit trousers": "trousers",
     # trousers — generic
     "trousers": "trousers", "trouser": "trousers", "joggers": "trousers",
     "chinos": "trousers",
@@ -572,10 +669,9 @@ def _build_prompt(item: dict, hints: dict | None = None) -> str:
         )
     elif _cond:
         # Locked used condition — AI must never change the level the user set
-        _cond_level = _cond.split(" — ")[0].strip()  # e.g. "Very good used condition"
         hint_notes.append(
             f"CONDITION LOCKED: condition_summary is '{_cond}' — copy it EXACTLY, do not change the level. "
-            f"The description must open with '{_cond_level}' — not 'Excellent', 'Good', or any other level."
+            "Do NOT include any condition wording in the description — a condition line is appended automatically."
         )
 
     item_type_lower = (item.get("item_type") or "").lower()
@@ -585,6 +681,9 @@ def _build_prompt(item: dict, hints: dict | None = None) -> str:
     is_trouser = not is_shoe and (is_activewear or any(k in item_type_lower for k in ("trouser", "jeans", "shorts", "chino", "cargo")))
     w = item.get("trouser_waist")
     l = item.get("trouser_length")
+    w_cm = item.get("trouser_waist_cm")
+    l_cm = item.get("trouser_length_cm")
+    _trouser_size = _format_trouser_size(w, l, w_cm, l_cm)
     if is_activewear:
         # Activewear (joggers, sweatpants, tracksuits, leggings): S/M/L/XL is the primary size.
         # W measurement appears at the end of the title and as a description bullet.
@@ -592,24 +691,20 @@ def _build_prompt(item: dict, hints: dict | None = None) -> str:
             "ACTIVEWEAR SIZING: normalized_size and SIZE in title MUST be the letter size "
             "(S, M, L, XL) — never W/L as the main size. "
         )
-        if w and l:
+        if _trouser_size:
+            _w_only = f"W{w}"
             size_rule += (
-                f"ALSO: append 'W{w}' at the very end of the title after the colour "
-                f"(e.g. '... Blue W{w}'). Only omit if this pushes the title over 70 chars. "
-                f"In the description, add a bullet point: '- Approx W{w} L{l} (waist/length).'"
-            )
-        elif w:
-            size_rule += (
-                f"ALSO: append 'W{w}' at the very end of the title if space allows. "
-                f"In the description, add a bullet point: '- Approx waist W{w}.'"
+                f"ALSO: append '{_w_only}' at the very end of the title after the colour "
+                f"(e.g. '... Blue {_w_only}'). Only omit if this pushes the title over 70 chars. "
+                f"In the description, add a bullet point: '- Approx {_trouser_size} (waist/length).'"
             )
         hint_notes.append(size_rule)
     elif is_trouser:
-        if w and l:
+        if _trouser_size:
             hint_notes.append(
-                f"REQUIRED: This is a trouser/shorts item. The size MUST be 'W{w} L{l}' in the title, tagged_size, and normalized_size. "
+                f"REQUIRED: This is a trouser/shorts item. The size MUST be '{_trouser_size}' in the title, tagged_size, and normalized_size. "
                 f"Buyers search by W/L — a bare EU number like '52' is NOT acceptable for trousers. "
-                f"Also add a bullet point in the description: '- W{w} L{l} (waist/length).'"
+                f"Also add a bullet point in the description: '- {_trouser_size} (waist/length).'"
             )
         elif w:
             hint_notes.append(f"This is a trouser item. Waist is W{w}. Use 'W{w}' as the size. Length is unknown — do not fabricate one.")
@@ -681,6 +776,65 @@ def _build_prompt(item: dict, hints: dict | None = None) -> str:
             _pm_note += f" Note: {_pm_entry['notes']}"
         hint_notes.append(_pm_note)
 
+    # Colour from tag — only override when high-confidence tag text is available
+    _tag_colour = item.get("colour_from_tag") or ""
+    _tag_colour_conf = item.get("colour_from_tag_confidence", "low")
+    if _tag_colour and _tag_colour_conf == "high":
+        hint_notes.append(
+            f"COLOUR FROM TAG: the tag clearly shows '{_tag_colour}' — use this EXACT colour name "
+            f"in both the title and description instead of a generic AI colour. "
+            f"Set colour to '{_tag_colour}'."
+        )
+
+    # Sub-brand / product line in title (e.g. "Collezione", "Black Label", "Sport")
+    _sub_brand = item.get("sub_brand") or ""
+    if _sub_brand:
+        hint_notes.append(
+            f"SUB-BRAND LINE: the tag shows a product line '{_sub_brand}' — include it in the title "
+            f"immediately after the brand name (e.g. 'Brand {_sub_brand} ItemType ...'). "
+            f"Only omit if it would push the title over 70 chars."
+        )
+
+    # Material cleanup hint — list only confirmed fibres to the model
+    _raw_mats = item.get("materials") or []
+    _clean_mats = _clean_materials(_raw_mats)
+    if _clean_mats != _raw_mats:
+        _dropped = [m for m in _raw_mats if m not in _clean_mats]
+        hint_notes.append(
+            f"MATERIAL CLEANUP: the following extracted material entries contain no recognised fibre "
+            f"and must be DROPPED: {_dropped}. "
+            f"Use only: {_clean_mats}. Do NOT re-add the dropped entries."
+        )
+
+    # Premium fabric mill — title + description signal for tailoring items
+    _fabric_mill = _normalise_fabric_mill(item.get("fabric_mill") or "") or ""
+    _fabric_line = item.get("fabric_line") or ""
+    _material_hint = item.get("material_hint") or ""
+    _is_tailoring = any(k in item_type_lower for k in (
+        "blazer", "suit", "trouser", "jacket", "coat", "overcoat", "waistcoat",
+    ))
+
+    # If materials are empty but material_hint is set (cloth-only label), pass it as context
+    if not _clean_mats and _material_hint:
+        hint_notes.append(
+            f"CLOTH LABEL MATERIAL: no fibre percentages were visible on the label, but the cloth is "
+            f"described as '{_material_hint}'. Use this as the material description in the listing. "
+            f"Do NOT invent percentages — use the descriptive form only."
+        )
+
+    if _fabric_mill and _is_premium_mill(_fabric_mill) and _is_tailoring:
+        _mill_display = f"{_fabric_mill} {_fabric_line}".strip() if _fabric_line else _fabric_mill
+        hint_notes.append(
+            f"PREMIUM FABRIC MILL: this garment uses cloth from '{_mill_display}', a premium fabric mill. "
+            f"Include '{_mill_display}' in the title as a cloth signal immediately before the colour "
+            f"(e.g. 'Boggi Milano Blazer Loro Piana Mens 44R Charcoal'). "
+            f"Only omit from title if it would push past 70 chars — always include in description. "
+            f"In the description, add a bullet point: '- Cloth: {_mill_display}.' "
+            + (f"The cloth is described as: '{_material_hint}'. " if _material_hint else "")
+            + f"Include '{_mill_display}' in the Keywords sentence. "
+            f"Set pricing_sensitive_material to true."
+        )
+
     model_hint = ("\nNotes:\n" + "\n".join(f"- {h}" for h in hint_notes)) if hint_notes else ""
 
     return f"""
@@ -700,7 +854,7 @@ def _build_prompt(item: dict, hints: dict | None = None) -> str:
 Write a complete listing JSON with these fields:
 - brand (string or null)
 - item_type (string)
-- title (string, max 70 chars, REQUIRED order: Brand + ItemType + Mens/Womens + Size + Colour + [Material if premium fibre] — follow style guide exactly, include item synonym, no filler words. NEVER reorder these elements. For trousers/shorts/joggers: Size MUST be W/L format e.g. "W32 L32")
+- title (string, max 70 chars, REQUIRED order: Brand + [Line/SubBrand if present] + ItemType + [Material if premium fibre] + Mens/Womens + Size + Colour — follow style guide exactly, include item synonym, no filler words. NEVER reorder these elements. For trousers/shorts/joggers: Size MUST be W/L format e.g. "W32 L32 (86cm / 84cm)" if cm data is available, otherwise "W32 L32")
 - description (string, follow style guide format)
 - tagged_size (string — copy EXACTLY from extracted tagged_size, do not convert)
 - normalized_size (string — for trousers/jeans/shorts: MUST be W/L format e.g. 'W32 L32'. For suits/blazers: keep number as-is. For S/M/L/XL: keep as-is.)
@@ -728,7 +882,7 @@ STRICT RULE — only use facts from the extracted fields. NEVER invent or assume
 - Description bullet points must come ONLY from: materials, fabric_mill, cut, model_name, tag_keywords (high confidence only), made_in, colour_secondary, pattern.
 - Do NOT add any observations about construction, stitching, collar style, lining, canvas, patches, buttons, or any physical detail not explicitly in the extracted fields.
 - Do NOT claim "hand finished", "fully lined", "original tags attached", "unworn", "half canvas", "full canvas", "patch collar", "elbow patches" unless these exact terms are in tag_keywords.
-- CONDITION IN DESCRIPTION — do NOT restate condition in the description body. Never write "Good used condition", "Excellent condition", "very good condition", "no visible damage", "no holes or stains", or any similar phrase. The condition is a separate structured field. The ONLY exception: if flaws_note is set, add a single plain bullet with the flaw (e.g. "- Small mark on left sleeve.").
+- CONDITION IN DESCRIPTION — do NOT include any condition or flaws wording anywhere in the description. A standardised condition line is appended after generation — do not pre-empt it. Never write condition level phrases ("Good used condition", "Excellent condition", "Very good", etc.), "no visible damage", "no holes or stains", or any similar phrase. Do NOT add a flaw bullet even if flaws_note is set.
 - If a field is null or absent, omit it entirely — do not substitute a guess.
 
 Description format rules:
@@ -742,7 +896,7 @@ Description format rules:
 - Include material in title if it is a premium/sellable fibre: cashmere, silk, angora, alpaca, mohair, merino, wool, lambswool, linen, waxed, down, leather, silk, tweed, corduroy.
 - MATERIAL RANKING: In title and description, always list the most premium/natural fibre first. Rank order: cashmere > angora > alpaca > silk > mohair > merino wool > wool > lambswool > linen > cotton > down > leather > polyester > nylon > elastane/spandex. In the materials array, reorder so the most premium fibre appears first. In the title, use only the top-ranked premium fibre. In the description opening sentence, list the most premium fibre first (e.g. "Cotton and polyester track pants" not "Polyester and cotton").
 - If made_in is set (e.g. "Italy"), include "Made in Italy" in the description — buyers search for this.
-- If fabric_mill is set (e.g. "Tessuti Sondrio"), include the mill name in the description — buyers of quality menswear search for these names.
+- If fabric_mill is set (e.g. "Tessuti Sondrio"), include the mill name in the description — buyers of quality menswear search for these names. If fabric_line is also set, combine them (e.g. "Loro Piana Trofeo cloth").
 - Include model_name in the description if present.
 - TAG KEYWORDS — use items from tag_keywords as follows:
   * If tag_keywords_confidence = "high": include the most buyer-relevant terms (e.g. collection name, fabric grade) in the title if space allows, or prominently in the description body (e.g. "Traveller collection. Super 120s wool.").
@@ -885,6 +1039,21 @@ def write(item: dict, hints: dict | None = None) -> tuple[dict, dict]:
     listing.setdefault("brand_confidence", item.get("brand_confidence", "low"))
     listing.setdefault("material_confidence", item.get("material_confidence", "low"))
 
+    # Deterministic premium mill signal
+    _raw_mill = item.get("fabric_mill")
+    if _is_premium_mill(_raw_mill):
+        # Normalise mill name on the listing (strip "fabric"/"cloth" suffixes)
+        listing["fabric_mill"] = _normalise_fabric_mill(_raw_mill)
+        # pricing_sensitive_material only applies to tailoring — not knitwear, jeans, etc.
+        _item_type_for_mill = (listing.get("item_type") or item.get("item_type") or "").lower()
+        _is_tailoring_item = any(k in _item_type_for_mill for k in (
+            "blazer", "suit", "trouser", "jacket", "coat", "overcoat", "waistcoat",
+        ))
+        if _is_tailoring_item:
+            listing["pricing_sensitive_material"] = True
+        if item.get("fabric_line"):
+            listing["fabric_line"] = item["fabric_line"]
+
     # Price memory match level (for review UI + run log)
     _pm = _lookup_price_memory(
         item.get("brand"),
@@ -909,6 +1078,23 @@ def write(item: dict, hints: dict | None = None) -> tuple[dict, dict]:
     listing.setdefault("error_tags", [])
 
     validate_or_raise(listing)
+
+    # Alias memory application — auto-correct categories and item_types from operator memory
+    from app.services import alias_memory as _alias_memory
+    ai_cat = listing.get("category") or ""
+    cat_alias = _alias_memory.lookup_category(ai_cat)
+    if cat_alias:
+        listing["category"] = cat_alias
+    ai_it = listing.get("item_type") or ""
+    it_alias = _alias_memory.lookup_item_type(ai_it)
+    if it_alias:
+        listing["item_type"] = it_alias
+
+    # Deterministic condition post-processing (after schema validation so
+    # condition_line is not subject to schema constraints)
+    from app.services import condition as _cond_svc
+    _cond_svc.apply_condition(listing)
+    _cond_svc.inject_condition_line(listing)
 
     _category_slice_level = _get_category_slice_level(
         item.get("gender", ""), item.get("item_type", "")

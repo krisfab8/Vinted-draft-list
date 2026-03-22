@@ -23,6 +23,10 @@ from flask import Flask, jsonify, render_template, request, send_from_directory
 from app.config import ITEMS_DIR, ROOT
 from app import extractor, listing_writer, run_logger
 from app.services import pipeline as pipeline_svc
+from app.services import item_store
+from app.services import listing_tracker
+from app.services.category_validator import resolve_category_key as _resolve_category_key
+from app.services import alias_memory as _alias_memory
 
 # ── Vinted login session (for cookie refresh flow) ───────────────────────────
 _vinted_login: dict = {}   # holds playwright/browser/context while login window is open
@@ -37,6 +41,17 @@ except Exception:
 
 app = Flask(__name__)
 app.config["MAX_CONTENT_LENGTH"] = 50 * 1024 * 1024  # 50 MB max upload
+
+try:
+    item_store.init_db()
+except Exception:
+    pass  # non-fatal — app runs without the metadata index
+
+
+@app.get("/manifest.json")
+def serve_manifest():
+    return send_from_directory(ROOT / "app" / "static", "manifest.json",
+                               mimetype="application/manifest+json")
 
 
 @app.errorhandler(Exception)
@@ -127,6 +142,7 @@ def create_listing():
         _log_cost(folder, extract_usage, write_usage, listing)
         _write_run_log(folder, extract_log, write_log, extract_usage, write_usage, listing,
                        round((time.perf_counter() - _t0) * 1000))
+        _sync_item_status(folder, listing)
     except FileNotFoundError as e:
         return jsonify({"error": str(e)}), 404
     except ValueError as e:
@@ -164,10 +180,43 @@ def create_draft_endpoint():
 
     try:
         listing = json.loads(listing_path.read_text())
+
+        # ── Pre-flight: low brand confidence gate ─────────────────────────────
+        if listing.get("brand_confidence") == "low" and not listing.get("brand_confirmed"):
+            brand = listing.get("brand") or ""
+            return jsonify({
+                "code": "LOW_BRAND_CONFIDENCE",
+                "error": f"Brand '{brand}' is low-confidence — confirm before drafting",
+            }), 409
+
+        # ── Pre-flight: unresolved category gate ──────────────────────────────
+        category = listing.get("category") or ""
+        if category and not _resolve_category_key(category) and not listing.get("category_locked"):
+            return jsonify({
+                "code": "CATEGORY_UNRESOLVED",
+                "error": f"Category '{category}' has no Vinted mapping — correct before drafting",
+                "category": category,
+            }), 409
+
         draft_url = draft_creator.create_draft(listing, item_path)
+        # Clear any previous draft error and persist draft_url
+        listing.pop("draft_error", None)
+        listing["draft_url"] = draft_url
+        listing_path.write_text(json.dumps(listing, indent=2))
+        item_store.set_status(folder, "drafted")
+        listing_tracker.record_draft_snapshot(folder, listing)
     except draft_creator.VintedAuthError as e:
         return jsonify({"error": str(e), "code": "VINTED_AUTH_EXPIRED"}), 401
-    except Exception:
+    except Exception as exc:
+        # Persist a short operator-friendly error; full traceback stays in logs only
+        err_msg = _draft_error_summary(exc)
+        try:
+            listing = json.loads(listing_path.read_text())
+            listing["draft_error"] = err_msg
+            listing_path.write_text(json.dumps(listing, indent=2))
+        except Exception:
+            pass
+        item_store.set_status(folder, "error", last_error=err_msg)
         return jsonify({"error": traceback.format_exc()}), 500
 
     return jsonify({"draft_url": draft_url}), 200
@@ -255,20 +304,57 @@ def upload_listing():
     item_path = ITEMS_DIR / folder_name
     item_path.mkdir(parents=True, exist_ok=True)
 
-    # Save photos: first 5 get core names (back is optional slot 5), rest get numbered
-    core_names = ["front", "brand", "model_size", "material", "back"]
-    saved = []
+    # Save photos as temp files, then score and rename to role names
+    from app.services import photo_roles as _photo_roles
+    temp_paths: list[Path] = []
     for i, f in enumerate(files):
         if f.filename == "":
             continue
         ext = Path(f.filename).suffix.lower() or ".jpg"
         if ext not in {".jpg", ".jpeg", ".png", ".webp"}:
             continue
-        name = core_names[i] if i < len(core_names) else f"extra_{i - len(core_names) + 1:02d}"
-        dest = item_path / f"{name}{ext}"
-        f.save(dest)
-        dest = _resize_photo(dest)   # shrink large phone photos before storing
+        temp_dest = item_path / f"_temp_{i:02d}{ext}"
+        f.save(temp_dest)
+        temp_dest = _resize_photo(temp_dest)
+        temp_paths.append(temp_dest)
+
+    if not temp_paths:
+        return jsonify({"error": "No valid photos saved"}), 400
+
+    # Score and assign roles
+    try:
+        role_map, role_confidence = _photo_roles.assign_roles(temp_paths)
+    except Exception:
+        # Fallback: positional naming (preserves original behaviour)
+        core_names = ["front", "brand", "model_size", "material", "back"]
+        role_map = {
+            (core_names[i] if i < len(core_names) else f"extra_{i - len(core_names) + 1:02d}"): p
+            for i, p in enumerate(temp_paths)
+        }
+        role_confidence = {}
+
+    # Rename temp files to role names
+    saved = []
+    for role, src in role_map.items():
+        if src is None:
+            continue
+        ext = src.suffix
+        dest = item_path / f"{role}{ext}"
+        src.rename(dest)
         saved.append(dest.name)
+
+    # Persist role assignments + confidence for review/observability
+    try:
+        import json as _json
+        (item_path / "photo_roles.json").write_text(
+            _json.dumps({
+                "roles": {r: p.name for r, p in role_map.items() if p},
+                "confidence": role_confidence,
+                "low_confidence": _photo_roles.low_confidence_roles(role_confidence),
+            }, indent=2)
+        )
+    except Exception:
+        pass
 
     if not saved:
         return jsonify({"error": "No valid photos saved"}), 400
@@ -304,6 +390,7 @@ def upload_listing():
         _log_cost(folder_name, extract_usage, write_usage, listing)
         _write_run_log(folder_name, extract_log, write_log, extract_usage, write_usage, listing,
                        round((time.perf_counter() - _t0) * 1000))
+        _sync_item_status(folder_name, listing)
     except FileNotFoundError as e:
         return jsonify({"error": str(e)}), 404
     except ValueError as e:
@@ -399,6 +486,8 @@ def _get_all_listings() -> list[dict]:
                 if (item_dir / f"front{ext}").exists():
                     listing["thumbnail_url"] = f"/items/{item_dir.name}/front{ext}"
                     break
+            # Lazy migration: write status to DB if this item has no record yet
+            item_store.sync_from_listing(item_dir.name, listing)
             listings.append(listing)
         except Exception:
             continue
@@ -452,6 +541,27 @@ def _compute_stats(listings: list[dict], cost_history: list[dict]) -> dict:
         "profit_item_count": len(profit_items),
         "brands": [{"brand": b, "count": c} for b, c in brands.most_common(10)],
     }
+
+
+def _draft_error_summary(exc: Exception) -> str:
+    """Return a short operator-friendly error message for draft creation failures.
+
+    Full traceback is never stored in listing.json — it stays in logs/console only.
+    """
+    msg = str(exc).strip()
+    # Strip long Python paths that are meaningless to an operator
+    if "\n" in msg:
+        msg = msg.splitlines()[-1].strip()
+    return msg[:200] if msg else "Draft creation failed — check logs for details"
+
+
+def _sync_item_status(folder: str, listing: dict) -> None:
+    """Derive and write item status to DB. Swallows all errors."""
+    try:
+        status, review_needed = item_store.derive_status(listing)
+        item_store.set_status(folder, status, review_needed=review_needed)
+    except Exception:
+        pass
 
 
 def _write_run_log(listing_id, extract_log, write_log, extract_usage, write_usage, listing, latency_ms):
@@ -539,9 +649,40 @@ def patch_listing(folder):
                     })
                 except Exception:
                     pass
+        # Snapshot before update for alias detection
+        old_listing = dict(listing)
         # Capture old size before applying updates (needed for title patch below)
         old_size = listing.get("normalized_size") or listing.get("tagged_size") or ""
         listing.update(updates)
+
+        # ── Alias memory capture ──────────────────────────────────────────────
+        # Brand: save alias + mark confirmed when low-confidence brand is corrected
+        if "brand" in updates:
+            old_brand = old_listing.get("brand") or ""
+            new_brand = updates["brand"] or ""
+            if old_listing.get("brand_confidence") == "low" and old_brand != new_brand and new_brand:
+                _alias_memory.save_brand_alias(old_brand, new_brand)
+                listing["brand_confirmed"] = True
+
+        # Category: save alias + lock when category is corrected
+        if "category" in updates:
+            old_cat = old_listing.get("category") or ""
+            new_cat = updates["category"] or ""
+            if old_cat != new_cat and new_cat:
+                _alias_memory.save_category_alias(old_cat, new_cat)
+                listing["category_locked"] = True
+
+        # Item type: save alias + clear category_locked so category re-validates
+        if "item_type" in updates:
+            old_it = old_listing.get("item_type") or ""
+            new_it = updates["item_type"] or ""
+            if old_it != new_it and new_it:
+                _alias_memory.save_item_type_alias(old_it, new_it)
+                listing.pop("category_locked", None)
+        # If condition_summary or flaws_note changed, recompute condition_line immediately
+        if "condition_summary" in updates or "flaws_note" in updates:
+            from app.services import condition as _cond_svc
+            _cond_svc.apply_condition(listing)
         # If normalized_size was corrected, replace the old size token in the title too
         if "normalized_size" in updates:
             new_size = updates["normalized_size"]
@@ -779,6 +920,87 @@ def set_error_tags(folder):
     except Exception:
         return jsonify({"error": traceback.format_exc()}), 500
     return jsonify({"folder": safe_folder, "error_tags": tags}), 200
+
+
+@app.post("/listing/<folder>/mark-ready")
+def mark_ready(folder):
+    """POST /listing/<folder>/mark-ready — operator approves an item for drafting.
+    Moves status from needs_review to ready."""
+    safe_folder = Path(folder).name
+    listing_path = ITEMS_DIR / safe_folder / "listing.json"
+    if not listing_path.exists():
+        return jsonify({"error": "listing not found"}), 404
+    item_store.set_status(safe_folder, "ready", review_needed=False)
+    return jsonify({"folder": safe_folder, "status": "ready"}), 200
+
+
+@app.post("/api/listing/<folder>/fetch-ebay-comps")
+def fetch_ebay_comps(folder):
+    """POST /api/listing/<folder>/fetch-ebay-comps
+    Fetch eBay market comp guidance on demand and persist a compact summary
+    into listing.json. Does not modify price_gbp."""
+    from app.services import ebay_comps
+    safe_folder = Path(folder).name
+    listing_path = ITEMS_DIR / safe_folder / "listing.json"
+    if not listing_path.exists():
+        return jsonify({"error": "listing not found"}), 404
+    try:
+        listing = json.loads(listing_path.read_text())
+        ebay_comps.enrich(listing)
+        listing_path.write_text(json.dumps(listing, indent=2))
+        # Return just the comp summary fields so the UI can update without reload
+        summary = {k: listing[k] for k in (
+            "ebay_suggested_range", "ebay_vinted_range",
+            "ebay_comps_count", "ebay_comps_titles",
+            "ebay_comps_query", "ebay_comps_note",
+            "ebay_comps_fetched_at", "ebay_comps_skipped",
+        ) if k in listing}
+        return jsonify(summary), 200
+    except Exception:
+        return jsonify({"error": traceback.format_exc()}), 500
+
+
+@app.get("/tracker/status/<folder>")
+def tracker_status(folder):
+    """GET /tracker/status/<folder> — draft snapshot + latest performance metrics."""
+    safe_folder = Path(folder).name
+    data = listing_tracker.get_tracker_status(safe_folder)
+    if data is None:
+        return jsonify({"tracked": False}), 200
+    data["tracked"] = True
+    return jsonify(data), 200
+
+
+@app.post("/tracker/refresh/<folder>")
+def tracker_refresh(folder):
+    """POST /tracker/refresh/<folder> — scrape Vinted for latest views/favourites/status."""
+    safe_folder = Path(folder).name
+
+    # Get listing_id from tracker DB or from listing.json
+    status = listing_tracker.get_tracker_status(safe_folder)
+    listing_id = (status or {}).get("listing_id")
+
+    if not listing_id:
+        # Try extracting from listing.json as fallback
+        listing_path = ITEMS_DIR / safe_folder / "listing.json"
+        if listing_path.exists():
+            try:
+                listing = json.loads(listing_path.read_text())
+                draft_url = listing.get("draft_url") or ""
+                m = __import__("re").search(r"/items/(\d+)", draft_url)
+                if m:
+                    listing_id = m.group(1)
+            except Exception:
+                pass
+
+    result = listing_tracker.refresh_tracker(safe_folder, listing_id)
+    return jsonify(result), 200
+
+
+@app.get("/api/listings/review-queue")
+def api_review_queue():
+    """GET /api/listings/review-queue — folders with review_needed = 1, most recent first."""
+    return jsonify(item_store.get_items_needing_review())
 
 
 @app.get("/api/run-logs/summary")

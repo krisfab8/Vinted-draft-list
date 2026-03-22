@@ -8,6 +8,7 @@ import re
 from pathlib import Path
 
 from app import extractor, listing_writer
+from app.services import pricing
 
 
 # ── Core pipeline ────────────────────────────────────────────────────────────
@@ -17,7 +18,7 @@ def run_pipeline(
     hints: dict,
     buy_price_gbp: float | None = None,
 ) -> tuple[dict, dict, dict, dict, dict]:
-    """Run extract → write for a new item.
+    """Run extract → write → price for a new item.
 
     Returns:
         (listing, extract_usage, write_usage, extract_log, write_log)
@@ -33,6 +34,8 @@ def run_pipeline(
 
     listing, write_usage = listing_writer.write(item, hints=hints or None)
     write_log = write_usage.pop("_write_log", {})
+
+    pricing.apply_pricing(listing)
 
     return listing, extract_usage, write_usage, extract_log, write_log
 
@@ -90,7 +93,7 @@ def build_hints_from_listing(existing: dict, updates: dict | None = None) -> dic
 
 _META_FIELDS = (
     "draft_url", "draft_error", "cost_gbp", "cost_tokens",
-    "listed_date", "photos_folder",
+    "listed_date", "photos_folder", "error_tags",
 )
 
 
@@ -117,6 +120,11 @@ def preserve_user_fields(
 
     if existing.get("condition_summary") and not updates.get("condition_summary"):
         new_listing["condition_summary"] = existing["condition_summary"]
+
+    # flaws_note: preserve the operator's value (including explicit null) unless
+    # the current update explicitly changes it.
+    if "flaws_note" in existing and "flaws_note" not in updates:
+        new_listing["flaws_note"] = existing["flaws_note"]
 
     if existing.get("style") and not new_listing.get("style"):
         new_listing["style"] = existing["style"]

@@ -181,6 +181,20 @@
     border-radius: var(--r-pill);
   }
 
+  /* ── Status dot — overlays top-left of thumbnail ── */
+  .status-dot {
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    z-index: 2;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    border: 1.5px solid rgba(255,255,255,0.85);
+  }
+  .status-dot.error  { background: var(--error); }
+  .status-dot.review { background: var(--gold); }
+
   /* ── Empty state ── */
   .empty-state {
     text-align: center;
@@ -515,7 +529,10 @@
 </div>
 
 <div class="drafts-heading">
-  <div class="page-title" style="margin-bottom:0">Drafts</div>
+  <div style="display:flex;align-items:center;gap:10px">
+    <div class="page-title" style="margin-bottom:0">Drafts</div>
+    <span id="review-count-badge" style="display:none;background:var(--gold-bg);color:#b86a00;border:1px solid rgba(184,106,0,0.2);font-size:11px;font-weight:700;padding:3px 10px;border-radius:var(--r-pill)"></span>
+  </div>
   {% if listings %}
     <div class="drafts-count-badge">{{ listings|length }} item{{ 's' if listings|length != 1 }}</div>
   {% endif %}
@@ -534,6 +551,11 @@
     <div class="draft-card" id="card-{{ item.folder }}" onclick="openSheet({{ loop.index0 }})">
       <button class="btn-delete-draft" onclick="deleteDraft(event, '{{ item.folder }}', this)" title="Delete">✕</button>
       <div class="draft-thumb">
+        {% if item.draft_error and not item.draft_url %}
+          <div class="status-dot error" title="Draft creation failed — open to review"></div>
+        {% elif item.warnings %}
+          <div class="status-dot review" title="Needs review"></div>
+        {% endif %}
         {% if item.thumbnail_url %}
           <img src="{{ item.thumbnail_url }}" alt="{{ item.title }}" loading="lazy">
         {% else %}
@@ -800,8 +822,23 @@ async function createDraftFromSheet(folder) {
   }
 }
 
+async function loadReviewCount() {
+  try {
+    const resp = await fetch("/api/listings/review-queue");
+    if (!resp.ok) return;
+    const folders = await resp.json();
+    if (!folders.length) return;
+    const badge = document.getElementById("review-count-badge");
+    if (badge) {
+      badge.textContent = `${folders.length} to review`;
+      badge.style.display = "inline-block";
+    }
+  } catch (_) { /* non-fatal */ }
+}
+
 document.addEventListener("DOMContentLoaded", () => {
   checkAuthOnLoad();
+  loadReviewCount();
 });
 </script>
 {% endblock %}

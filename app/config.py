@@ -33,6 +33,12 @@ CONFIDENCE_THRESHOLD = float(os.getenv("CONFIDENCE_THRESHOLD", "0.5"))
 # Slots 1-4 are the primary analysis photos; back (slot 5) is optional but analyzed if present
 CORE_PHOTOS = ["front", "brand", "model_size", "material"]
 
+# eBay comp guidance (optional — app works without these)
+EBAY_APP_ID = os.getenv("EBAY_APP_ID", "")
+EBAY_CERT_ID = os.getenv("EBAY_CERT_ID", "")
+# Discount applied to active eBay prices to proxy likely sold price on Vinted
+EBAY_ACTIVE_TO_SOLD_DISCOUNT = float(os.getenv("EBAY_ACTIVE_TO_SOLD_DISCOUNT", "0.70"))
+
 # Feature flags — set env vars to "0" to disable
 # ENABLE_LABEL_AUTOCROP: crop OCR-critical label photos to remove background before sending
 ENABLE_LABEL_AUTOCROP = os.getenv("ENABLE_LABEL_AUTOCROP", "1") == "1"
@@ -42,3 +48,5 @@ ENABLE_CATEGORY_ITEM_TYPE_SLICE = os.getenv("ENABLE_CATEGORY_ITEM_TYPE_SLICE", "
 ENABLE_PARALLEL_REREADS = os.getenv("ENABLE_PARALLEL_REREADS", "1") == "1"
 # ENABLE_PRICE_MEMORY: inject price memory hints into listing writer prompt
 ENABLE_PRICE_MEMORY = os.getenv("ENABLE_PRICE_MEMORY", "1") == "1"
+# ENABLE_EBAY_COMPS: allow on-demand eBay comp fetching from the review page
+ENABLE_EBAY_COMPS = os.getenv("ENABLE_EBAY_COMPS", "1") == "1"

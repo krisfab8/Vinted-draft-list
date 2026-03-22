@@ -98,9 +98,7 @@ Key features in short bullet lines:
 - notable detail (e.g. corduroy collar, patch pockets)
 - Made in [Country] if known
 - fabric mill name if known (e.g. "Tessuti Sondrio cloth" — buyers search for these)
-- Flaw bullet ONLY if there is visible damage: one plain line, e.g. "Small mark on left sleeve." Do NOT add a flaw line if there is no damage.
-
-Do NOT restate the condition (no "Good used condition", "Excellent condition", "No visible damage", or similar phrases) — the condition is shown separately as a structured field.
+Do NOT include any condition or flaws wording in the description. A standardised condition line is always appended after generation — do not pre-empt it. Never write condition level phrases, "no visible damage", "no holes or stains", or any flaw bullet in the description body.
 
 Measurements in photos.
 Fast postage.
@@ -175,9 +173,9 @@ Concise, clean, non-hype.
 - Title max **70 characters** (shorter than old 80 — be concise).
 - Do not use ALL CAPS.
 - Do not use "rare", "stunning", "amazing", "perfect" unless objectively accurate.
-- Condition is a SEPARATE STRUCTURED FIELD — do NOT repeat it in the description body.
-- Never use phrases like "Good used condition", "Excellent condition", "no visible damage", "no holes or stains" in the description text.
-- Only mention damage in the description if flaws_note is set — add a single plain bullet (e.g. "Small mark on left sleeve.").
+- Condition is a SEPARATE STRUCTURED FIELD — do NOT include condition or flaws wording anywhere in the description body.
+- Never use phrases like "Good used condition", "Excellent condition", "no visible damage", "no holes or stains", or flaw bullets in the description.
+- A standardised condition line is appended automatically after generation.
 - The condition_summary field must use one of these exact phrases:
   - "New with tags — original labels attached."
   - "New without tags — unworn, no original tags."

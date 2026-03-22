@@ -103,8 +103,10 @@ Return a JSON object with these fields:
   "item_type": "string (e.g. wax jacket, lambswool jumper, wool trousers)",
   "tagged_size": "string — EXACTLY as printed on tag (e.g. '52', 'W32 L32', 'C42', '12', 'M'). Never convert or interpret.",
   "normalized_size": "string — For trousers/jeans/shorts: look for BOTH waist and leg length on the tag and format as 'W32 L32'. If only one number is visible, record that. For suit/blazer sizes: keep bare EU numbers as-is (e.g. '54'). If already in UK format with R/L/S suffix (e.g. '44R'), keep as-is. For knitwear/shirts with EU numbers, keep as-is. For S/M/L/XL, keep as-is. For shoes: keep the size EXACTLY as printed — if the tag shows both EU and UK (e.g. 'EU 43 / UK 9'), record the UK number only (e.g. '9'). If only EU is shown, record it as-is (e.g. '43') — conversion happens downstream.",
-  "trouser_waist": "string or null — for trousers/jeans/shorts only: waist measurement as on tag (e.g. '32', '34'). Null for all other items including shoes.",
-  "trouser_length": "string or null — for trousers/jeans/shorts only: leg length as on tag (e.g. '32', '30'). Null for all other items including shoes.",
+  "trouser_waist": "string or null — for trousers/jeans/shorts only: waist measurement in inches as on tag (e.g. '32', '34'). Null for all other items including shoes.",
+  "trouser_length": "string or null — for trousers/jeans/shorts only: leg length in inches as on tag (e.g. '32', '30'). Null for all other items including shoes.",
+  "trouser_waist_cm": "string or null — for trousers/jeans/shorts: waist in cm if explicitly printed on tag (e.g. '86', '81'). Null if not visible.",
+  "trouser_length_cm": "string or null — for trousers/jeans/shorts: leg length in cm if explicitly printed on tag (e.g. '84', '76'). Null if not visible.",
   "style": "string or null — the Vinted sub-genre key for this item. For jeans (men's): one of Slim / Straight / Skinny / Ripped. For jeans (women's): one of Straight / Skinny / Boyfriend / Cropped / Flared / High waisted / Ripped. For jackets: one of Denim / Bomber / Biker / Field / Fleece / Harrington / Puffer / Quilted / Shacket / Varsity / Windbreaker. For coats: one of Overcoat / Trench / Parka / Peacoat / Raincoat / Duffle. For men's boots: one of Chelsea / Desert / Wellington / Work. For women's boots: one of Ankle / Knee / Wellington. For trainers/sneakers (any gender): use 'Trainers'. For loafers: use 'Loafers'. For formal/dress shoes (oxford, derby, brogue): use 'Formal'. For court shoes / heels / pumps: use 'Court'. For sandals: use 'Sandals'. For slippers: use 'Slippers'. For mules: use 'Mules'. Infer from tag text, model name, and item shape. Null if item type has no sub-genre or it cannot be determined.",
   "cut": "string or null — the cut or fit style if labeled on the tag (e.g. 'Slim', 'Classic', 'Regular', 'Tailored'). Look for 'CUT:' or 'FIT:' on the size tag. Null if not present.",
   "materials": ["COMPLETE list of ALL fibres/materials with percentages exactly as on the care label. Include EVERY fibre listed. Format each as '50% Cotton' or '100% Merino Wool' or 'Polyester lining' etc. Check BOTH the main brand label AND the material/care label photo. Do NOT omit any fibre. Do NOT list the same fibre twice. Common fibres: wool, merino, lambswool, cashmere, cotton, linen, silk, polyester, viscose, elastane, nylon, acrylic, modal, lyocell."],
@@ -112,15 +114,19 @@ Return a JSON object with these fields:
   "material_reason": "string — one sentence: what you read on the care/composition label and why you are confident or uncertain.",
   "material_candidates": ["only if material_confidence is medium or low — 2-3 alternative possible readings, e.g. [\"80% Wool 20% Polyester\", \"80% Wool 20% Nylon\"]"],
   "pricing_sensitive_material": "boolean — true if ANY fibre in the extracted list is a premium or natural fibre where misidentification significantly affects resale value: cashmere, merino, wool, lambswool, alpaca, mohair, angora, linen, silk, leather, suede, down, velvet, tweed.",
-  "fabric_mill": "string or null — if a fabric mill/supplier name is visible on the MATERIAL label (e.g. 'Tessuti Sondrio', 'Vitale Barberis Canonico', 'Loro Piana fabric'), record it here. This is NOT the brand.",
+  "fabric_mill": "string or null — if a fabric mill/supplier name is visible on ANY label (e.g. 'Tessuti Sondrio', 'Vitale Barberis Canonico', 'Loro Piana', 'Dormeuil', 'Holland & Sherry', 'Scabal', 'Drago', 'Reda'). Record it here. This is NOT the brand. IMPORTANT: premium cloth labels often do NOT show fibre percentages — they just show the mill name + cloth line. If you see 'Loro Piana ZEALANDER DREAM' or similar, set fabric_mill='Loro Piana', fabric_line='Zealander Dream'.",
+  "fabric_line": "string or null — the specific cloth line or quality tier from the fabric mill if printed on the label (e.g. 'Trofeo', 'Zealander Dream', 'Guanashina' for Loro Piana; 'VBC Platinum', 'VBC Gold' for VBC; 'Amadeus', 'Tasmanian' for Dormeuil; '130s', 'Super 120s' grade labels). Null if not visible.",
+  "material_hint": "string or null — if the label shows a descriptive wool/fibre origin without explicit percentages (e.g. 'Pure New Zealand Merino Wool', 'Escorial Wool', 'Super Fine Merino'), record it here. Use this ONLY when you cannot find a proper percentage composition. Null if materials list is already complete.",
   "made_in": "string or null — country of manufacture if visible on any label (e.g. 'Italy', 'England', 'Portugal'). Look for 'Made in X' text.",
   "colour": "string — PRIMARY colour using standardised names (e.g. 'White', 'Navy', 'Charcoal'). If 3+ distinct colours: 'Multicoloured'.",
   "colour_secondary": "string or null — SECOND dominant colour if clearly a major design element (rough 15%+ of garment). Same standardised names. Null if item is effectively one colour. If colour is 'Multicoloured', set this to null.",
+  "colour_from_tag": "string or null — the exact colour name as printed on the tag/label (e.g. 'Light Sand', 'Dark Navy', 'Forest Green'). Only set if you can clearly read it. Null if not visible or illegible.",
+  "colour_from_tag_confidence": "\"high\" | \"low\" — high only if the tag text is fully legible and unambiguous. Low if partially visible or inferred.",
   "pattern": "string — the fabric/garment pattern assessed from the FRONT photo. Use one of: 'Plain', 'Pinstripe', 'Chalk stripe', 'Stripe', 'Check', 'Windowpane', 'Houndstooth', 'Herringbone', 'Tartan', 'Tweed', 'Floral', 'Abstract', 'Graphic', 'Paisley'. Use 'Plain' if solid with no visible weave pattern. Default to 'Plain' if unsure.",
-  "gender": "men's | women's | unisex — infer from: (1) visible size tag (EU 34-44 = women's, EU 46-56 = men's; UK 6-16 = women's); (2) silhouette — women's blazers/jackets are shorter, fitted at waist, often curved hem; men's have broader shoulders, longer/boxier hem; (3) brand knowledge. If ambiguous (e.g. flat-lay, no size tag, unisex brand), add 'gender' to low_confidence_fields. NEVER default to men's when unsure — default to women's or unisex instead.",
+  "gender": "men's | women's | unisex — infer from: (1) visible size tag (EU 34-44 = women's, EU 46-56 = men's; UK 6-16 = women's); (2) silhouette — women's blazers/jackets are shorter, fitted at waist, often curved hem; men's have broader shoulders, longer/boxier hem; (3) brand knowledge; (4) explicit tag text ('Women', 'Ladies', 'Womens', 'WMN'). Default to men's if no strong signal. Only set women's if there is explicit evidence. If ambiguous, prefer men's. Add 'gender' to low_confidence_fields if uncertain.",
   "condition_summary": "one sentence, honest assessment. Creasing, minor fading, and small specks do NOT count as flaws and must not downgrade condition. Only visible damage counts: holes, tears, stains, broken zips, missing buttons.",
   "flaws_note": "string or null — any visible damage, stains, repairs",
-  "tag_keywords": ["list of additional notable terms found on ANY tag/label that add buyer or search value — e.g. collection names ('Traveller', 'Black Label', 'Blue Harbour'), fabric quality markers ('Super 120s', 'Super 110s', 'VBC 130s'), special treatments or technology ('Water Resistant', 'Performance', 'Stretch'), notable certifications or details ('Hand finished', 'Full canvas', 'Half canvas'). Do NOT duplicate brand, model_name, cut, or basic material. Empty list if nothing notable."],
+  "tag_keywords": ["list of additional notable terms found on ANY tag/label that add buyer or search value — e.g. collection names ('Traveller', 'Black Label', 'Blue Harbour'), fabric quality markers ('Super 120s', 'Super 110s', 'VBC 130s'), special treatments or technology ('Water Resistant', 'Performance', 'Stretch'), notable certifications or details ('Hand finished', 'Full canvas', 'Half canvas'), logo size markers ('Big Pony', 'Small Pony'), fabric type descriptors ('Terry cloth', 'Towelling'), embellishment notes ('Embroidered logo'). Do NOT duplicate brand, model_name, cut, or basic material. Empty list if nothing notable."],
   "tag_keywords_confidence": "high | low — high if you can clearly read these terms, low if you are inferring or partially reading them",
   "confidence": 0.0-1.0,
   "low_confidence_fields": ["list of field names where you are uncertain"]
@@ -216,7 +222,10 @@ _KNOWN_MILLS: frozenset[str] = frozenset({
     "tessuti sondrio", "vitale barberis canonico", "vbc",
     "reda", "loro piana fabric", "scabal", "holland & sherry",
     "dormeuil", "fratelli tallia di delfino", "zignone",
-    "cerruti 1881 fabric", "drapers",
+    "cerruti 1881 fabric", "drapers", "drago",
+    "thomas mason", "albini", "canclini",
+    # Note: "loro piana" and "ermenegildo zegna" are also garment brands —
+    # only match them with the "fabric" qualifier to avoid false positives.
 })
 
 
@@ -227,7 +236,7 @@ def _sanitise_brand(result: dict) -> dict:
         return result
     brand_lower = brand.lower()
     for mill in _KNOWN_MILLS:
-        if mill in brand_lower or brand_lower in mill:
+        if mill in brand_lower:
             # Move to fabric_mill if not already set
             if not result.get("fabric_mill"):
                 result["fabric_mill"] = brand
@@ -237,6 +246,60 @@ def _sanitise_brand(result: dict) -> dict:
                 result["low_confidence_fields"].append("brand")
             break
     return result
+
+
+def _infer_gender_confidence(result: dict) -> str:
+    """Return 'high'|'medium'|'low' confidence for the gender field.
+
+    high   — explicit women/ladies text found in tag keywords
+    low    — 'gender' is in low_confidence_fields (AI was uncertain)
+    medium — everything else (AI was confident but we have no explicit evidence)
+    """
+    lc = result.get("low_confidence_fields") or []
+    if "gender" in lc:
+        return "low"
+    kws = " ".join(result.get("tag_keywords") or []).lower()
+    if any(w in kws for w in ("women", "ladies", "womens", "wmn", "woman")):
+        return "high"
+    return "medium"
+
+
+def _extract_model_deterministic(result: dict) -> tuple[str | None, str]:
+    """Try to split a model name from the brand field without using AI.
+
+    Returns (model_name, confidence) where confidence is 'high' or 'low'.
+
+    Motivation: AI sometimes extracts "ASICS Sigma" as the brand field when
+    the tag reads "[Brand] [ModelName]".  This pass splits known-brand prefixes
+    from any trailing model/style token.
+
+    Strategy:
+    - Build a set of every known brand phrase from brands.txt (lowercased).
+    - If the brand field has 2+ space-separated tokens and ALL tokens except
+      the last form a known brand phrase, the last token is the model name.
+    - Two-word brands like "Ralph Lauren" are in the list and match the full
+      two-token prefix — so they are NOT split.
+    """
+    brand_raw = (result.get("brand") or "").strip()
+    if not brand_raw:
+        return None, "low"
+
+    tokens = brand_raw.split()
+    if len(tokens) < 2:
+        return None, "low"
+
+    known = {b.lower() for b in _load_brand_list()}
+
+    # Walk from longest prefix down to 1 token; stop at first known-brand match.
+    for prefix_len in range(len(tokens) - 1, 0, -1):
+        prefix = " ".join(tokens[:prefix_len]).lower()
+        if prefix in known:
+            model_candidate = " ".join(tokens[prefix_len:])
+            # Fix the brand field in-place (title-case)
+            result["brand"] = " ".join(tokens[:prefix_len]).title()
+            return model_candidate, "high"
+
+    return None, "low"
 
 
 _JPEG_QUALITY = 80
@@ -692,21 +755,34 @@ def _reread_material_photo(folder: Path, model: str, full_reread: bool = False) 
                         "ALPAGA/ALPACA=Alpaca | LAMBSWOOL/LAINE D'AGNEAU=Lambswool\n"
                         "2. Look for a fabric mill or cloth supplier name "
                         "(e.g. Tessuti Sondrio, Vitale Barberis Canonico, VBC, Reda, Loro Piana, "
-                        "Cerruti, Lanificio, Scabal, Holland & Sherry, Dormeuil, Zignone, Drapers).\n"
-                        'Return only JSON: {"materials": ["list of fibres exactly as on label"], '
-                        '"fabric_mill": "NAME or null"}'
+                        "Cerruti, Lanificio, Scabal, Holland & Sherry, Dormeuil, Zignone, Drapers, Drago, "
+                        "Ermenegildo Zegna fabric, Thomas Mason, Albini, Canclini).\n"
+                        "IMPORTANT: Some labels are PREMIUM CLOTH LABELS — they show ONLY the mill name + "
+                        "cloth line (e.g. 'LORO PIANA ZEALANDER DREAM') WITHOUT fibre percentages. "
+                        "This is still valid — set fabric_mill and fabric_line even if materials is empty.\n"
+                        "3. Look for a specific cloth line or grade from the mill "
+                        "(e.g. 'Trofeo', 'Zealander Dream', 'Guanashina', 'VBC Platinum', 'Amadeus', 'Tasmanian').\n"
+                        "4. If you see a descriptive wool/fibre origin without percentages "
+                        "(e.g. 'Pure New Zealand Merino Wool', 'Escorial Wool'), record it in material_hint.\n"
+                        'Return only JSON: {"materials": ["list of fibres exactly as on label — empty list [] if cloth-only label"], '
+                        '"fabric_mill": "NAME or null", "fabric_line": "LINE or null", "material_hint": "DESCRIPTION or null"}'
                     )
-                    max_tokens = 150
+                    max_tokens = 180
                 else:
                     prompt_text = (
                         "Look at this clothing care/material label photo carefully. "
                         "Is there a fabric mill or cloth supplier name printed on it? "
                         "Known fabric mill names to look for: Cerruti, Lanificio, Tessuti Sondrio, "
                         "Vitale Barberis Canonico, VBC, Reda, Loro Piana, Scabal, Holland & Sherry, "
-                        "Dormeuil, Fratelli Tallia di Delfino, Zignone, Drapers. "
-                        'Return only JSON: {"fabric_mill": "EXACT NAME"} or {"fabric_mill": null} if none visible.'
+                        "Dormeuil, Fratelli Tallia di Delfino, Zignone, Drapers, Drago, "
+                        "Ermenegildo Zegna fabric, Thomas Mason, Albini, Canclini. "
+                        "IMPORTANT: Premium cloth labels (e.g. 'LORO PIANA ZEALANDER DREAM') show only "
+                        "the mill and cloth line — NO fibre percentages. Still extract fabric_mill and fabric_line. "
+                        "Also look for a cloth line or grade (e.g. 'Trofeo', 'Zealander Dream', 'Guanashina', 'VBC Platinum'). "
+                        'Return only JSON: {"fabric_mill": "EXACT NAME", "fabric_line": "LINE or null"} '
+                        'or {"fabric_mill": null, "fabric_line": null} if none visible.'
                     )
-                    max_tokens = 60
+                    max_tokens = 80
 
                 response = client.messages.create(
                     model=model,
@@ -851,6 +927,10 @@ def extract(item_folder: str | Path, hints: dict | None = None) -> dict:
     # Deterministic safety net: move any fabric mill that landed in brand → fabric_mill
     result = _sanitise_brand(result)
 
+    # Cloth-label post-processing: normalise mill name + scan for missed signals
+    from app.services import fabric_mill as _fabric_mill_svc
+    result = _fabric_mill_svc.scan_for_mill(result)
+
     # -----------------------------------------------------------------------
     # Parallel rereads (Step 3: ENABLE_PARALLEL_REREADS)
     # If both brand and material rereads are needed, run them concurrently.
@@ -978,6 +1058,10 @@ def extract(item_folder: str | Path, hints: dict | None = None) -> dict:
         if _reread_mat_result.get("fabric_mill") and not result.get("fabric_mill"):
             print(f"  Fabric mill re-read: '{_reread_mat_result['fabric_mill']}'")
             result["fabric_mill"] = _reread_mat_result["fabric_mill"]
+        if _reread_mat_result.get("fabric_line") and not result.get("fabric_line"):
+            result["fabric_line"] = _reread_mat_result["fabric_line"]
+        if _reread_mat_result.get("material_hint") and not result.get("material_hint"):
+            result["material_hint"] = _reread_mat_result["material_hint"]
 
     # Deterministic brand correction as fallback (catches misreads without brand photo)
     result["brand"] = _apply_brand_corrections(result.get("brand"))
@@ -1009,6 +1093,27 @@ def extract(item_folder: str | Path, hints: dict | None = None) -> dict:
             result["normalized_size"] = hints["size"]
 
     result["photos_folder"] = str(folder)
+
+    # Deterministic post-processing: model split + gender confidence
+    det_model, model_conf = _extract_model_deterministic(result)
+    if model_conf == "high":
+        result["model_name"] = det_model
+    result["model_confidence"] = model_conf
+    result["gender_confidence"] = _infer_gender_confidence(result)
+
+    # Brand alias application — auto-correct low-confidence brands from operator memory
+    if result.get("brand_confidence") == "low":
+        from app.services import alias_memory as _alias_memory
+        ai_brand = result.get("brand") or ""
+        alias = _alias_memory.lookup_brand(ai_brand)
+        if alias:
+            result["brand"] = alias
+            result["brand_confidence"] = "medium"
+            result["brand_alias_applied"] = True
+            lc = result.get("low_confidence_fields") or []
+            if "brand" in lc:
+                lc.remove("brand")
+            result["low_confidence_fields"] = lc
 
     # Build observability log — popped by web.py before saving listing.json
     result["_extract_log"] = {
