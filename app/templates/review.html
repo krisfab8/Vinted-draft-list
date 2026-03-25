@@ -534,6 +534,12 @@
 </div>
 {% endif %}
 
+{% if show_guidance %}
+<div style="background:#EFF6FF;border:1.5px solid #BFDBFE;border-radius:12px;padding:12px 14px;margin-bottom:14px;font-size:13px;color:#1E40AF;line-height:1.5">
+  Review each field — we've filled them in from your photos. Tap any field to edit before creating your draft.
+</div>
+{% endif %}
+
 {% if listing.pattern == "Graphic" and listing.category and "Plain" in listing.category %}
 <div class="conflict-banner" id="graphic-conflict">
   <strong>Category conflict</strong><br>

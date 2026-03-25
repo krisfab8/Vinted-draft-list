@@ -17,6 +17,7 @@ def run_pipeline(
     item_path: Path,
     hints: dict,
     buy_price_gbp: float | None = None,
+    pricing_mode: str = "balanced",
 ) -> tuple[dict, dict, dict, dict, dict]:
     """Run extract → write → price for a new item.
 
@@ -35,7 +36,7 @@ def run_pipeline(
     listing, write_usage = listing_writer.write(item, hints=hints or None)
     write_log = write_usage.pop("_write_log", {})
 
-    pricing.apply_pricing(listing)
+    pricing.apply_pricing(listing, pricing_mode=pricing_mode)
 
     return listing, extract_usage, write_usage, extract_log, write_log
 

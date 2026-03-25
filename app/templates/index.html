@@ -1294,8 +1294,13 @@
 {% block content %}
 <!-- Page heading -->
 <div style="margin-bottom:24px">
+  {% if is_reseller %}
+  <div class="page-title">Add to inventory</div>
+  <div style="font-size:13px;font-weight:400;color:var(--d-muted);margin-top:4px;letter-spacing:0.1px">Upload photos · AI listing in seconds</div>
+  {% else %}
   <div class="page-title">New Listing</div>
   <div style="font-size:13px;font-weight:400;color:var(--d-muted);margin-top:4px;letter-spacing:0.1px">Upload photos · AI listing in seconds</div>
+  {% endif %}
 </div>
 
 <div class="upload-card">

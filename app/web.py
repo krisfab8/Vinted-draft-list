@@ -27,6 +27,7 @@ from app.services import item_store
 from app.services import listing_tracker
 from app.services.category_validator import resolve_category_key as _resolve_category_key
 from app.services import alias_memory as _alias_memory
+from app.services import user_profile as profile_svc
 
 # ── Vinted login session (for cookie refresh flow) ───────────────────────────
 _vinted_login: dict = {}   # holds playwright/browser/context while login window is open
@@ -130,8 +131,9 @@ def create_listing():
     try:
         _t0 = time.perf_counter()
         buy_price = float(body["buy_price_gbp"]) if "buy_price_gbp" in body else None
+        pricing_mode = profile_svc.load().get("pricing_mode", "balanced")
         listing, extract_usage, write_usage, extract_log, write_log = pipeline_svc.run_pipeline(
-            item_path, hints, buy_price_gbp=buy_price
+            item_path, hints, buy_price_gbp=buy_price, pricing_mode=pricing_mode
         )
 
         # Save listing JSON next to the photos
@@ -287,7 +289,14 @@ def _resize_photo(path: Path) -> Path:
 
 @app.get("/")
 def index():
-    return render_template("index.html", active_tab="upload", draft_count=_draft_count())
+    profile = profile_svc.load()
+    return render_template(
+        "index.html",
+        active_tab="upload",
+        draft_count=_draft_count(),
+        profile=profile,
+        is_reseller=profile_svc.is_reseller(profile),
+    )
 
 
 @app.post("/upload")
@@ -370,8 +379,9 @@ def upload_listing():
     try:
         _t0 = time.perf_counter()
         buy_price_gbp = float(buy_price) if buy_price else None
+        pricing_mode = profile_svc.load().get("pricing_mode", "balanced")
         listing, extract_usage, write_usage, extract_log, write_log = pipeline_svc.run_pipeline(
-            item_path, hints, buy_price_gbp=buy_price_gbp
+            item_path, hints, buy_price_gbp=buy_price_gbp, pricing_mode=pricing_mode
         )
 
         out_path = item_path / "listing.json"
@@ -879,6 +889,7 @@ def review_listing_page(folder):
         if f.is_file() and f.suffix.lower() in extensions
     )
 
+    profile = profile_svc.load()
     return render_template(
         "review.html",
         listing=listing,
@@ -887,6 +898,8 @@ def review_listing_page(folder):
         error_categories=run_logger.ERROR_CATEGORIES,
         draft_count=_draft_count(),
         active_tab="drafts",
+        show_guidance=profile_svc.show_guidance(profile),
+        is_reseller=profile_svc.is_reseller(profile),
     )
 
 
@@ -1014,6 +1027,23 @@ def api_run_logs():
     """GET /api/run-logs — all run log entries (most recent first, max 200)."""
     logs = run_logger.read_run_logs()
     return jsonify(list(reversed(logs))[:200])
+
+
+@app.get("/api/profile")
+def get_profile():
+    """GET /api/profile — return current user profile."""
+    return jsonify(profile_svc.load())
+
+
+@app.patch("/api/profile")
+def update_profile():
+    """PATCH /api/profile — update one or more profile fields.
+    Only recognised keys (from DEFAULTS) are accepted; unknown keys are ignored."""
+    updates = request.json or {}
+    profile = profile_svc.load()
+    profile.update({k: v for k, v in updates.items() if k in profile_svc.DEFAULTS})
+    profile_svc.save(profile)
+    return jsonify(profile)
 
 
 @app.get("/health")

@@ -153,7 +153,14 @@ def _condition_percentile(condition_summary: str | None) -> float:
 
 # ── Core pricing function ─────────────────────────────────────────────────────
 
-def apply_pricing(listing: dict) -> dict:
+_PRICING_MODE_OFFSET: dict[str, float] = {
+    "speed": -0.10,    # bottom of band — sell faster
+    "price": +0.10,    # top of band — maximise return
+    "balanced": 0.0,   # no adjustment (default)
+}
+
+
+def apply_pricing(listing: dict, pricing_mode: str = "balanced") -> dict:
     """Apply deterministic pricing rules to a listing dict.
 
     Mutates and returns the listing with:
@@ -161,17 +168,18 @@ def apply_pricing(listing: dict) -> dict:
       - price_gbp:    the final chosen price
       - price_adjustments: list of short reason strings
 
+    pricing_mode: "speed" | "price" | "balanced" — shifts band position ±0.10.
     Never raises — falls back to AI price on any failure.
     """
     try:
-        return _apply_pricing_inner(listing)
+        return _apply_pricing_inner(listing, pricing_mode=pricing_mode)
     except Exception:
         # Safety net: if anything goes wrong, leave price_gbp untouched
         listing.setdefault("price_adjustments", [])
         return listing
 
 
-def _apply_pricing_inner(listing: dict) -> dict:
+def _apply_pricing_inner(listing: dict, pricing_mode: str = "balanced") -> dict:
     adjustments: list[str] = []
 
     # ── 0. Capture AI price ───────────────────────────────────────────────────
@@ -199,6 +207,10 @@ def _apply_pricing_inner(listing: dict) -> dict:
 
         if band_width > 0:
             pct = _condition_percentile(listing.get("condition_summary"))
+            offset = _PRICING_MODE_OFFSET.get(pricing_mode, 0.0)
+            if offset:
+                pct = max(0.0, min(1.0, pct + offset))
+                adjustments.append(f"pricing mode: {pricing_mode} ({'+' if offset > 0 else ''}{int(offset*100)}%)")
             memory_price = round(low + pct * band_width, 0)
             confidence = _normalise(memory_entry.get("confidence"))
 
