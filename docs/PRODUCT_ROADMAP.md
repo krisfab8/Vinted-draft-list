@@ -24,12 +24,38 @@ Core pipeline is working. Focus is on reliability and operator experience.
 
 ---
 
+## Reliability & Failure Handling (Pre-Beta)
+
+Draft creation is the most fragile part of the pipeline. These are required before any external user touches the product.
+
+**Draft failure recovery**
+- If `draft_creator.py` fails mid-flow, the item must not be left in an unknown state
+- On failure: set item status to `draft_failed`, log the step that failed, surface a clear retry option in the UI
+- Do not silently swallow errors — every failure must be visible in run logs
+
+**Screenshot capture on Playwright failure**
+- Any unhandled Playwright exception must trigger a screenshot saved to `debug_screenshots/<folder>_<timestamp>.png`
+- Screenshot path should be written into the run log entry for that item
+- Already partially in place — needs to be consistent across all failure paths
+
+**Retry strategy**
+- One automatic retry on transient failures (network hiccup, element not found on first poll)
+- No retry on auth errors (`VintedAuthError`) — surface immediately and prompt reconnect
+- No retry on validation failures — these need operator input, not another attempt
+- Max 1 retry to avoid duplicate drafts being created silently
+
+**Logging expectations**
+- Every draft attempt (success or failure) must produce a run log entry with: `step`, `error_type`, `screenshot_path` (if failed), `duration_ms`
+- Failures must be distinguishable in the run log by `status: "draft_failed"` vs `"draft_created"`
+- Stats page should surface draft failure rate so it's visible over time
+
+---
+
 ## Next (Polish for first users)
 
 Make the product feel like Dodis, not an internal tool.
 
 - [ ] Apply Dodis design system across all pages (drafts, review, stats)
-- [ ] Draft failure recovery — retry logic + screenshot capture on browser failure
 - [ ] Centralise category mapping (remove duplication between extractor + listing writer)
 - [ ] Mobile PWA install experience (home screen, splash screen, icon)
 - [ ] Onboarding flow for new users (first item walkthrough)
