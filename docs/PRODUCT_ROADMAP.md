@@ -58,7 +58,7 @@ Make the product feel like Dodis, not an internal tool.
 - [ ] Apply Dodis design system across all pages (drafts, review, stats)
 - [ ] Centralise category mapping (remove duplication between extractor + listing writer)
 - [ ] Mobile PWA install experience (home screen, splash screen, icon)
-- [ ] Onboarding flow for new users (first item walkthrough)
+- [ ] Onboarding flow — 5-question user profiling (casual / reseller / mixed) with Duolingo-style UX
 - [ ] Streak / items listed counter on stats page
 - [ ] Celebration moment on first draft created
 - [ ] Pricing confidence indicator in review UI

@@ -103,9 +103,114 @@ Add a `manifest.json` and iOS meta tags so the app installs cleanly to the home 
 ### 2.6 Centralise category mapping `~1 day`
 There is duplication between extractor and listing writer. Not user-facing but reduces a class of subtle bugs before external users hit edge cases.
 
+### 2.7 Onboarding flow `~1–2 days`
+
+Shown to new users on first login. 5 questions. Duolingo-style: one question per screen, big tap targets, friendly language, progress indicator. No free-text — every answer is a tap.
+
+Result: user is profiled as casual / reseller / mixed, and Dodis adapts accordingly (default pricing mode, stats focus, future feature exposure).
+
 ---
 
-**Nice-to-have total: ~4–5 days**
+#### The 5 Questions
+
+**Q1 — Why are you here?**
+Sets intent. First impression of the product voice.
+
+> "What brings you to Dodis?"
+> - 🧹 Clearing out my wardrobe
+> - 📦 I buy and sell clothes regularly
+> - 🤷 A bit of both
+
+Stores: `intent` → `"casual"` / `"reseller"` / `"mixed"`
+
+---
+
+**Q2 — How much do you list?**
+Establishes volume. Informs whether batch features are relevant.
+
+> "How many items do you usually list at a time?"
+> - A few (1–10)
+> - A decent batch (10–50)
+> - Lots — it's a hustle (50+)
+
+Stores: `volume` → `"low"` / `"medium"` / `"high"`
+
+---
+
+**Q3 — What do you mostly sell?**
+Category focus. Informs pricing defaults and which brand tiers matter.
+
+> "What kind of clothes do you mostly sell?"
+> - 👕 Everyday / high street
+> - 🧥 Designer or premium brands
+> - 🏃 Sportswear or streetwear
+> - 🎲 All sorts — it's a mix
+
+Stores: `category_focus` → `"everyday"` / `"premium"` / `"sportswear"` / `"mixed"`
+
+---
+
+**Q4 — Vinted experience?**
+Tells us how much hand-holding to provide. Experienced sellers don't need tutorials.
+
+> "How familiar are you with Vinted?"
+> - Just getting started
+> - I've listed before but not often
+> - Pretty experienced seller
+
+Stores: `vinted_experience` → `"new"` / `"occasional"` / `"experienced"`
+
+---
+
+**Q5 — Speed or max price?**
+Sets default pricing mode. The single most commercially impactful preference.
+
+> "When you sell, what matters more?"
+> - ⚡ Get it live fast — speed wins
+> - 💰 Squeeze every pound — I'll wait for the right price
+> - Depends on the item
+
+Stores: `pricing_mode` → `"speed"` / `"price"` / `"balanced"`
+
+---
+
+#### Data Fields to Store
+
+Saved to `user_profile.json` (or equivalent) on completion.
+
+```json
+{
+  "intent": "casual | reseller | mixed",
+  "volume": "low | medium | high",
+  "category_focus": "everyday | premium | sportswear | mixed",
+  "vinted_experience": "new | occasional | experienced",
+  "pricing_mode": "speed | price | balanced",
+  "onboarding_completed_at": "ISO timestamp",
+  "onboarding_version": "v1"
+}
+```
+
+#### How the profile is used
+
+| Field | Effect |
+|-------|--------|
+| `intent` | Determines stats page focus (casual: streaks / recent items; reseller: ROI, turn rate) |
+| `volume` | Surfaces batch upload prompt once it ships (only to medium/high) |
+| `category_focus` | Pre-warms pricing memory lookup with relevant brand tier |
+| `vinted_experience` | New → show tooltips and confirmation steps; experienced → streamlined flow |
+| `pricing_mode` | Sets default pricing band position (speed = bottom third; price = top third; balanced = mid) |
+
+#### UX notes
+- One question per screen, no scrolling
+- Big tappable cards (not radio buttons)
+- Progress dots at top (● ● ○ ○ ○)
+- "Skip for now" link on every screen — do not force completion
+- Completion screen: "You're all set. Drop in your first item." with a flame animation
+- Profile can be updated later in settings — onboarding is not permanent
+
+---
+
+**Nice-to-have total: ~5–7 days**
 
 ---
 
