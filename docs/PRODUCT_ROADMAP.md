@@ -29,6 +29,8 @@ Core pipeline is working. Focus is on reliability and operator experience.
 Make the product feel like Dodis, not an internal tool.
 
 - [ ] Apply Dodis design system across all pages (drafts, review, stats)
+- [ ] Draft failure recovery — retry logic + screenshot capture on browser failure
+- [ ] Centralise category mapping (remove duplication between extractor + listing writer)
 - [ ] Mobile PWA install experience (home screen, splash screen, icon)
 - [ ] Onboarding flow for new users (first item walkthrough)
 - [ ] Streak / items listed counter on stats page
