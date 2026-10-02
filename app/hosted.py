@@ -75,6 +75,21 @@ def create_app():
 
     @app.after_request
     def private_headers(response):
+        # Routes may catch their own exceptions and return raw SDK tracebacks.
+        # Sanitize those responses too; the global error handler never sees them.
+        if response.status_code >= 500 and response.status_code != 503:
+            response.set_data(app.json.dumps({
+                "error": "Listing operation failed. Check API settings or try again.",
+                "code": "OPERATION_FAILED",
+            }))
+            response.content_type = "application/json"
+        elif response.status_code >= 400 and response.is_json:
+            payload = response.get_json(silent=True)
+            serialized = app.json.dumps(payload)
+            secrets = (config.ANTHROPIC_API_KEY, config.OPENAI_API_KEY,
+                       config.GOOGLE_AI_API_KEY, password)
+            if any(secret and secret in serialized for secret in secrets) or "Traceback (most recent call last)" in serialized:
+                response.set_data(app.json.dumps({"error": "Operation failed; check API settings."}))
         response.headers["Cache-Control"] = "no-store"
         response.headers["X-Content-Type-Options"] = "nosniff"
         response.headers["X-Frame-Options"] = "DENY"
@@ -85,7 +100,8 @@ def create_app():
     def private_error(error):
         if isinstance(error, HTTPException):
             return jsonify(error=error.description), error.code
-        app.logger.exception("Private test operation failed")
+        # SDK exception messages can contain credentials, including nested causes.
+        app.logger.error("Private test operation failed (%s)", type(error).__name__)
         return jsonify(error="Operation failed; check the private server logs"), 500
 
     @app.context_processor

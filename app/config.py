@@ -6,10 +6,10 @@ load_dotenv()
 
 ROOT = Path(__file__).parent.parent
 
-ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")
+ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "").strip()
 VISION_PROVIDER = os.getenv("VISION_PROVIDER", "claude-haiku")
 LISTING_PROVIDER = os.getenv("LISTING_PROVIDER", "claude-haiku")
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "").strip()
 OPENAI_VISION_MODEL = os.getenv("OPENAI_VISION_MODEL", "gpt-6-luna")
 OPENAI_LISTING_MODEL = os.getenv("OPENAI_LISTING_MODEL", "gpt-6-luna")
 
@@ -19,7 +19,7 @@ GOOGLE_CREDENTIALS_PATH = os.getenv("GOOGLE_CREDENTIALS_PATH", "credentials.json
 VINTED_EMAIL = os.getenv("VINTED_EMAIL", "")
 VINTED_PASSWORD = os.getenv("VINTED_PASSWORD", "")
 
-GOOGLE_AI_API_KEY = os.getenv("GOOGLE_AI_API_KEY", "")
+GOOGLE_AI_API_KEY = os.getenv("GOOGLE_AI_API_KEY", "").strip()
 
 SCHEMA_PATH = ROOT / "schemas" / "listing.schema.json"
 PROMPTS_DIR = ROOT / "prompts"

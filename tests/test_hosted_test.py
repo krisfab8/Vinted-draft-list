@@ -6,7 +6,7 @@ import sys
 
 def test_hosted_access_storage_and_generation_guards():
     script = r'''
-import base64, json, tempfile
+import base64, io, json, tempfile
 from pathlib import Path
 from unittest.mock import patch
 from app import config, web
@@ -28,6 +28,26 @@ with tempfile.TemporaryDirectory() as tmp:
     assert c.post('/create-listing',headers={**auth,'Origin':'https://elsewhere.example'},json={'folder':'item'}).status_code == 403
     assert c.get('/missing',headers=auth).status_code == 404
     assert c.get('/',headers=auth).headers['Cache-Control'] == 'no-store'
+    config.ANTHROPIC_API_KEY='test-private-key'
+    config.VISION_PROVIDER=config.LISTING_PROVIDER='claude-haiku'
+    item=items/'failure'; item.mkdir()
+    with patch('app.web.pipeline_svc.run_pipeline', side_effect=RuntimeError('test-private-key')):
+        failure=c.post('/create-listing',headers=auth,json={'folder':'failure'})
+        assert failure.status_code == 500
+        assert failure.json['code'] == 'OPERATION_FAILED'
+        assert 'test-private-key' not in failure.get_data(as_text=True)
+        assert 'Traceback' not in failure.get_data(as_text=True)
+        from PIL import Image
+        photo=io.BytesIO(); Image.new('RGB',(32,32),'white').save(photo,format='JPEG'); photo.seek(0)
+        failure=c.post('/upload',headers=auth,data={'photos':(photo,'front.jpg')})
+        assert failure.status_code == 500
+        assert failure.json['code'] == 'OPERATION_FAILED'
+        assert 'test-private-key' not in failure.get_data(as_text=True)
+        assert 'Traceback' not in failure.get_data(as_text=True)
+    with patch('app.web.pipeline_svc.run_pipeline', side_effect=ValueError('test-private-key')):
+        failure=c.post('/create-listing',headers=auth,json={'folder':'failure'})
+        assert failure.status_code == 422
+        assert 'test-private-key' not in failure.get_data(as_text=True)
     storage=root/'persist'; prepare_storage(root,storage)
     assert (root/'items').is_symlink()
     (root/'items'/'saved.txt').write_text('survives')
@@ -38,4 +58,16 @@ with tempfile.TemporaryDirectory() as tmp:
 '''
     env = {**os.environ, "APP_PASSWORD": "012345678901234567890123456789", "APP_USERNAME": "kristian"}
     result = subprocess.run([sys.executable, "-c", script], env=env, capture_output=True, text=True, timeout=30)
+    assert result.returncode == 0, result.stdout + result.stderr
+
+
+def test_copied_api_keys_trim_outer_whitespace():
+    env = {**os.environ, 'ANTHROPIC_API_KEY': '  dummy-anthropic\n',
+           'OPENAI_API_KEY': '\tdummy-openai\r\n', 'GOOGLE_AI_API_KEY': 'dummy-google\n'}
+    script = '''from app import config
+assert config.ANTHROPIC_API_KEY == "dummy-anthropic"
+assert config.OPENAI_API_KEY == "dummy-openai"
+assert config.GOOGLE_AI_API_KEY == "dummy-google"
+'''
+    result = subprocess.run([sys.executable, '-c', script], env=env, capture_output=True, text=True, timeout=30)
     assert result.returncode == 0, result.stdout + result.stderr

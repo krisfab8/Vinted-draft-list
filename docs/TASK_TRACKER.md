@@ -6,7 +6,7 @@ Priority order: private usable test → reliable state/costs → labeled model e
 
 ## Next action
 
-**Add OPENAI_API_KEY privately in the live service's Render environment settings, then test a real phone upload.** The private test is live at https://vinted-private-test.onrender.com (service srv-davmdce7bikc73eknv00). It uses free native Python hosting with temporary storage at /tmp/vinted-test-data; uploads/state can be lost on restart or redeploy. The paid disk blueprint remains an optional future configuration, not the deployed setup. Compare Luna against labeled photos before selecting it as the production default.
+**Replace the exposed Claude API key privately in Render, then retry a phone upload after the whitespace/error-redaction patch deploys.** Hosted vision and listing providers now select `claude-haiku`; OpenAI remains an optional comparison configuration. The private test is live at https://vinted-private-test.onrender.com (service srv-davmdce7bikc73eknv00). It uses free native Python hosting with temporary storage at /tmp/vinted-test-data; uploads/state can be lost on restart or redeploy. The paid disk blueprint remains an optional future configuration, not the deployed setup. Compare Luna against labeled photos before selecting it as the production default.
 
 ## Foundation and testing
 
@@ -38,6 +38,7 @@ Priority order: private usable test → reliable state/costs → labeled model e
 | REL-08 | P1 | Propagate extraction failures to review | todo | Reread/truncation/missing-field evidence survives log removal; unknown confidence is not trusted high |
 | REL-09 | P1 | Retry from extraction checkpoint | todo | Writer failure does not repeat paid vision; hash/model/prompt/hints invalidate stale cache |
 | SEC-01 | P0 | App-wide safe paths and field permissions | todo | All local and hosted read/write/delete paths contain resolved paths; symlinks and dot segments tested; HOST-01 is only a hosting guard |
+| SEC-01a | P0 | Hosted credential-safe errors and copied-key whitespace | implemented_local | Trim surrounding API-key whitespace; suppress caught route tracebacks and credential-bearing client errors; safe unhandled-error logs; 768 tests passed; live deployment verification pending |
 | SEC-02 | P1 | Multi-user identity and ownership | todo | Before inviting unrelated sellers: independent items, credentials, memory and requests; CSRF/rate limits/security review |
 | HOST-03 | P2 | Remote Vinted session architecture | todo | Supported login, isolated session, recoverable expiry and verified save; no assumption headless alone is enough |
 | HOST-04 | P1 | Persisted job queue and progress | todo | Bounded background jobs; truthful progress; restart recovery; avoid blocking all users |
@@ -88,6 +89,8 @@ Priority order: private usable test → reliable state/costs → labeled model e
 - Revival patch: **767 tests passed in 13.94 seconds**, including real hosted Flask route guards in an isolated process, persistent-storage bootstrap behavior, provider payload/usage/error handling and absence of hidden Anthropic calls on the Luna extraction path. Live model calls and a Docker image build were not performed.
 - 2 October 2026: Render free service `srv-davmdce7bikc73eknv00`, deploy `dep-davmdd67bikc73eko260`, commit `7dd7c8bb3224e063544ab958181e71b80b206a63` reported live. HTTPS checks: `/health` 200; unauthenticated `/` 401; authenticated `/` 200 HTML with no-store; authenticated `/upload` 503 with explicit missing-provider-key message. No live model call or phone upload claimed. Narrow hosted/provider suite rerun: 7 passed in 1.79 seconds. Storage is ephemeral, not a mounted disk. Password is held in Render environment settings, not this repository.
 - No eBay seller OAuth or publishing implementation is claimed by this roadmap.
+
+- 2 October evening: hosted configuration switched to Claude Haiku. A copied API key with a trailing newline caused an illegal HTTP header, and a route returned the SDK traceback to the browser. Key rotation is required; no credential value is stored in this tracker. Patch trims API-key outer whitespace and sanitizes hosted route errors, including internally caught exceptions. Full suite: 768 passed in 14.67 seconds; targeted tests include real upload/create-listing failure responses and copied-key normalization. This does not verify provider billing/access or OCR accuracy.
 
 ## Update rules
 
