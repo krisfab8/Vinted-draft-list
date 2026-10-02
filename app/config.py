@@ -54,3 +54,6 @@ ENABLE_PARALLEL_REREADS = os.getenv("ENABLE_PARALLEL_REREADS", "1") == "1"
 ENABLE_PRICE_MEMORY = os.getenv("ENABLE_PRICE_MEMORY", "1") == "1"
 # ENABLE_EBAY_COMPS: allow on-demand eBay comp fetching from the review page
 ENABLE_EBAY_COMPS = os.getenv("ENABLE_EBAY_COMPS", "1") == "1"
+
+# Rollback switch: 0 restores the previous full writer prompt.
+ENABLE_COMPACT_WRITER = os.getenv("ENABLE_COMPACT_WRITER", "1") == "1"

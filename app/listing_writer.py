@@ -928,7 +928,12 @@ def write(item: dict, hints: dict | None = None) -> tuple[dict, dict]:
     import time
     _t_write_start = time.perf_counter()
 
-    prompt = _build_prompt(item, hints=hints)
+    from app.config import ENABLE_COMPACT_WRITER
+    if ENABLE_COMPACT_WRITER:
+        from app.services.compact_writer import build_prompt
+        prompt = build_prompt(item, hints, _slice_category_rules(item.get("gender", ""), item.get("item_type", "")))
+    else:
+        prompt = _build_prompt(item, hints=hints)
     writer_model = HAIKU_MODEL
     if LISTING_PROVIDER == "openai":
         from app.services.openai_provider import generate
@@ -1115,6 +1120,8 @@ def write(item: dict, hints: dict | None = None) -> tuple[dict, dict]:
             "category_slice_level": _category_slice_level,
             "price_memory_match_level": listing["price_memory_match"],
             "write_latency_ms": round((time.perf_counter() - _t_write_start) * 1000),
+            "prompt_version": "compact-v1" if ENABLE_COMPACT_WRITER else "legacy",
+            "prompt_chars": len(prompt),
         },
     }
     return listing, usage

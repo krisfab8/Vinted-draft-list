@@ -1994,7 +1994,7 @@
 
     const costStr  = fmtCost(d.cost_gbp);
     const costHtml = costStr
-      ? `<div class="cost-pill"><div class="cost-dot"></div>AI cost: ${esc(costStr)}</div>`
+      ? `<div class="cost-pill"><div class="cost-dot"></div>Estimated AI cost: ${esc(costStr)}${d.cost_complete === false ? " · incomplete" : ""}</div>`
       : "";
 
     const chips = [];
@@ -2040,12 +2040,16 @@
       </div>
       <div class="result-body">
         <div class="result-price-block">
-          <div class="result-price-label">List price</div>
+          <div class="result-price-label">Suggested list price</div>
           <div style="display:flex;align-items:baseline;gap:12px">
             <div class="result-price">£${d.price_gbp || "?"}</div>
             ${d.folder ? `<button class="btn-reprice" onclick="reprice('${esc(d.folder)}')">Reprice ↻</button>` : ""}
           </div>
         </div>
+        ${d.price_evidence ? `<div style="font-size:13px;color:var(--text-2);margin-bottom:14px">
+          ${esc(d.price_evidence.note)}
+          ${d.price_evidence.range_gbp ? ` Reference range: £${esc(d.price_evidence.range_gbp[0])}–£${esc(d.price_evidence.range_gbp[1])}.` : ""}
+        </div>` : ""}
         <div class="result-title-wrap">
           <textarea class="result-title" id="resultTitle" rows="2"
             onblur="saveMetaField(this,'title','${esc(d.folder)}')"

@@ -224,6 +224,14 @@ def _apply_pricing_inner(listing: dict, pricing_mode: str = "balanced") -> dict:
         if ai_price is not None:
             adjustments.append("no memory match — using AI price")
 
+    listing["price_evidence"] = {
+        "source": "reference_memory" if memory_entry else "model_suggestion",
+        "confidence": "unverified",
+        "range_gbp": [float(memory_entry["low"]), float(memory_entry["high"])] if memory_entry else None,
+        "note": "Stored reference band; not a fresh market lookup." if memory_entry else
+                "AI suggestion; no matching reference band or live comparable sales checked.",
+    }
+
     # ── 2. Flaws discount (-15%) ──────────────────────────────────────────────
     flaws = (listing.get("flaws_note") or "").strip()
     if flaws and final_price is not None:
