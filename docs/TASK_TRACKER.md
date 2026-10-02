@@ -6,7 +6,7 @@ Priority order: private usable test → reliable state/costs → labeled model e
 
 ## Next action
 
-**Replace the exposed Claude API key privately in Render, then retry a phone upload after the whitespace/error-redaction patch deploys.** Hosted vision and listing providers now select `claude-haiku`; OpenAI remains an optional comparison configuration. The private test is live at https://vinted-private-test.onrender.com (service srv-davmdce7bikc73eknv00). It uses free native Python hosting with temporary storage at /tmp/vinted-test-data; uploads/state can be lost on restart or redeploy. The paid disk blueprint remains an optional future configuration, not the deployed setup. Compare Luna against labeled photos before selecting it as the production default.
+**Implement complete call accounting and restrict unnecessary fabric-mill checks, then evaluate a smaller writer and measurement-photo flow.** One live Haiku upload now succeeded; see `docs/LIVE_ITEM_COST_AND_MEASUREMENT_REVIEW.md`. Preserve its item/photos before restarting the temporary-storage service. API-key rotation remains necessary if not already completed; the successful call does not establish rotation.
 
 ## Foundation and testing
 
@@ -15,7 +15,7 @@ Priority order: private usable test → reliable state/costs → labeled model e
 | DOC-01 | P0 | Operating guide and stable task list | implemented_local | Documents checked in with statuses, dependencies and handoff process |
 | DOC-02 | P0 | eBay/multi-platform product roadmap | implemented_local | Shared inventory, platform boundaries and phased acceptance criteria documented |
 | HOST-01 | P0 | Prepare private test deployment | implemented_local | Password gate; containment checks; browser actions disabled; persistent-state bootstrap; tests pass |
-| HOST-02 | P0 | Deploy and verify private HTTPS URL | in_progress | HTTPS/authenticated UI verified live on free hosting; provider key, real upload and durable storage remain outstanding |
+| HOST-02 | P0 | Deploy and verify private HTTPS URL | in_progress | HTTPS/auth, Claude configuration and one phone upload verified live; durable storage and wider evaluation outstanding |
 | HOST-02a | P0 | Free private mobile preview | verified_live | 2 Oct: deployed 7dd7c8b; /health 200, unauthenticated / 401, authenticated / 200; temporary storage only |
 | MODEL-01 | P0 | Opt-in Luna image + writer adapters | implemented_local | Both stages selectable; no hidden Anthropic fallback; usage returned; incomplete/error responses rejected; mocked tests pass |
 | MODEL-02 | P0 | Live Luna smoke test | blocked | HOST-02; real label output, billed usage and correction quality checked; provider access verified |
@@ -53,6 +53,7 @@ Priority order: private usable test → reliable state/costs → labeled model e
 | IMG-02 | P1 | Explicit photo roles and correct manifest | todo | User roles transmitted/preserved; missing size photo cannot silently shift material role |
 | IMG-03 | P1 | Preserve OCR originals and crop review | todo | Lossless/original source retained; crop edits; retry can use uncropped source |
 | IMG-04 | P1 | Analyze supplied damage/back evidence | todo | Explicit cost policy; checked-photo provenance; flaws visible only there reach review |
+| IMG-06 | P1 | Read explicitly labeled ruler measurement photos | todo | IMG-01–02 + COST-01; start/end/unit/source evidence, unknown for ambiguity, seller confirmation, tagged size retained; real labeled ruler evaluation |
 | IMG-05 | P1 | Validate actual upload bytes | todo | Corrupt/oversized/decompression-risk images rejected without broken folders; useful errors |
 
 ## Costs and pricing
@@ -62,6 +63,8 @@ Priority order: private usable test → reliable state/costs → labeled model e
 | COST-00 | P0 | Correct test rates and persist upload costs | implemented_local | Haiku 4.5 rates corrected; Luna/Sol rates added; upload costs saved; not a full ledger |
 | COST-01 | P0 | Complete per-call usage ledger | todo | Initial calls, escalation, rereads, regeneration and incomplete billable responses retained; provider reconciliation |
 | COST-02 | P0 | Correct lifetime spend totals | todo | Sum every event; separate latest run/item lifetime/account totals; no per-folder deduplication |
+| COST-04 | P1 | Restrict irrelevant mill-only rereads | todo | Preserve cloth-label/tailoring recognition; avoid leather/no-evidence checks; each attempted call recorded |
+| COST-05 | P1 | Reduce writer prompt / compare template copy | todo | COST-01; approved copy accuracy retained; actual token/cost/correction comparison on same inputs |
 | COST-03 | P1 | Enforce cost budgets before calls | todo | COST-01; bounded output/attempts + estimated image cost; explicit over-budget review; rate/FX/version recorded |
 | PRICE-01 | P0 | Correct seller proceeds calculation | todo | Vinted buyer fee not deducted from seller; seller expenses explicit; stats use same service |
 | PRICE-02 | P1 | Unify material/memory normalization | todo | Writer/pricing match the same attributes; mixed-fibre cases tested |
@@ -101,3 +104,5 @@ Priority order: private usable test → reliable state/costs → labeled model e
 ## Update rules
 
 Keep IDs stable. Do not rename an open task to hide scope. Split partial work into a subtask rather than marking the parent complete. Record the commit, test and live outcome when relevant. After each session, replace “Next action” with the actual next dependency. Preserve blockers and known regressions.
+
+- 2 October 22:25 London follow-up: authenticated live run log/listing confirms successful Avia Trix upload `upload_9fa524f0` at 21:22:40 UTC. Haiku 4.5 initial extraction 9,410/517 tokens; writer 6,580/426; no Sonnet escalation; one mill-only reread with discarded usage. Recorded £0.01636 excludes that reread. £68 is unchanged model output with no memory match. Saved back/extra ruler photos inspected: readable scales, start/zero outside close-up; neither photo enters core extraction. Added evidence-based review and COST-04/05, IMG-06. Documentation stored on separate `work/vinted-live-item-review` branch; no runtime changes, redeploy or additional paid calls.
