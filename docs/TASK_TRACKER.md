@@ -6,7 +6,7 @@ Priority order: private usable test → reliable state/costs → labeled model e
 
 ## Next action
 
-**Connect Render and deploy the prepared branch as a private OCR/review test.** Set a server-side OpenAI API key and retrieve the generated access password privately. Then verify a real phone upload and compare Luna against labeled photos. This is a paid-hosting configuration; verify the hosting quote before creating resources. No live URL exists merely because a blueprint is committed.
+**Add OPENAI_API_KEY privately in the live service's Render environment settings, then test a real phone upload.** The private test is live at https://vinted-private-test.onrender.com (service srv-davmdce7bikc73eknv00). It uses free native Python hosting with temporary storage at /tmp/vinted-test-data; uploads/state can be lost on restart or redeploy. The paid disk blueprint remains an optional future configuration, not the deployed setup. Compare Luna against labeled photos before selecting it as the production default.
 
 ## Foundation and testing
 
@@ -15,7 +15,8 @@ Priority order: private usable test → reliable state/costs → labeled model e
 | DOC-01 | P0 | Operating guide and stable task list | implemented_local | Documents checked in with statuses, dependencies and handoff process |
 | DOC-02 | P0 | eBay/multi-platform product roadmap | implemented_local | Shared inventory, platform boundaries and phased acceptance criteria documented |
 | HOST-01 | P0 | Prepare private test deployment | implemented_local | Password gate; containment checks; browser actions disabled; persistent-state bootstrap; tests pass |
-| HOST-02 | P0 | Deploy and verify private HTTPS URL | blocked | Render connection + hosting plan choice + provider key; verify auth, upload, persistence after restart |
+| HOST-02 | P0 | Deploy and verify private HTTPS URL | in_progress | HTTPS/authenticated UI verified live on free hosting; provider key, real upload and durable storage remain outstanding |
+| HOST-02a | P0 | Free private mobile preview | verified_live | 2 Oct: deployed 7dd7c8b; /health 200, unauthenticated / 401, authenticated / 200; temporary storage only |
 | MODEL-01 | P0 | Opt-in Luna image + writer adapters | implemented_local | Both stages selectable; no hidden Anthropic fallback; usage returned; incomplete/error responses rejected; mocked tests pass |
 | MODEL-02 | P0 | Live Luna smoke test | blocked | HOST-02; real label output, billed usage and correction quality checked; provider access verified |
 | MODEL-03 | P1 | Label 50–100 representative items | todo | Original photos and exact visible brand/size/material truth, including unknown/unreadable fields |
@@ -85,7 +86,7 @@ Priority order: private usable test → reliable state/costs → labeled model e
 
 - Review baseline: 760 tests passed; real calls and live draft save not exercised.
 - Revival patch: **767 tests passed in 13.94 seconds**, including real hosted Flask route guards in an isolated process, persistent-storage bootstrap behavior, provider payload/usage/error handling and absence of hidden Anthropic calls on the Luna extraction path. Live model calls and a Docker image build were not performed.
-- Live deployments: none verified. HOST-02 remains blocked until a compatible hosting connection and secrets are available.
+- 2 October 2026: Render free service `srv-davmdce7bikc73eknv00`, deploy `dep-davmdd67bikc73eko260`, commit `7dd7c8bb3224e063544ab958181e71b80b206a63` reported live. HTTPS checks: `/health` 200; unauthenticated `/` 401; authenticated `/` 200 HTML with no-store; authenticated `/upload` 503 with explicit missing-provider-key message. No live model call or phone upload claimed. Narrow hosted/provider suite rerun: 7 passed in 1.79 seconds. Storage is ephemeral, not a mounted disk. Password is held in Render environment settings, not this repository.
 - No eBay seller OAuth or publishing implementation is claimed by this roadmap.
 
 ## Update rules
