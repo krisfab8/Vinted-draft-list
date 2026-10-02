@@ -48,3 +48,25 @@ def test_price_evidence_never_invents_market_range(monkeypatch):
     pricing.apply_pricing(listing)
     assert listing['price_evidence']['range_gbp']==[30,60]
     assert listing['price_evidence']['confidence']=='unverified'
+
+
+def test_optional_numbers_and_authoritative_purchase_price(monkeypatch):
+    listing=dict(ITEM,title='Jacket',description='Leather jacket.',price_gbp=68,
+                 category='Men > Jackets',buy_price_gbp=None,confidence=None)
+    def create(**kw):
+        return NS(content=[NS(text=json.dumps(listing))],usage=NS(input_tokens=100,output_tokens=50),stop_reason='end_turn')
+    monkeypatch.setattr(w.anthropic,'Anthropic',lambda **kw:NS(messages=NS(create=create)))
+    result,_=w.write(ITEM)
+    assert 'buy_price_gbp' not in result and result['confidence']==.92
+    for price in [0, 7.5]:
+        result,_=w.write(dict(ITEM,buy_price_gbp=price))
+        assert result['buy_price_gbp']==price
+    item=dict(ITEM);item.pop('confidence')
+    result,_=w.write(item)
+    assert 'confidence' not in result
+
+
+def test_required_price_is_not_silently_invented():
+    from app.validate_listing import validate
+    listing=dict(ITEM,title='Jacket',description='Jacket.',price_gbp=None,category='Men > Jackets')
+    assert any(error.startswith('price_gbp: ') for error in validate(listing))

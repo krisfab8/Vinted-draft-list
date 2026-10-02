@@ -26,7 +26,9 @@ gender, price_gbp, category, condition_summary, flaws_note, made_in, fabric_mill
 material_hint, style, cut, pattern, model_name, tag_keywords, tag_keywords_confidence,
 brand_confidence, material_confidence, confidence, low_confidence_fields, premium.
 Preserve supplied trouser_waist/trouser_length where relevant. price_gbp must be a nonnegative
-number: a tentative asking price, not a claim of a researched sale value. Preserve buy_price_gbp.
+number: a tentative asking price, not a claim of a researched sale value.
+Preserve supplied buy_price_gbp; omit it when unknown. confidence must be a number from 0 to 1
+or omitted when unknown. Never return null for numeric fields.
 Use this permitted category mapping:
 {categories}
 Price guidance (reference only; never claim a live market lookup):

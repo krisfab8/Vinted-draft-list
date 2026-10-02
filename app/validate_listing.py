@@ -13,7 +13,8 @@ _schema = json.loads(SCHEMA_PATH.read_text())
 def validate(listing: dict) -> list[str]:
     """Return list of validation error messages. Empty list means valid."""
     validator = jsonschema.Draft202012Validator(_schema)
-    return [e.message for e in validator.iter_errors(listing)]
+    return [(".".join(str(part) for part in e.absolute_path) + ": " if e.absolute_path else "")
+            + e.message for e in validator.iter_errors(listing)]
 
 
 def validate_or_raise(listing: dict) -> None:

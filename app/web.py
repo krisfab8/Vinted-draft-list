@@ -18,7 +18,7 @@ from collections import Counter
 from datetime import datetime
 from pathlib import Path
 
-from flask import Flask, jsonify, render_template, request, send_from_directory
+from flask import Flask, g, jsonify, render_template, request, send_from_directory
 
 from app.config import ITEMS_DIR, ROOT
 from app import extractor, listing_writer, run_logger
@@ -325,12 +325,29 @@ def index():
     )
 
 
+@app.after_request
+def upload_timing(response):
+    timings = getattr(g, "upload_timings", None)
+    if timings is not None:
+        timings["total"] = (time.perf_counter() - g.upload_started) * 1000
+        if "prepare" in timings:
+            timings["pipeline"] = max(0, timings["total"] - timings["receive"] - timings["prepare"])
+        response.headers["Server-Timing"] = ", ".join(
+            f"{name};dur={elapsed:.1f}" for name, elapsed in timings.items())
+        print("[upload_timing] " + json.dumps({"status": response.status_code,
+              "bytes": request.content_length, "milliseconds": timings}), flush=True)
+    return response
+
+
 @app.post("/upload")
 def upload_listing():
     """Mobile upload endpoint. Accepts multipart form with photos + buy_price.
     Photos should be uploaded in order: front, tag, material, back, then extras.
     Auto-creates an item folder and runs the full pipeline."""
+    g.upload_started = time.perf_counter()
+    g.upload_timings = {}
     files = request.files.getlist("photos")
+    g.upload_timings["receive"] = (time.perf_counter() - g.upload_started) * 1000
     if not files or all(f.filename == "" for f in files):
         return jsonify({"error": "No photos uploaded"}), 400
 
@@ -414,6 +431,7 @@ def upload_listing():
     }.items() if v}
 
     try:
+        g.upload_timings["prepare"] = (time.perf_counter() - g.upload_started) * 1000 - g.upload_timings["receive"]
         _t0 = time.perf_counter()
         buy_price_gbp = float(buy_price) if buy_price else None
         pricing_mode = profile_svc.load().get("pricing_mode", "balanced")

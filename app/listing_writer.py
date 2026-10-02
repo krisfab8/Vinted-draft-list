@@ -1100,6 +1100,16 @@ def write(item: dict, hints: dict | None = None) -> tuple[dict, dict]:
     listing["measurements"] = measurements.confirmed(saved_measurements)
     measurements.apply_description(listing)
 
+    # Seller input is authoritative; optional numeric fields must never be null.
+    if item.get("buy_price_gbp") is not None:
+        listing["buy_price_gbp"] = item["buy_price_gbp"]
+    else:
+        listing.pop("buy_price_gbp", None)
+    if listing.get("confidence") is None:
+        if item.get("confidence") is not None:
+            listing["confidence"] = item["confidence"]
+        else:
+            listing.pop("confidence", None)
     validate_or_raise(listing)
 
     # Alias memory application — auto-correct categories and item_types from operator memory

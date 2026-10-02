@@ -27,6 +27,7 @@ Target users: Kristian first, then a small UK clothing-reseller beta. Target eco
 - Added opt-in OpenAI image extraction and listing writing. Defaults remain Haiku for local users; current hosted configuration selects Claude Haiku for both stages.
 - Added private, password-protected single-operator hosting entry point, durable-storage bootstrap and Render blueprint.
 - Vinted browser actions are blocked in this hosted test. Continue those in the local app until a real remote session architecture exists.
+- Phone latency/validation diagnostics and rollback: `LATENCY_AND_VALIDATION_FIX.md`.
 - Model calls are mocked in automated checks. No claim of real Luna OCR performance, sub-penny cost, successful deployment or live Vinted/eBay integration follows from those checks.
 - Prior review bugs remain open unless the tracker states the specific acceptance criteria were met. A hosting guard is not a complete app-wide security fix.
 

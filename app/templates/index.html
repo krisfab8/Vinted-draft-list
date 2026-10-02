@@ -1528,12 +1528,56 @@
   }
 
   /* ── Submit ── */
-  const LOAD_STEPS = [
-    "Analysing photos",
-    "Reading tags and labels",
-    "Writing listing",
-    "Creating Vinted draft"
-  ];
+  // Resize before transfer, sequentially to bound memory use on phones. The server
+  // already saves at 2048px: this keeps the same resolution for labels and rulers.
+  function uploadDimensions(width, height) {
+    const scale = Math.min(1, 2048 / Math.max(width, height));
+    return [Math.max(1, Math.round(width * scale)), Math.max(1, Math.round(height * scale))];
+  }
+
+  async function prepareUploadPhoto(file) {
+    const url = URL.createObjectURL(file);
+    try {
+      const img = new Image();
+      img.src = url;
+      await img.decode(); // Browser decoding applies camera orientation.
+      const [width, height] = uploadDimensions(img.naturalWidth, img.naturalHeight);
+      const canvas = document.createElement("canvas");
+      canvas.width = width;
+      canvas.height = height;
+      const context = canvas.getContext("2d");
+      if (!context) throw new Error("Photo preparation is unavailable in this browser.");
+      context.fillStyle = "#fff";
+      context.fillRect(0, 0, width, height);
+      context.drawImage(img, 0, 0, width, height);
+      const blob = await new Promise(resolve => canvas.toBlob(resolve, "image/jpeg", 0.85));
+      canvas.width = canvas.height = 0;
+      if (!blob || blob.type !== "image/jpeg") throw new Error("Could not prepare this photo. Try a JPG image.");
+      // Small originals do not need another lossy encode if they already fit.
+      if (file.type === "image/jpeg" && img.naturalWidth <= 2048 && img.naturalHeight <= 2048 && file.size <= blob.size) return file;
+      return new File([blob], file.name.replace(/\.[^.]+$/, "") + ".jpg", {type: "image/jpeg"});
+    } finally {
+      URL.revokeObjectURL(url);
+    }
+  }
+
+  function uploadListingForm(form, progress) {
+    return new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open("POST", "/upload");
+      xhr.timeout = 90000;
+      xhr.upload.onprogress = event => {
+        if (event.lengthComputable) progress(`Uploading photos ${Math.round(event.loaded / event.total * 100)}%`);
+      };
+      xhr.upload.onload = () => progress("Reading photos and writing listing…");
+      xhr.onload = () => resolve({ok: xhr.status >= 200 && xhr.status < 300, status: xhr.status, text: async () => xhr.responseText});
+      const interrupted = () => reject(new Error("Upload interrupted. The server may still finish your listing. Check Drafts before retrying."));
+      xhr.onerror = interrupted;
+      xhr.ontimeout = interrupted;
+      xhr.onabort = interrupted;
+      xhr.send(form); // No automatic retry: a second request could incur another AI charge.
+    });
+  }
 
   async function createListing() {
     if (photos.length === 0) {
@@ -1554,21 +1598,8 @@
     result.innerHTML = "";
     btn.scrollIntoView({ behavior: "smooth", block: "center" });
 
-    let stepIdx = 0;
-    updateStep(0);
-    const stepTimer = setInterval(() => {
-      stepIdx = Math.min(stepIdx + 1, LOAD_STEPS.length - 1);
-      updateStep(stepIdx);
-    }, 3200);
-
-    function updateStep(i) {
-      stepEl.textContent = LOAD_STEPS[i];
-      LOAD_STEPS.forEach((_, j) => {
-        const dot = document.getElementById(`dot${j}`);
-        if (!dot) return;
-        dot.className = "step-dot" + (j < i ? " done" : j === i ? " active" : "");
-      });
-    }
+    const updateProgress = text => { stepEl.textContent = text; };
+    updateProgress("Preparing photos…");
 
     try {
       const form = new FormData();
@@ -1577,8 +1608,12 @@
       if (!roles.includes("front") || new Set(named).size !== named.length) {
         throw new Error("Choose a Front photo and use each named role once; choose Extra for others.");
       }
-      photos.forEach(f => form.append("photos", f));
-      form.append("photo_roles", JSON.stringify(photos.map(f => photoRoles.get(f) || "extra")));
+      const uploadPhotos = [...photos];
+      for (let i = 0; i < uploadPhotos.length; i++) {
+        updateProgress(`Preparing photo ${i + 1} of ${uploadPhotos.length}…`);
+        form.append("photos", await prepareUploadPhoto(uploadPhotos[i]));
+      }
+      form.append("photo_roles", JSON.stringify(roles));
       const bp = document.getElementById("buyPrice").value.trim();
       if (bp) form.append("buy_price", bp);
 
@@ -1594,13 +1629,12 @@
       if (hintMadeIn)  form.append("hint_made_in",  hintMadeIn);
       if (hintDamages) form.append("hint_damages",  hintDamages);
 
-      const resp = await fetch("/upload", { method: "POST", body: form });
+      updateProgress("Uploading photos…");
+      const resp = await uploadListingForm(form, updateProgress);
       const data = await readUploadResponse(resp);
-      clearInterval(stepTimer);
       loading.style.display = "none";
       resp.ok ? showResult(data) : showError(data.error || "Unknown error");
     } catch (err) {
-      clearInterval(stepTimer);
       loading.style.display = "none";
       showError(err.message);
     } finally {

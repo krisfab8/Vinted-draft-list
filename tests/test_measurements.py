@@ -159,6 +159,8 @@ def test_full_upload_pipeline_including_three_recorded_model_stages(tmp_path,mon
     result=client.post('/upload',data={'photos':[(photo(),'front.jpg'),(photo(),'material.jpg'),(photo(),'ruler.jpg')],
         'photo_roles':'["front","material","measure_length"]'})
     assert result.status_code==200, result.json
+    timing=result.headers['Server-Timing']
+    assert all(stage+';dur=' in timing for stage in ['receive','prepare','pipeline','total'])
     data=result.json
     assert stage_calls==[1024,600,2500]
     assert [c['stage'] for c in data['model_calls']]==['extract','measurements','write']
