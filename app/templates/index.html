@@ -1564,7 +1564,7 @@
       if (hintDamages) form.append("hint_damages",  hintDamages);
 
       const resp = await fetch("/upload", { method: "POST", body: form });
-      const data = await resp.json();
+      const data = await readUploadResponse(resp);
       clearInterval(stepTimer);
       loading.style.display = "none";
       resp.ok ? showResult(data) : showError(data.error || "Unknown error");
@@ -1576,6 +1576,22 @@
       btn.disabled = false;
       btn.classList.remove("loading");
     }
+  }
+
+  async function readUploadResponse(resp) {
+    const body = await resp.text();
+    try {
+      const data = JSON.parse(body);
+      if (data && typeof data === "object" && !Array.isArray(data)) return data;
+    } catch (_) {
+      // Hosting/proxy error pages are HTML, not app JSON. Never display their body.
+    }
+    const advice = resp.status === 413
+      ? "The photo upload is too large. Try fewer or smaller photos."
+      : resp.status === 401
+      ? "Your test-app login is required. Reload the page and sign in."
+      : "The server did not return a listing response. It may be restarting or the request may have timed out. Check Drafts before retrying.";
+    throw new Error(`Upload interrupted (HTTP ${resp.status}). ${advice}`);
   }
 
   function toggleHints() {

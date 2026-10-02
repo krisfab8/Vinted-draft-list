@@ -39,6 +39,7 @@ Priority order: private usable test → reliable state/costs → labeled model e
 | REL-09 | P1 | Retry from extraction checkpoint | todo | Writer failure does not repeat paid vision; hash/model/prompt/hints invalidate stale cache |
 | SEC-01 | P0 | App-wide safe paths and field permissions | todo | All local and hosted read/write/delete paths contain resolved paths; symlinks and dot segments tested; HOST-01 is only a hosting guard |
 | SEC-01a | P0 | Hosted credential-safe errors and copied-key whitespace | implemented_local | Trim surrounding API-key whitespace; suppress caught route tracebacks and credential-bearing client errors; safe unhandled-error logs; 768 tests passed; live deployment verification pending |
+| HOST-02c | P0 | Handle non-JSON upload failures | implemented_local | Upload preserves JSON errors and reports HTTP status for HTML/proxy failures; no HTML body exposed, no automatic paid retry; Node response checks passed; live upload diagnosis pending |
 | HOST-02b | P0 | Private provider configuration diagnostics | implemented_local | Password-gated /api/provider-status reports readiness without key values; upload errors name missing key or unsupported provider setting; 768 tests passed; live diagnosis pending |
 | SEC-02 | P1 | Multi-user identity and ownership | todo | Before inviting unrelated sellers: independent items, credentials, memory and requests; CSRF/rate limits/security review |
 | HOST-03 | P2 | Remote Vinted session architecture | todo | Supported login, isolated session, recoverable expiry and verified save; no assumption headless alone is enough |
@@ -94,6 +95,8 @@ Priority order: private usable test → reliable state/costs → labeled model e
 - 2 October evening: hosted configuration switched to Claude Haiku. A copied API key with a trailing newline caused an illegal HTTP header, and a route returned the SDK traceback to the browser. Key rotation is required; no credential value is stored in this tracker. Patch trims API-key outer whitespace and sanitizes hosted route errors, including internally caught exceptions. Full suite: 768 passed in 14.67 seconds; targeted tests include real upload/create-listing failure responses and copied-key normalization. This does not verify provider billing/access or OCR accuracy.
 
 - Added private provider diagnostics after a subsequent phone upload again reported missing configuration despite the key variable appearing in Render. Response exposes only supported provider names, key-variable names and readiness booleans; unknown provider values are not echoed. Full suite: 768 passed in 14.94 seconds.
+
+- Phone reported an HTML response parsed as JSON. Logs contained no completed upload in the reported interval; memory remained approximately 112 MB against 512 MB, so no memory-exhaustion conclusion is supported. Frontend now reports HTTP status for non-JSON responses, including specific 413/401 guidance and uncertain completion/retry advice. Node checks covered JSON success/error, HTML 413/401/502/504/200, and null JSON.
 
 ## Update rules
 
