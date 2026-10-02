@@ -270,9 +270,9 @@ def _resize_photo(path: Path) -> Path:
     Returns the (possibly renamed) path.
     """
     try:
-        from PIL import Image
+        from PIL import Image, ImageOps
         orig_bytes = path.stat().st_size
-        img = Image.open(path).convert("RGB")
+        img = ImageOps.exif_transpose(Image.open(path)).convert("RGB")
         w, h = img.size
         needs_resize = max(w, h) > _UPLOAD_MAX_DIM or orig_bytes > _UPLOAD_MAX_BYTES
         if needs_resize:
@@ -314,6 +314,12 @@ def upload_listing():
     if not files or all(f.filename == "" for f in files):
         return jsonify({"error": "No photos uploaded"}), 400
 
+    from app.services import measurements
+    try:
+        explicit_roles = measurements.parse_roles(request.form.get("photo_roles"), len(files))
+    except (ValueError, TypeError):
+        return jsonify(error="Choose valid, unique photo roles; use Extra for other photos."), 422
+
     buy_price = request.form.get("buy_price", "").strip()
     folder_name = f"upload_{uuid.uuid4().hex[:8]}"
     item_path = ITEMS_DIR / folder_name
@@ -336,20 +342,21 @@ def upload_listing():
     if not temp_paths:
         return jsonify({"error": "No valid photos saved"}), 400
 
-    # Score and assign roles
+    # Explicit mobile roles override the legacy heuristic. Never shift missing slots.
+    if explicit_roles is not None and len(temp_paths) != len(explicit_roles):
+        return jsonify(error="A selected photo format is unsupported."), 422
     try:
-        role_map, role_confidence = _photo_roles.assign_roles(temp_paths)
+        if explicit_roles is not None:
+            role_map = measurements.role_map(temp_paths, explicit_roles)
+            role_confidence = {role: 1.0 for role in role_map}
+        else:
+            role_map, role_confidence = _photo_roles.assign_roles(temp_paths)
     except Exception:
-        # Fallback: positional naming (preserves original behaviour)
-        core_names = ["front", "brand", "model_size", "material", "back"]
-        role_map = {
-            (core_names[i] if i < len(core_names) else f"extra_{i - len(core_names) + 1:02d}"): p
-            for i, p in enumerate(temp_paths)
-        }
-        role_confidence = {}
+        return jsonify(error="Could not assign photo roles."), 422
 
     # Rename temp files to role names
     saved = []
+    saved_roles = {}
     for role, src in role_map.items():
         if src is None:
             continue
@@ -357,13 +364,14 @@ def upload_listing():
         dest = item_path / f"{role}{ext}"
         src.rename(dest)
         saved.append(dest.name)
+        saved_roles[role] = dest.name
 
     # Persist role assignments + confidence for review/observability
     try:
         import json as _json
         (item_path / "photo_roles.json").write_text(
             _json.dumps({
-                "roles": {r: p.name for r, p in role_map.items() if p},
+                "roles": saved_roles,
                 "confidence": role_confidence,
                 "low_confidence": _photo_roles.low_confidence_roles(role_confidence),
             }, indent=2)
@@ -596,8 +604,8 @@ def _write_run_log(listing_id, extract_log, write_log, extract_usage, write_usag
         "crop_applied":          extract_log.get("crop_applied", {}),
         "escalated":             extract_log.get("escalated", False),
         "extract_latency_ms":    extract_log.get("extract_latency_ms"),
-        "extract_input_tokens":  extract_log.get("extract_input_tokens", 0),
-        "extract_output_tokens": extract_log.get("extract_output_tokens", 0),
+        "extract_input_tokens":  extract_usage.get("input_tokens", 0),
+        "extract_output_tokens": extract_usage.get("output_tokens", 0),
         "extract_model":         extract_log.get("extract_model", ""),
         "rereads_triggered":     extract_log.get("rereads_triggered", {}),
         "reread_reasons":        extract_log.get("reread_reasons", {}),
@@ -641,6 +649,37 @@ def get_listing(folder):
     return jsonify(listing), 200
 
 
+@app.post("/listing/<folder>/measurements")
+def confirm_measurements(folder):
+    from app.services import measurements
+    from app.validate_listing import validate_or_raise
+    safe_folder = Path(folder).name
+    path = ITEMS_DIR / safe_folder / "listing.json"
+    if not path.exists():
+        return jsonify(error="Listing not found"), 404
+    body = request.get_json(silent=True)
+    try:
+        values = measurements.confirmed(body.get("measurements") if isinstance(body, dict) else None)
+        listing = json.loads(path.read_text())
+        listing["measurements"] = values
+        measurements.apply_description(listing)
+        validate_or_raise(listing)
+    except (ValueError, TypeError):
+        return jsonify(error="Enter valid measurements in cm (0.5–250); each dimension once."), 422
+    # Atomic replacement: interrupted writes leave the previous listing intact.
+    import tempfile, os
+    with tempfile.NamedTemporaryFile(mode="w", dir=path.parent, delete=False) as f:
+        temporary = Path(f.name)
+        json.dump(listing, f, indent=2)
+    try:
+        os.replace(temporary, path)
+    finally:
+        temporary.unlink(missing_ok=True)
+    _sync_item_status(safe_folder, listing)
+    listing["folder"] = safe_folder
+    return jsonify(listing)
+
+
 @app.patch("/listing/<folder>")
 def patch_listing(folder):
     """PATCH /listing/<folder>  Body: {field: value, ...}  — update specific fields in listing.json.
@@ -651,6 +690,8 @@ def patch_listing(folder):
         return jsonify({"error": "listing not found"}), 404
     try:
         updates = request.get_json(force=True, silent=True) or {}
+        if any(k in updates for k in ("measurements", "measurement_proposals")):
+            return jsonify(error="Use the measurement confirmation form."), 422
         listing = json.loads(listing_path.read_text())
         # Log each changed field as a correction event
         for field, new_val in updates.items():

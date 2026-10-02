@@ -940,7 +940,7 @@ def write(item: dict, hints: dict | None = None) -> tuple[dict, dict]:
         writer_model = OPENAI_LISTING_MODEL
         response = generate(prompt, writer_model, 2500, system=_SYSTEM)
     elif LISTING_PROVIDER == "claude-haiku":
-        client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY, max_retries=0, timeout=90)
+        client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY, max_retries=0, timeout=30)
         response = model_usage.call(client.messages.create, stage="write",
             model=HAIKU_MODEL, max_tokens=2500, system=_SYSTEM,
             messages=[{"role": "user", "content": prompt}],
@@ -1089,6 +1089,15 @@ def write(item: dict, hints: dict | None = None) -> tuple[dict, dict]:
         _warnings.append("reread_failed")
     listing["warnings"] = _warnings
     listing.setdefault("error_tags", [])
+
+    from app.services import measurements
+    listing.pop("measurement_proposals", None)
+    # Only previously seller-confirmed dimensions survive writing, never model-created ones.
+    saved_measurements = item.get("measurements") or []
+    if not isinstance(saved_measurements, list) or not all(isinstance(v, dict) and v.get("confirmed") is True for v in saved_measurements):
+        saved_measurements = []
+    listing["measurements"] = measurements.confirmed(saved_measurements)
+    measurements.apply_description(listing)
 
     validate_or_raise(listing)
 

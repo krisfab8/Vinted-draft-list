@@ -420,8 +420,8 @@ def _compress_with_autocrop(path: Path, max_dim: int) -> tuple[str, str, dict]:
     Returns (b64_data, media_type, crop_meta).
     """
     try:
-        from PIL import Image
-        img = Image.open(path).convert("RGB")
+        from PIL import Image, ImageOps
+        img = ImageOps.exif_transpose(Image.open(path)).convert("RGB")
 
         if ENABLE_LABEL_AUTOCROP:
             img, crop_meta = _autocrop_label(img)
@@ -468,9 +468,8 @@ def _compress_image(path: Path, max_dim: int | None = None) -> tuple[str, str]:
     """
     effective_max = max_dim if max_dim is not None else _DEFAULT_MAX_DIM
     try:
-        from PIL import Image
-        img = Image.open(path)
-        img = img.convert("RGB")
+        from PIL import Image, ImageOps
+        img = ImageOps.exif_transpose(Image.open(path)).convert("RGB")
         w, h = img.size
         if max(w, h) > effective_max:
             scale = effective_max / max(w, h)
@@ -521,7 +520,7 @@ def _load_photos(folder: Path) -> tuple[list[dict], dict[str, dict]]:
 
 
 def _extract_claude(photos: list[dict], model: str, prompt: str) -> tuple[dict, dict]:
-    client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY, max_retries=0, timeout=90)
+    client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY, max_retries=0, timeout=30)
     content = photos + [{"type": "text", "text": prompt}]
     response = model_usage.call(client.messages.create, stage="extract",
         model=model,
@@ -747,7 +746,7 @@ def _reread_material_photo(folder: Path, model: str, full_reread: bool = False) 
             mat_photo = folder / f"{base}{ext_suffix}"
             if mat_photo.exists():
                 data, media_type, _ = _compress_with_autocrop(mat_photo, max_dim=1024)
-                client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY, max_retries=0, timeout=90)
+                client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY, max_retries=0, timeout=30)
 
                 if full_reread:
                     prompt_text = (
@@ -833,7 +832,7 @@ def _reread_brand_photo(folder: Path, model: str) -> dict | None:
         brand_photo = folder / f"brand{ext}"
         if brand_photo.exists():
             data, media_type, _ = _compress_with_autocrop(brand_photo, max_dim=1024)
-            client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY, max_retries=0, timeout=90)
+            client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY, max_retries=0, timeout=30)
             response = model_usage.call(client.messages.create, stage="brand_reread",
                 model=model,
                 max_tokens=80,
@@ -1139,6 +1138,10 @@ def extract(item_folder: str | Path, hints: dict | None = None) -> dict:
             if "brand" in lc:
                 lc.remove("brand")
             result["low_confidence_fields"] = lc
+
+    from app.services import measurements
+    result.pop("measurements", None)  # A model cannot self-confirm ruler measurements.
+    result["measurement_proposals"] = measurements.analyze(folder, VISION_PROVIDER)
 
     # Build observability log — popped by web.py before saving listing.json
     result["_extract_log"] = {

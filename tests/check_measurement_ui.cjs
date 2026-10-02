@@ -1,0 +1,23 @@
+const fs=require('fs'),vm=require('vm'),assert=require('assert');
+const source=fs.readFileSync('app/templates/index.html','utf8');
+const start=source.indexOf('  function measurementHtml('),end=source.indexOf('  function showResult(',start);
+const context={esc:value=>String(value??''),encodeURIComponent};
+vm.createContext(context);vm.runInContext(source.slice(start,end),context);
+const render=vm.runInContext('measurementHtml',context);
+let html=render({folder:'item',normalized_size:'2XL',measurement_proposals:[{role:'measure_length',source_photo:'measure_length.jpg',status:'unknown',value_cm:null,reason:'Start hidden'}]});
+assert(html.includes('Start hidden'));assert(!html.includes('value="null"'));assert(html.includes('Tagged size stays unchanged'));
+html=render({folder:'item',measurements:[{role:'measure_length',value_cm:64}],measurement_proposals:[{role:'measure_length',value_cm:200,status:'needs_confirmation',reason:'Check',source_photo:'measure_length.jpg'}]});
+assert(html.includes('value="64"'));assert(!html.includes('value="200"'));
+(async()=>{
+ const values={measure_pit_to_pit:'',measure_length:'64',measure_sleeve:''}, status={textContent:''};
+ context.document={getElementById:id=>id==='measurement-status'?status:{value:values[id.replace('measurement-','')]}};
+ let payload;
+ context.fetch=async(url,options)=>{assert(url.endsWith('/measurements'));payload=JSON.parse(options.body);return {ok:true}};
+ context.readUploadResponse=async()=>({folder:'item',measurements:payload.measurements});
+ context.showResult=data=>assert(data.measurements[0].value_cm===64);
+ await vm.runInContext('confirmMeasurements("item")',context);
+ assert.strictEqual(payload.measurements.length,1);assert.strictEqual(status.textContent,'Measurements confirmed.');
+ context.fetch=async()=>({ok:false});context.readUploadResponse=async()=>({error:'Invalid measurement'});
+ await vm.runInContext('confirmMeasurements("item")',context);assert.strictEqual(status.textContent,'Invalid measurement');
+ console.log('Measurement UI checks passed');
+})().catch(error=>{console.error(error);process.exit(1)});

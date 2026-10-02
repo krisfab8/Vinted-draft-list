@@ -7,7 +7,8 @@ from app import config
 from app.services import model_usage
 
 
-def generate(prompt: str, model: str, max_tokens: int, *, images=None, system=""):
+def generate(prompt: str, model: str, max_tokens: int, *, images=None, system="", stage=None):
+    stage = stage or ("extract" if images else "write")
     if model not in {"gpt-6-luna", "gpt-6.1-sol"}:
         raise ValueError("This test supports gpt-6-luna or gpt-6.1-sol; add verified cost rates before another model")
     if not config.OPENAI_API_KEY:
@@ -35,21 +36,21 @@ def generate(prompt: str, model: str, max_tokens: int, *, images=None, system=""
         response = requests.post(
             "https://api.openai.com/v1/responses", json=payload,
             headers={"Authorization": f"Bearer {config.OPENAI_API_KEY}"},
-            timeout=(10, 100),
+            timeout=(10, 45),
         )
     except Exception as exc:
-        model_usage.record(model, "openai", error=exc)
+        model_usage.record(model, stage, error=exc)
         raise
     if response.status_code >= 400:
-        model_usage.record(model, "openai", error=ValueError())
+        model_usage.record(model, stage, error=ValueError())
         # Never relay request headers, a key, or the provider's full response.
         raise ValueError(f"OpenAI request failed (HTTP {response.status_code}); check model access and account billing")
     body = response.json()
     usage = body.get("usage") or {}
     if not usage or "input_tokens" not in usage or "output_tokens" not in usage:
-        model_usage.record(model, "openai", stop_reason=body.get("status"))
+        model_usage.record(model, stage, stop_reason=body.get("status"))
         raise ValueError("OpenAI response omitted token usage; cannot record this test reliably")
-    model_usage.record(model, "openai", usage=SimpleNamespace(**usage), stop_reason=body.get("status"))
+    model_usage.record(model, stage, usage=SimpleNamespace(**usage), stop_reason=body.get("status"))
     text = "".join(
         block.get("text", "")
         for output in body.get("output", []) if output.get("type") == "message"

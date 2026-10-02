@@ -1405,20 +1405,35 @@
 <script>
   const SLOT_LABELS = ["Front", "Brand label", "Model / Size tag", "Material", "Back (optional)"];
   let photos = [];
+  const photoRoles = new WeakMap();
+  let photoUrls = [];
+  const ROLE_LABELS = {front:"Front",brand:"Brand label",model_size:"Model / Size tag",
+    material:"Material",back:"Back",extra:"Extra",measure_pit_to_pit:"Measure pit-to-pit",
+    measure_length:"Measure back length",measure_sleeve:"Measure sleeve"};
   let selectedForSwap = null;
 
   /* ── Grid render ── */
+  function setPhotoRole(event,index) {
+    event.stopPropagation();
+    photoRoles.set(photos[index],event.target.value);
+    renderGrid();
+  }
+
   function renderGrid() {
     const grid = document.getElementById("photoGrid");
     const counter = document.getElementById("photoCounter");
     const hint = document.getElementById("swapHint");
+    photoUrls.forEach(url => URL.revokeObjectURL(url));
+    photoUrls = [];
     grid.innerHTML = "";
     counter.textContent = `${photos.length} of 20`;
     hint.classList.toggle("visible", selectedForSwap !== null);
 
     photos.forEach((file, i) => {
       const url = URL.createObjectURL(file);
-      const label = SLOT_LABELS[i] || `Extra ${i - 4}`;
+      photoUrls.push(url);
+      const role = photoRoles.get(file) || "extra";
+      const label = ROLE_LABELS[role];
       const isSelected = selectedForSwap === i;
       const isTarget = selectedForSwap !== null && !isSelected;
 
@@ -1430,7 +1445,11 @@
       slot.innerHTML = `
         <img src="${url}" alt="${label}">
         <div class="slot-gradient"></div>
-        <div class="slot-role-label">${label}</div>
+        <div class="slot-role-label" style="right:8px">
+          <select aria-label="Photo role" style="max-width:100%;background:white;color:#222;border-radius:6px;padding:5px" onchange="setPhotoRole(event,${i})">
+            ${Object.entries(ROLE_LABELS).map(([key,text]) => `<option value="${key}"${key===role?" selected":""}>${text}</option>`).join("")}
+          </select>
+        </div>
         ${isSelected ? `<div class="slot-selected-overlay"><span class="slot-selected-badge">Moving</span></div>` : ""}
         <button class="slot-move-btn" onclick="handleSwapTap(event, ${i})" title="Move photo">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
@@ -1442,7 +1461,7 @@
 
       /* Tap the photo itself to trigger swap too */
       slot.addEventListener("click", (e) => {
-        if (e.target.closest(".slot-remove-btn") || e.target.closest(".slot-move-btn")) return;
+        if (e.target.closest(".slot-remove-btn") || e.target.closest(".slot-move-btn") || e.target.closest("select")) return;
         handleSwapTap(e, i);
       });
 
@@ -1489,7 +1508,13 @@
   }
 
   document.getElementById("fileInput").addEventListener("change", function () {
-    photos = photos.concat(Array.from(this.files)).slice(0, 20);
+    const incoming = Array.from(this.files).slice(0, 20 - photos.length);
+    const used = new Set(photos.map(file => photoRoles.get(file)));
+    incoming.forEach(file => {
+      const role = ["front","brand","model_size","material","back"].find(role => !used.has(role)) || "extra";
+      photoRoles.set(file,role); used.add(role);
+    });
+    photos = photos.concat(incoming);
     selectedForSwap = null;
     renderGrid();
   });
@@ -1547,7 +1572,13 @@
 
     try {
       const form = new FormData();
+      const roles = photos.map(f => photoRoles.get(f) || "extra");
+      const named = roles.filter(role => role !== "extra");
+      if (!roles.includes("front") || new Set(named).size !== named.length) {
+        throw new Error("Choose a Front photo and use each named role once; choose Extra for others.");
+      }
       photos.forEach(f => form.append("photos", f));
+      form.append("photo_roles", JSON.stringify(photos.map(f => photoRoles.get(f) || "extra")));
       const bp = document.getElementById("buyPrice").value.trim();
       if (bp) form.append("buy_price", bp);
 
@@ -1982,6 +2013,45 @@
     });
   }
 
+  function measurementHtml(d) {
+    if (!d.folder) return "";
+    const labels = {measure_pit_to_pit:"Pit-to-pit (flat width)",measure_length:"Back length",measure_sleeve:"Sleeve length"};
+    return `<div style="padding:16px;border:1px solid #b9ded8;border-radius:16px;margin:16px 0">
+      <strong>Confirm measurements</strong>
+      <p style="font-size:13px">Optional. Check ruler reference points, then confirm in cm. Tagged size stays unchanged. A ruler photo needs its start and end visible.</p>
+      ${Object.entries(labels).map(([role,label]) => {
+        const saved = (d.measurements || []).find(m => m.role===role);
+        const proposed = (d.measurement_proposals || []).find(m => m.role===role);
+        const value = saved ? saved.value_cm : proposed && proposed.status==="needs_confirmation" ? proposed.value_cm : "";
+        return `<label style="display:block;margin:10px 0">${label}
+          <input id="measurement-${role}" type="number" inputmode="decimal" min="0.5" max="250" step="0.1" value="${esc(value)}" placeholder="cm" style="width:90px;margin-left:8px">
+          ${proposed ? `<div style="font-size:12px">${esc(proposed.reason)}
+            <a href="/items/${esc(d.folder)}/${encodeURIComponent(proposed.source_photo)}" target="_blank" rel="noopener">View ruler photo</a></div>` : ""}
+        </label>`;
+      }).join("")}
+      <button class="btn-desc-save" onclick="confirmMeasurements('${esc(d.folder)}')">Confirm measurements</button>
+      <div id="measurement-status" role="status"></div>
+    </div>`;
+  }
+
+  async function confirmMeasurements(folder) {
+    const status = document.getElementById("measurement-status");
+    const values = ["measure_pit_to_pit","measure_length","measure_sleeve"].flatMap(role => {
+      const text = document.getElementById(`measurement-${role}`).value;
+      return text === "" ? [] : [{role,value_cm:Number(text)}];
+    });
+    status.textContent = "Saving…";
+    try {
+      const response = await fetch(`/listing/${encodeURIComponent(folder)}/measurements`, {
+        method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({measurements:values})
+      });
+      const data = await readUploadResponse(response);
+      if (!response.ok) throw new Error(data.error || "Could not save measurements.");
+      showResult(data);
+      document.getElementById("measurement-status").textContent = "Measurements confirmed.";
+    } catch(error) { status.textContent = error.message; }
+  }
+
   function showResult(d) {
     // Reset W/L draft state when a different listing is shown
     if (d.folder !== _wlDraftFolder) {
@@ -1997,6 +2067,9 @@
       ? `<div class="cost-pill"><div class="cost-dot"></div>Estimated AI cost: ${esc(costStr)}${d.cost_complete === false ? " · incomplete" : ""}</div>`
       : "";
 
+    const callHtml = (d.model_calls || []).length ? `<details style="font-size:12px;margin:10px 0"><summary>Model calls and estimated cost</summary>
+      ${(d.model_calls || []).map(call => `<div>${esc(call.stage)} · ${esc(call.model)} · ${call.cost_gbp == null ? "unknown cost" : (call.cost_gbp * 100).toFixed(3) + "p"}</div>`).join("")}
+    </details>` : "";
     const chips = [];
     if (d.premium)   chips.push(`<span class="chip chip-gold">★ Premium</span>`);
     if (d.gender)    chips.push(`<span class="chip chip-default">${esc(d.gender)}</span>`);
@@ -2099,7 +2172,9 @@
             <button class="btn-desc-cancel" onclick="cancelDesc()">Cancel</button>
           </div>
         </div>
+        ${measurementHtml(d)}
         ${costHtml}
+        ${callHtml}
         ${errHtml}
         ${draftHtml}
       </div>`;

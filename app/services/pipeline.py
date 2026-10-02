@@ -37,7 +37,10 @@ def run_pipeline(
     listing, write_usage = listing_writer.write(item, hints=hints or None)
     write_log = write_usage.pop("_write_log", {})
 
+    listing["measurement_proposals"] = item.get("measurement_proposals", [])
     pricing.apply_pricing(listing, pricing_mode=pricing_mode)
+    if extract_log.get("reread_errors"):
+        listing.setdefault("warnings", []).append("reread_failed")
     listing["analysis_models"] = {
         "vision": extract_usage.get("model"), "listing": write_usage.get("model"),
     }
@@ -97,7 +100,7 @@ def build_hints_from_listing(existing: dict, updates: dict | None = None) -> dic
 # ── Field preservation ────────────────────────────────────────────────────────
 
 _META_FIELDS = (
-    "draft_url", "draft_error", "cost_gbp", "cost_tokens",
+    "draft_url", "draft_error", "cost_gbp", "cost_tokens", "measurement_proposals", "measurements",
     "listed_date", "photos_folder", "error_tags",
 )
 
@@ -137,5 +140,10 @@ def preserve_user_fields(
     if existing.get("category_locked") and existing.get("category"):
         new_listing["category"] = existing["category"]
         new_listing["category_locked"] = True
+
+    from app.services import measurements
+    new_listing["measurements"] = measurements.confirmed(existing.get("measurements", []))
+    new_listing["measurement_proposals"] = existing.get("measurement_proposals", [])
+    measurements.apply_description(new_listing)
 
     return new_listing
