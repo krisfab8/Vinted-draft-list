@@ -52,12 +52,15 @@ def test_price_evidence_never_invents_market_range(monkeypatch):
 
 def test_optional_numbers_and_authoritative_purchase_price(monkeypatch):
     listing=dict(ITEM,title='Jacket',description='Leather jacket.',price_gbp=68,
-                 category='Men > Jackets',buy_price_gbp=None,confidence=None)
+                 category='Men > Jackets',buy_price_gbp=None,confidence=None,
+                 tag_keywords_confidence=.9,brand_confidence=.8,material_confidence=None)
     def create(**kw):
         return NS(content=[NS(text=json.dumps(listing))],usage=NS(input_tokens=100,output_tokens=50),stop_reason='end_turn')
     monkeypatch.setattr(w.anthropic,'Anthropic',lambda **kw:NS(messages=NS(create=create)))
     result,_=w.write(ITEM)
     assert 'buy_price_gbp' not in result and result['confidence']==.92
+    assert result['brand_confidence']=='high' and result['material_confidence']=='high'
+    assert result['tag_keywords_confidence']=='low'
     for price in [0, 7.5]:
         result,_=w.write(dict(ITEM,buy_price_gbp=price))
         assert result['buy_price_gbp']==price

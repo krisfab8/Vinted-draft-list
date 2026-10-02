@@ -1050,8 +1050,9 @@ def write(item: dict, hints: dict | None = None) -> tuple[dict, dict]:
             listing["made_in"] = hints["made_in"]
 
     # Carry over extraction quality fields for the review UI
-    listing.setdefault("brand_confidence", item.get("brand_confidence", "low"))
-    listing.setdefault("material_confidence", item.get("material_confidence", "low"))
+    for field in ("brand_confidence", "material_confidence", "tag_keywords_confidence"):
+        extracted_confidence = item.get(field)
+        listing[field] = extracted_confidence if extracted_confidence in ("high", "medium", "low") else "low"
 
     # Deterministic premium mill signal
     _raw_mill = item.get("fabric_mill")

@@ -29,6 +29,8 @@ Preserve supplied trouser_waist/trouser_length where relevant. price_gbp must be
 number: a tentative asking price, not a claim of a researched sale value.
 Preserve supplied buy_price_gbp; omit it when unknown. confidence must be a number from 0 to 1
 or omitted when unknown. Never return null for numeric fields.
+brand_confidence, material_confidence, tag_keywords_confidence must be string labels
+"high", "medium" or "low", copied from extraction; they are never numeric scores.
 Use this permitted category mapping:
 {categories}
 Price guidance (reference only; never claim a live market lookup):

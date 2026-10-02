@@ -55,3 +55,13 @@ change is made here. Reference: https://render.com/docs/free
 
 Rollback: return the test branch to `2c79937473dfee30abf1daba5e44483d6ed96a84`
 for the pre-fix implementation. Original service/backup branch are untouched.
+
+## First paid retest
+
+The first real six-photo retest reached the writer but failed on a different
+field: `tag_keywords_confidence: 0.9 is not of type string, null`. This verifies
+why field-specific errors are needed. Extraction confidence labels are now
+carried authoritatively to the listing, with unknown labels marked low; the
+writer cannot replace these with numeric scores. Regression coverage includes
+invalid generated brand/material/tag-keyword confidence types. No success or
+latency claim is made for this failed test.
