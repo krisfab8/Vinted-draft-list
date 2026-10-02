@@ -26,12 +26,31 @@ def valid_folder(folder):
     return target != root and target.is_relative_to(root)
 
 
+def provider_status(provider):
+    keys = {"openai": ("OPENAI_API_KEY", config.OPENAI_API_KEY),
+            "claude-haiku": ("ANTHROPIC_API_KEY", config.ANTHROPIC_API_KEY)}
+    if provider not in keys:
+        return {"provider": "unsupported", "ready": False,
+                "issue": "unsupported_provider", "key_variable": None}
+    name, key = keys[provider]
+    return {"provider": provider, "ready": bool(key), "key_variable": name,
+            "issue": None if key else "missing_key"}
+
+
 def create_app():
     username = os.getenv("APP_USERNAME", "kristian")
     password = os.getenv("APP_PASSWORD", "")
     if len(password) < 24:
         raise RuntimeError("Hosted test requires APP_PASSWORD of at least 24 characters")
     app.config["HOSTED_TEST"] = True
+
+    @app.get("/api/provider-status")
+    def api_provider_status():
+        # Protected by the same password gate; never return any credential value.
+        return jsonify(vision=provider_status(config.VISION_PROVIDER),
+                       listing=provider_status(config.LISTING_PROVIDER),
+                       anthropic_key_configured=bool(config.ANTHROPIC_API_KEY),
+                       openai_key_configured=bool(config.OPENAI_API_KEY))
 
     @app.before_request
     def protect_test_app():
@@ -60,18 +79,16 @@ def create_app():
         if request.path == "/auth/status":
             return jsonify(logged_in="missing", method="local_only", expires_at=None)
         if request.path in _GENERATION_ROUTES or request.path.startswith(("/regen/", "/reprice/")):
-            vision_ready = (
-                config.VISION_PROVIDER == "openai" and bool(config.OPENAI_API_KEY)
-            ) or (
-                config.VISION_PROVIDER == "claude-haiku" and bool(config.ANTHROPIC_API_KEY)
-            )
-            writer_ready = (
-                config.LISTING_PROVIDER == "openai" and bool(config.OPENAI_API_KEY)
-            ) or (
-                config.LISTING_PROVIDER == "claude-haiku" and bool(config.ANTHROPIC_API_KEY)
-            )
-            if not writer_ready or (request.path in _GENERATION_ROUTES and not vision_ready):
-                return jsonify(error="Add the selected provider's API key in hosting settings before generating"), 503
+            stages = [("LISTING_PROVIDER", provider_status(config.LISTING_PROVIDER))]
+            if request.path in _GENERATION_ROUTES:
+                stages.append(("VISION_PROVIDER", provider_status(config.VISION_PROVIDER)))
+            for variable, status in stages:
+                if status["issue"] == "unsupported_provider":
+                    return jsonify(error=f"Set {variable} to claude-haiku or openai in Render Environment.",
+                                   code="UNSUPPORTED_PROVIDER"), 503
+                if not status["ready"]:
+                    return jsonify(error=f"The server cannot detect {status['key_variable']}. Add it in Render Environment and save and deploy.",
+                                   code="PROVIDER_KEY_MISSING"), 503
 
     @app.after_request
     def private_headers(response):

@@ -20,6 +20,7 @@ with tempfile.TemporaryDirectory() as tmp:
     auth={'Authorization':'Basic '+base64.b64encode(b'kristian:012345678901234567890123456789').decode()}
     assert c.get('/health').status_code == 200
     assert c.get('/').status_code == 401
+    assert c.get('/api/provider-status').status_code == 401
     assert c.get('/',headers=auth).status_code == 200
     assert c.get('/listing/..',headers=auth).status_code == 400
     assert c.post('/create-listing',headers=auth,json={'folder':'/tmp'}).status_code == 400
@@ -30,6 +31,18 @@ with tempfile.TemporaryDirectory() as tmp:
     assert c.get('/',headers=auth).headers['Cache-Control'] == 'no-store'
     config.ANTHROPIC_API_KEY='test-private-key'
     config.VISION_PROVIDER=config.LISTING_PROVIDER='claude-haiku'
+    status=c.get('/api/provider-status',headers=auth)
+    assert status.json['vision']['ready'] is True
+    assert status.json['vision']['key_variable'] == 'ANTHROPIC_API_KEY'
+    assert 'test-private-key' not in status.get_data(as_text=True)
+    config.VISION_PROVIDER='accidental-secret-value'
+    status=c.get('/api/provider-status',headers=auth)
+    assert status.json['vision']['issue'] == 'unsupported_provider'
+    assert 'accidental-secret-value' not in status.get_data(as_text=True)
+    failure=c.post('/upload',headers=auth)
+    assert failure.json['code'] == 'UNSUPPORTED_PROVIDER'
+    assert 'VISION_PROVIDER' in failure.json['error']
+    config.VISION_PROVIDER='claude-haiku'
     item=items/'failure'; item.mkdir()
     with patch('app.web.pipeline_svc.run_pipeline', side_effect=RuntimeError('test-private-key')):
         failure=c.post('/create-listing',headers=auth,json={'folder':'failure'})
