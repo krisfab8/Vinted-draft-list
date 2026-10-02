@@ -73,3 +73,19 @@ def test_required_price_is_not_silently_invented():
     from app.validate_listing import validate
     listing=dict(ITEM,title='Jacket',description='Jacket.',price_gbp=None,category='Men > Jackets')
     assert any(error.startswith('price_gbp: ') for error in validate(listing))
+
+
+def test_optional_nulls_and_gender_formatting_follow_schema():
+    from app.validate_listing import normalize_generated_listing, validate
+    listing=dict(ITEM,title='Jacket',description='Jacket.',price_gbp=68,category='Women > Jackets',
+                 gender=" Women’s ",premium=None,materials=None,colour=None,confidence=None)
+    normalize_generated_listing(listing)
+    assert listing['gender']=="women's"
+    assert not any(k in listing for k in ['premium','materials','colour','confidence'])
+    assert validate(listing)==[]
+    listing['price_gbp']=None
+    normalize_generated_listing(listing)
+    assert 'price_gbp' in listing and validate(listing)
+    listing['gender']='unknown'
+    normalize_generated_listing(listing)
+    assert listing['gender']=='unknown' and any('gender' in e for e in validate(listing))

@@ -39,7 +39,7 @@ wait.
 
 ## Verification and limits
 
-792 Python tests pass (12.80 s after image-processing optimizations). Node checks cover resize dimensions, encoding contract,
+793 Python tests pass (13.09 s after schema-formatting fixes). Node checks cover resize dimensions, encoding contract,
 resource cleanup, actual upload progress, error response and timeout behavior;
 existing measurement UI checks pass. Browser canvas/EXIF behavior on the actual
 phone still requires phone verification; these are simulated browser API checks.
@@ -79,3 +79,14 @@ a full-image 5x5 filter whose pixels were never otherwise used. Seeded masks
 cover empty, sparse, edge-touching and small images and compare exactly with
 Pillow's original maximum-filter bounds. Crop confidence uses the same source
 mask and histogram; no OCR threshold or image resolution is relaxed.
+
+## Second paid retest
+
+After the image optimizations, the real six-photo request took 26.25 s from
+the workspace, with 19.227 s on the server: receive 0.742 s, preparation
+0.530 s, pipeline 17.955 s. It failed on writer gender capitalisation
+(`Women's` versus schema `women's`). The compact prompt now includes the
+exact minified listing schema, gender formatting is canonicalized, and null
+unknown optional non-nullable fields are omitted. Required missing/invalid
+prices still fail; unknown gender is not silently guessed. Another real
+successful retest remains necessary. The sub-ten-second goal remains unmet.

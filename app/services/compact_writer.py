@@ -1,6 +1,6 @@
 """Short writing contract; deterministic post-processing remains authoritative."""
 import json
-from app.config import PROMPTS_DIR
+from app.config import PROMPTS_DIR, SCHEMA_PATH
 
 
 def build_prompt(item, hints, categories):
@@ -31,6 +31,9 @@ Preserve supplied buy_price_gbp; omit it when unknown. confidence must be a numb
 or omitted when unknown. Never return null for numeric fields.
 brand_confidence, material_confidence, tag_keywords_confidence must be string labels
 "high", "medium" or "low", copied from extraction; they are never numeric scores.
+Omit unknown optional fields whose schema does not allow null. Required fields must follow
+this exact output schema (including lowercase gender values):
+{json.dumps(json.loads(SCHEMA_PATH.read_text()), separators=(',', ':'))}
 Use this permitted category mapping:
 {categories}
 Price guidance (reference only; never claim a live market lookup):

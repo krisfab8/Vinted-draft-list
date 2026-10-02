@@ -14,7 +14,7 @@ from pathlib import Path
 import anthropic
 
 from app.config import ANTHROPIC_API_KEY, ENABLE_CATEGORY_ITEM_TYPE_SLICE, ENABLE_PRICE_MEMORY, HAIKU_MODEL, PROMPTS_DIR
-from app.validate_listing import validate_or_raise
+from app.validate_listing import normalize_generated_listing, validate_or_raise
 from app.config import LISTING_PROVIDER, OPENAI_LISTING_MODEL
 
 # EU/Italian → UK chest size (subtract 10). Used for suits, blazers, tailoring.
@@ -1111,6 +1111,7 @@ def write(item: dict, hints: dict | None = None) -> tuple[dict, dict]:
             listing["confidence"] = item["confidence"]
         else:
             listing.pop("confidence", None)
+    normalize_generated_listing(listing)
     validate_or_raise(listing)
 
     # Alias memory application — auto-correct categories and item_types from operator memory

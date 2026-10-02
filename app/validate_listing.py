@@ -10,6 +10,20 @@ from app.config import SCHEMA_PATH
 _schema = json.loads(SCHEMA_PATH.read_text())
 
 
+def normalize_generated_listing(listing: dict) -> None:
+    """Canonicalize harmless formatting, preserving invalid required data for validation."""
+    required = set(_schema["required"])
+    for field, spec in _schema["properties"].items():
+        allowed = spec.get("type", [])
+        if isinstance(allowed, str):
+            allowed = [allowed]
+        if field not in required and field in listing and listing[field] is None and "null" not in allowed:
+            listing.pop(field)
+    gender = listing.get("gender")
+    if isinstance(gender, str):
+        listing["gender"] = gender.strip().lower().replace("’", "'")
+
+
 def validate(listing: dict) -> list[str]:
     """Return list of validation error messages. Empty list means valid."""
     validator = jsonschema.Draft202012Validator(_schema)
