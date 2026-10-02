@@ -79,6 +79,8 @@ def _model_key(model: str) -> str:
 
 
 def _calc_cost_usd(usage: dict) -> float:
+    if "calls" in usage:
+        return sum(c.get("cost_usd") or 0 for c in usage["calls"])
     key = _model_key(usage.get("model", ""))
     p = _PRICES[key]
     return (usage["input_tokens"] * p["in"] + usage["output_tokens"] * p["out"]) / 1_000_000
@@ -391,7 +393,10 @@ def upload_listing():
         # upload adds cost fields to the listing (not present in create-listing response)
         cost_usd = _calc_cost_usd(extract_usage) + _calc_cost_usd(write_usage)
         cost_gbp = cost_usd * _USD_TO_GBP
-        listing["cost_gbp"] = round(cost_gbp, 4)
+        listing["cost_gbp"] = round(cost_gbp, 5)
+        listing["model_calls"] = extract_usage.get("calls", []) + write_usage.get("calls", [])
+        listing["cost_complete"] = extract_usage.get("cost_complete", True) and write_usage.get("cost_complete", True)
+        listing["cost_status"] = "estimated" if listing["cost_complete"] else "incomplete"
         listing["cost_tokens"] = {
             "input":  extract_usage["input_tokens"] + write_usage["input_tokens"],
             "output": extract_usage["output_tokens"] + write_usage["output_tokens"],
@@ -530,8 +535,8 @@ def _compute_stats(listings: list[dict], cost_history: list[dict]) -> dict:
             seen.add(row["folder"])
             unique_costs.append(row)
 
-    total_spend_gbp = sum(float(r.get("cost_gbp", 0)) for r in unique_costs)
-    avg_cost = total_spend_gbp / len(unique_costs) if unique_costs else 0
+    total_spend_gbp = sum(float(r.get("cost_gbp", 0)) for r in cost_history)
+    avg_cost = total_spend_gbp / len(cost_history) if cost_history else 0
     total_value = sum(float(l.get("price_gbp", 0)) for l in listings)
 
     # ROI: items where we know the buy price
@@ -616,6 +621,7 @@ def _write_run_log(listing_id, extract_log, write_log, extract_usage, write_usag
         "cost_gbp_extract": round(cost_extract, 5),
         "cost_gbp_write":   round(cost_write, 5),
         "cost_gbp_total":   round(cost_extract + cost_write, 5),
+        "model_calls": extract_usage.get("calls", []) + write_usage.get("calls", []),
     }
     try:
         run_logger.write_run_log(entry)

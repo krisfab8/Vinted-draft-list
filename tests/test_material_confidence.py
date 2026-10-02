@@ -414,8 +414,8 @@ class TestExtractMaterialGating:
         full_rereads = [c for c in calls if c["full_reread"]]
         assert len(full_rereads) == 0, "non-premium t-shirt at medium should skip full reread"
 
-    def test_high_confidence_without_fabric_mill_does_mill_only_reread(self, tmp_path):
-        """When material is confident but no fabric_mill found — still do mill-only reread."""
+    def test_confident_cotton_top_skips_irrelevant_mill_reread(self, tmp_path):
+        """A confident ordinary cotton top needs no cloth-mill search."""
         payload = self._base_payload(
             materials=["100% Cotton"],
             material_confidence="high",
@@ -425,7 +425,7 @@ class TestExtractMaterialGating:
         )
         _, calls = self._run(tmp_path, payload)
         mill_only_calls = [c for c in calls if not c["full_reread"]]
-        assert len(mill_only_calls) == 1, "high confidence + no fabric_mill should trigger mill-only reread"
+        assert len(mill_only_calls) == 0
 
     def test_high_confidence_with_fabric_mill_skips_all_rereads(self, tmp_path):
         """High confidence AND fabric_mill already set → no reread at all."""

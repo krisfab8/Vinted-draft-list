@@ -1,3 +1,4 @@
+from app.services import model_usage
 """
 Vision extraction: analyse clothing photos and return structured item data.
 
@@ -520,9 +521,9 @@ def _load_photos(folder: Path) -> tuple[list[dict], dict[str, dict]]:
 
 
 def _extract_claude(photos: list[dict], model: str, prompt: str) -> tuple[dict, dict]:
-    client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
+    client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY, max_retries=0, timeout=90)
     content = photos + [{"type": "text", "text": prompt}]
-    response = client.messages.create(
+    response = model_usage.call(client.messages.create, stage="extract",
         model=model,
         max_tokens=1024,
         messages=[{"role": "user", "content": content}],
@@ -719,6 +720,18 @@ def _apply_brand_corrections(brand: str | None) -> str | None:
     return brand_stripped
 
 
+def _mill_check_relevant(result: dict) -> bool:
+    """Reserve confident mill-only rereads for cloth evidence or woven tailoring."""
+    if result.get("fabric_line") or result.get("material_hint"):
+        return True
+    item_type = (result.get("item_type") or "").lower()
+    materials = " ".join(result.get("materials") or []).lower()
+    if any(word in materials for word in ("leather", "suede")):
+        return False
+    return any(word in item_type for word in (
+        "blazer", "suit", "waistcoat", "tailored", "overcoat", "wool coat", "trouser"))
+
+
 def _reread_material_photo(folder: Path, model: str, full_reread: bool = False) -> dict | None:
     """Single-photo targeted re-read of the material label photo.
 
@@ -734,7 +747,7 @@ def _reread_material_photo(folder: Path, model: str, full_reread: bool = False) 
             mat_photo = folder / f"{base}{ext_suffix}"
             if mat_photo.exists():
                 data, media_type, _ = _compress_with_autocrop(mat_photo, max_dim=1024)
-                client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
+                client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY, max_retries=0, timeout=90)
 
                 if full_reread:
                     prompt_text = (
@@ -784,7 +797,7 @@ def _reread_material_photo(folder: Path, model: str, full_reread: bool = False) 
                     )
                     max_tokens = 80
 
-                response = client.messages.create(
+                response = model_usage.call(client.messages.create, stage="material_reread",
                     model=model,
                     max_tokens=max_tokens,
                     messages=[{
@@ -820,8 +833,8 @@ def _reread_brand_photo(folder: Path, model: str) -> dict | None:
         brand_photo = folder / f"brand{ext}"
         if brand_photo.exists():
             data, media_type, _ = _compress_with_autocrop(brand_photo, max_dim=1024)
-            client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
-            response = client.messages.create(
+            client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY, max_retries=0, timeout=90)
+            response = model_usage.call(client.messages.create, stage="brand_reread",
                 model=model,
                 max_tokens=80,
                 messages=[{
@@ -866,6 +879,7 @@ def _reread_brand_photo(folder: Path, model: str) -> dict | None:
     return None
 
 
+@model_usage.tracked("extract")
 def extract(item_folder: str | Path, hints: dict | None = None) -> dict:
     """
     Extract structured item data from photos in item_folder.
@@ -951,6 +965,7 @@ def extract(item_folder: str | Path, hints: dict | None = None) -> dict:
         VISION_PROVIDER == "claude-haiku"
         and not _do_material_full
         and not result.get("fabric_mill")
+        and _mill_check_relevant(result)
     )
 
     # Capture reread reasons for run log
@@ -991,6 +1006,7 @@ def extract(item_folder: str | Path, hints: dict | None = None) -> dict:
 
     if _use_parallel:
         from concurrent.futures import ThreadPoolExecutor, as_completed
+        from contextvars import copy_context
 
         def _brand_task():
             return _reread_brand_photo(folder, HAIKU_MODEL)
@@ -1000,8 +1016,8 @@ def extract(item_folder: str | Path, hints: dict | None = None) -> dict:
             return _reread_material_photo(folder, HAIKU_MODEL, full_reread=full)
 
         with ThreadPoolExecutor(max_workers=2) as _pool:
-            _fut_brand = _pool.submit(_brand_task)
-            _fut_mat   = _pool.submit(_mat_task)
+            _fut_brand = _pool.submit(copy_context().run, _brand_task)
+            _fut_mat   = _pool.submit(copy_context().run, _mat_task)
             for _fut in as_completed((_fut_brand, _fut_mat)):
                 try:
                     if _fut is _fut_brand:
@@ -1143,7 +1159,7 @@ def extract(item_folder: str | Path, hints: dict | None = None) -> dict:
             "material": _reread_mat_reason,
         }.items() if v},
         "parallel_used": _use_parallel,
-        "reread_errors": {k: str(v) for k, v in {
+        "reread_errors": {k: type(v).__name__ for k, v in {
             "brand": _reread_brand_error,
             "material": _reread_mat_error,
         }.items() if v},

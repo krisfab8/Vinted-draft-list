@@ -1,3 +1,4 @@
+from app.services import model_usage
 """
 Listing writer: takes extractor output and generates a complete Vinted listing.
 
@@ -911,6 +912,7 @@ Return valid JSON only.
 """.strip()
 
 
+@model_usage.tracked("write")
 def write(item: dict, hints: dict | None = None) -> tuple[dict, dict]:
     """
     Generate a complete listing dict from extracted item data.
@@ -933,8 +935,8 @@ def write(item: dict, hints: dict | None = None) -> tuple[dict, dict]:
         writer_model = OPENAI_LISTING_MODEL
         response = generate(prompt, writer_model, 2500, system=_SYSTEM)
     elif LISTING_PROVIDER == "claude-haiku":
-        client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
-        response = client.messages.create(
+        client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY, max_retries=0, timeout=90)
+        response = model_usage.call(client.messages.create, stage="write",
             model=HAIKU_MODEL, max_tokens=2500, system=_SYSTEM,
             messages=[{"role": "user", "content": prompt}],
         )

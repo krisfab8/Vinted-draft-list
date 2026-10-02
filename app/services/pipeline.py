@@ -8,11 +8,12 @@ import re
 from pathlib import Path
 
 from app import extractor, listing_writer
-from app.services import pricing
+from app.services import pricing, model_usage
 
 
 # ── Core pipeline ────────────────────────────────────────────────────────────
 
+@model_usage.pipeline
 def run_pipeline(
     item_path: Path,
     hints: dict,

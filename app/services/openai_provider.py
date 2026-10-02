@@ -4,6 +4,7 @@ from types import SimpleNamespace
 import requests
 
 from app import config
+from app.services import model_usage
 
 
 def generate(prompt: str, model: str, max_tokens: int, *, images=None, system=""):
@@ -30,18 +31,25 @@ def generate(prompt: str, model: str, max_tokens: int, *, images=None, system=""
     }
     if system:
         payload["instructions"] = system
-    response = requests.post(
-        "https://api.openai.com/v1/responses", json=payload,
-        headers={"Authorization": f"Bearer {config.OPENAI_API_KEY}"},
-        timeout=(10, 100),
-    )
+    try:
+        response = requests.post(
+            "https://api.openai.com/v1/responses", json=payload,
+            headers={"Authorization": f"Bearer {config.OPENAI_API_KEY}"},
+            timeout=(10, 100),
+        )
+    except Exception as exc:
+        model_usage.record(model, "openai", error=exc)
+        raise
     if response.status_code >= 400:
+        model_usage.record(model, "openai", error=ValueError())
         # Never relay request headers, a key, or the provider's full response.
         raise ValueError(f"OpenAI request failed (HTTP {response.status_code}); check model access and account billing")
     body = response.json()
     usage = body.get("usage") or {}
     if not usage or "input_tokens" not in usage or "output_tokens" not in usage:
+        model_usage.record(model, "openai", stop_reason=body.get("status"))
         raise ValueError("OpenAI response omitted token usage; cannot record this test reliably")
+    model_usage.record(model, "openai", usage=SimpleNamespace(**usage), stop_reason=body.get("status"))
     text = "".join(
         block.get("text", "")
         for output in body.get("output", []) if output.get("type") == "message"

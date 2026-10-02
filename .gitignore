@@ -57,3 +57,6 @@ debug_screenshots/
 inspection/
 cat_screenshots/
 vinted-logo-capture.png
+
+# Per-call billing ledger is private runtime data
+data/model_calls.jsonl
