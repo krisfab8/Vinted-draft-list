@@ -90,3 +90,50 @@ exact minified listing schema, gender formatting is canonicalized, and null
 unknown optional non-nullable fields are omitted. Required missing/invalid
 prices still fail; unknown gender is not silently guessed. Another real
 successful retest remains necessary. The sub-ten-second goal remains unmet.
+
+## Final live verification: successful
+
+Deployed runtime commit: `5c0e53d2a226185f80c93ac75cb8497aace04287`.
+Render deployment: `dep-db03725ckfvc73cej1cg`, reported live
+2 October 2026 22:44:28 UTC. URL: https://vinted-measurements-test.onrender.com
+
+One authenticated six-photo POST returned HTTP 200 and saved listing
+`upload_64c61119`. Authenticated GET confirmed the saved price and omission
+of unknown purchase cost. The item remains available in the test app.
+No marketplace draft was created or published.
+
+- Transfer body: 4,550,206 bytes, versus approximately 28 MB in the original
+  phone attempt. Browser output size/transfer speed still require phone testing.
+- Workspace end-to-end POST: 22.48 s.
+- Server total: 17.1577 s; reception 0.6004 s; preparation 0.5020 s;
+  pipeline 16.0553 s.
+- Initial extraction: Haiku 4.5, 9,410 input / 554 output tokens, 5.541 s.
+- Material reread: Haiku 4.5, 1,742 / 124 tokens, 2.086 s.
+- Writing: Haiku 4.5, 3,188 / 362 tokens, 3.292 s.
+- Sum of model-call latency: 10.919 s.
+- Estimated provider cost: £0.01544 (1.544p), not an invoice reconciliation.
+- 793 Python tests passed; Node upload and measurement checks passed; inline
+  JavaScript syntax and git whitespace checks passed.
+
+The earlier 32.869 s server retest fell to 17.158 s (approximately 48%).
+These are individual observations, not a performance distribution or the exact
+same model output. The original reported three-to-five-minute phone wait lacked
+phase timing; we do not claim its exact cause is proven.
+
+## Remaining work / acceptance criteria
+
+VAL-01: verified live for this six-photo item and the specified regressions.
+LAT-01: improved and verified live; **sub-ten-second acceptance remains open**.
+
+Next speed experiments should benchmark a single-call extraction-and-copy path
+against the existing staged path on the same labelled fixtures, including
+unclear material labels and ruler photos. Record accuracy, confidence warnings,
+time to first response, complete response latency, all paid calls including
+failures, and invoice cost. Do not remove necessary rereads solely to improve
+a stopwatch. Faster-model comparisons and a warmed always-on hosting baseline
+remain necessary before a reliable ten-second claim. No model/paid hosting
+upgrade was made in this fix.
+
+This evidence is stored on `work/vinted-latency-verification` so adding the
+verification report does not redeploy the test service and erase its ephemeral
+successful test item. Original hosted service and backup branch remain unchanged.
