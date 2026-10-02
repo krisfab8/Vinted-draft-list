@@ -71,3 +71,38 @@ def test_incomplete_openai_response_still_records_paid_usage(monkeypatch):
         openai_provider.generate('JSON','gpt-6-luna',100)
     event=json.loads(m.LEDGER_PATH.read_text())
     assert event['input_tokens']==50 and event['cost_gbp']>0
+
+
+def test_stats_count_failed_paid_responses_and_repeated_runs_without_duplication():
+    from app.web import _compute_stats
+    with m.run('item') as context:
+        event=m.record('claude-haiku-4-5-20251001','extract',usage=NS(input_tokens=1000,output_tokens=100))
+    with m.run('item'):
+        m.record('claude-haiku-4-5-20251001','write',error=RuntimeError())
+    rows=[{'folder':'item','run_id':context['run_id'],'cost_gbp':event['cost_gbp']},
+          {'folder':'item','cost_gbp':.01},{'folder':'item','cost_gbp':.02}]
+    stats=_compute_stats([],rows)
+    assert stats['total_spend_gbp']==pytest.approx(round(.03+event['cost_gbp'],5))
+    assert stats['unpriced_calls']==1
+
+
+def test_old_cost_csv_migrates_without_losing_history(tmp_path,monkeypatch):
+    from app import web
+    path=tmp_path/'cost.csv';path.write_text('timestamp,folder,cost_gbp\nold,item,0.02\n')
+    monkeypatch.setattr(web,'COST_LOG',path)
+    with m.run('item'):
+        event=m.record('claude-haiku-4-5-20251001','extract',usage=NS(input_tokens=100,output_tokens=20))
+    usage={'model':event['model'],'input_tokens':100,'output_tokens':20,'calls':[event]}
+    web._log_cost('item',usage,{'model':event['model'],'input_tokens':0,'output_tokens':0}, {})
+    rows=web._get_cost_history()
+    assert rows[0]['run_id']==event['run_id']
+    assert rows[1]['timestamp']=='old' and rows[1]['cost_gbp']=='0.02'
+
+
+def test_seller_profit_matches_item_proceeds():
+    from app.web import _compute_stats
+    from app.services.pricing import _apply_profitability
+    listing={'price_gbp':50,'buy_price_gbp':10}
+    _apply_profitability(listing,50)
+    assert listing['estimated_profit_gbp']==40
+    assert _compute_stats([listing],[])['potential_profit_gbp']==40

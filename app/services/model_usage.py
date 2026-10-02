@@ -106,3 +106,18 @@ def pipeline(fn):
         with run(item_path):
             return fn(item_path, *args, **kwargs)
     return wrapped
+
+
+def read_events():
+    if not LEDGER_PATH.exists():
+        return []
+    events=[]
+    with LEDGER_PATH.open() as f:
+        for line in f:
+            try:
+                event=json.loads(line)
+                if isinstance(event,dict) and isinstance(event.get('id'),str):
+                    events.append(event)
+            except json.JSONDecodeError:
+                continue
+    return events

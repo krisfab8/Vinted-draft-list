@@ -6,7 +6,7 @@ Priority order: private usable test → reliable state/costs → labeled model e
 
 ## Next action
 
-**Implement complete call accounting and restrict unnecessary fabric-mill checks, then evaluate a smaller writer and measurement-photo flow.** One live Haiku upload now succeeded; see `docs/LIVE_ITEM_COST_AND_MEASUREMENT_REVIEW.md`. Preserve its item/photos before restarting the temporary-storage service. API-key rotation remains necessary if not already completed; the successful call does not establish rotation.
+**Run a separately configured phone/model comparison of `work/vinted-cost-measurements` after preserving the current temporary-storage item/photos.** Cost, compact-writing, explicit-role and measurement-confirmation behavior now has automated coverage; paid copy/OCR quality, actual savings and ruler calibration remain unverified. Read `docs/COST_MEASUREMENT_IMPLEMENTATION.md` for checkpoints and rollback.
 
 ## Foundation and testing
 
@@ -49,11 +49,11 @@ Priority order: private usable test → reliable state/costs → labeled model e
 
 | ID | Priority | Task | Status | Acceptance / dependency |
 |---|---|---|---|---|
-| IMG-01 | P1 | Apply phone EXIF orientation | todo | Portrait/landscape orientation corrected before stripping EXIF; real rotated fixture |
-| IMG-02 | P1 | Explicit photo roles and correct manifest | todo | User roles transmitted/preserved; missing size photo cannot silently shift material role |
+| IMG-01 | P1 | Apply phone EXIF orientation | implemented_local | Portrait/landscape orientation corrected before stripping EXIF; real rotated fixture |
+| IMG-02 | P1 | Explicit photo roles and correct manifest | implemented_local | User roles transmitted/preserved; missing size photo cannot silently shift material role |
 | IMG-03 | P1 | Preserve OCR originals and crop review | todo | Lossless/original source retained; crop edits; retry can use uncropped source |
 | IMG-04 | P1 | Analyze supplied damage/back evidence | todo | Explicit cost policy; checked-photo provenance; flaws visible only there reach review |
-| IMG-06 | P1 | Read explicitly labeled ruler measurement photos | todo | IMG-01–02 + COST-01; start/end/unit/source evidence, unknown for ambiguity, seller confirmation, tagged size retained; real labeled ruler evaluation |
+| IMG-06 | P1 | Read explicitly labeled ruler measurement photos | in_progress | IMG-01–02 + COST-01; start/end/unit/source evidence, unknown for ambiguity, seller confirmation, tagged size retained; real labeled ruler evaluation |
 | IMG-05 | P1 | Validate actual upload bytes | todo | Corrupt/oversized/decompression-risk images rejected without broken folders; useful errors |
 
 ## Costs and pricing
@@ -61,12 +61,12 @@ Priority order: private usable test → reliable state/costs → labeled model e
 | ID | Priority | Task | Status | Acceptance / dependency |
 |---|---|---|---|---|
 | COST-00 | P0 | Correct test rates and persist upload costs | implemented_local | Haiku 4.5 rates corrected; Luna/Sol rates added; upload costs saved; not a full ledger |
-| COST-01 | P0 | Complete per-call usage ledger | todo | Initial calls, escalation, rereads, regeneration and incomplete billable responses retained; provider reconciliation |
-| COST-02 | P0 | Correct lifetime spend totals | todo | Sum every event; separate latest run/item lifetime/account totals; no per-folder deduplication |
-| COST-04 | P1 | Restrict irrelevant mill-only rereads | todo | Preserve cloth-label/tailoring recognition; avoid leather/no-evidence checks; each attempted call recorded |
-| COST-05 | P1 | Reduce writer prompt / compare template copy | todo | COST-01; approved copy accuracy retained; actual token/cost/correction comparison on same inputs |
+| COST-01 | P0 | Complete per-call usage ledger | in_progress | Initial calls, escalation, rereads, regeneration and incomplete billable responses retained; provider reconciliation |
+| COST-02 | P0 | Correct lifetime spend totals | implemented_local | Sum every event; separate latest run/item lifetime/account totals; no per-folder deduplication |
+| COST-04 | P1 | Restrict irrelevant mill-only rereads | implemented_local | Preserve cloth-label/tailoring recognition; avoid leather/no-evidence checks; each attempted call recorded |
+| COST-05 | P1 | Reduce writer prompt / compare template copy | implemented_local | COST-01; approved copy accuracy retained; actual token/cost/correction comparison on same inputs |
 | COST-03 | P1 | Enforce cost budgets before calls | todo | COST-01; bounded output/attempts + estimated image cost; explicit over-budget review; rate/FX/version recorded |
-| PRICE-01 | P0 | Correct seller proceeds calculation | todo | Vinted buyer fee not deducted from seller; seller expenses explicit; stats use same service |
+| PRICE-01 | P0 | Correct seller proceeds calculation | implemented_local | Vinted buyer fee not deducted from seller; seller expenses explicit; stats use same service |
 | PRICE-02 | P1 | Unify material/memory normalization | todo | Writer/pricing match the same attributes; mixed-fibre cases tested |
 | PRICE-03 | P1 | Evidence-based confidence/feature pricing | todo | Dated memory, sample count; generated words do not create premiums; no blind low-confidence overrides |
 | PRICE-04 | P1 | Relevant cached eBay comps | todo | Size/model/category/condition matches; shipping context; links/timestamps; stale/failure policy |
@@ -106,3 +106,7 @@ Priority order: private usable test → reliable state/costs → labeled model e
 Keep IDs stable. Do not rename an open task to hide scope. Split partial work into a subtask rather than marking the parent complete. Record the commit, test and live outcome when relevant. After each session, replace “Next action” with the actual next dependency. Preserve blockers and known regressions.
 
 - 2 October 22:25 London follow-up: authenticated live run log/listing confirms successful Avia Trix upload `upload_9fa524f0` at 21:22:40 UTC. Haiku 4.5 initial extraction 9,410/517 tokens; writer 6,580/426; no Sonnet escalation; one mill-only reread with discarded usage. Recorded £0.01636 excludes that reread. £68 is unchanged model output with no memory match. Saved back/extra ruler photos inspected: readable scales, start/zero outside close-up; neither photo enters core extraction. Added evidence-based review and COST-04/05, IMG-06. Documentation stored on separate `work/vinted-live-item-review` branch; no runtime changes, redeploy or additional paid calls.
+
+- 2 October implementation branch: COST-01 observed-call ledger and COST-02/04/05, IMG-01/02, IMG-06 confirmation flow, PRICE-01 seller fee correction implemented. Checkpoints and limitations: `docs/COST_MEASUREMENT_IMPLEMENTATION.md`. Complete provider invoice reconciliation, paid compact-prompt evaluation, real ruler calibration, eBay matching/caching and durable hosting remain outstanding. Original deployment branch/service untouched.
+
+- Final implementation verification: **788 tests passed**; Node measurement UI checks and inline script syntax passed; git whitespace check passed. Full real Flask upload/pipeline test used mocked provider responses and verified exactly three accounted calls, correct totals, no irrelevant mill reread, seller-confirmed measurement persistence and no paid confirmation call. No additional paid model call or redeploy performed.

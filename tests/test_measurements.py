@@ -126,3 +126,48 @@ def test_measurement_failure_leaves_unknown_and_preserves_ledger(tmp_path,monkey
     ledger=model_usage.LEDGER_PATH.read_text()
     assert 'secret' not in ledger
     assert json.loads(ledger)['cost_gbp'] is None
+
+
+def test_full_upload_pipeline_including_three_recorded_model_stages(tmp_path,monkeypatch):
+    from app import web, extractor
+    monkeypatch.setattr(web,'ITEMS_DIR',tmp_path)
+    monkeypatch.setattr(web,'COST_LOG',tmp_path/'cost.csv')
+    monkeypatch.setattr(web,'_write_run_log',lambda *a:None)
+    monkeypatch.setattr(web,'_sync_item_status',lambda *a:None)
+    extracted={'brand':'Avia Trix','item_type':'leather jacket','tagged_size':'2XL','normalized_size':'2XL',
+               'materials':['100% Leather'],'colour':'Tan','gender':"men's",'brand_confidence':'high',
+               'material_confidence':'high','confidence':.92,'low_confidence_fields':[],
+               'condition_summary':'Good used condition','flaws_note':None,
+               'measurements':[{'role':'measure_length','value_cm':200,'confirmed':True}]}
+    stage_calls=[]
+    def create(**kwargs):
+        max_tokens=kwargs['max_tokens'];stage_calls.append(max_tokens)
+        if max_tokens==1024:
+            payload=extracted; usage=NS(input_tokens=1000,output_tokens=100)
+        elif max_tokens==600:
+            payload={'readings':[dict(reading(),source_photo='measure_length.jpg')]}
+            usage=NS(input_tokens=400,output_tokens=80)
+        elif max_tokens==2500:
+            payload=dict(extracted,title='Avia Trix Leather Jacket Mens 2XL Tan',description='A jacket.',price_gbp=68,category='Men > Jackets')
+            usage=NS(input_tokens=300,output_tokens=60)
+        else:raise AssertionError('Unnecessary reread')
+        return NS(content=[NS(text=json.dumps(payload))],usage=usage,stop_reason='end_turn')
+    monkeypatch.setattr(extractor.anthropic,'Anthropic',lambda **kwargs:NS(messages=NS(create=create)))
+    def photo():
+        stream=io.BytesIO();Image.new('RGB',(40,60),'white').save(stream,format='JPEG');stream.seek(0);return stream
+    client=web.app.test_client()
+    result=client.post('/upload',data={'photos':[(photo(),'front.jpg'),(photo(),'material.jpg'),(photo(),'ruler.jpg')],
+        'photo_roles':'["front","material","measure_length"]'})
+    assert result.status_code==200, result.json
+    data=result.json
+    assert stage_calls==[1024,600,2500]
+    assert [c['stage'] for c in data['model_calls']]==['extract','measurements','write']
+    assert len({c['run_id'] for c in data['model_calls']})==1
+    assert data['cost_gbp']==pytest.approx(.00229)
+    assert data['cost_tokens']=={'input':1700,'output':240}
+    assert data['cost_complete'] is True and data['measurements']==[]
+    assert data['measurement_proposals'][0]['value_cm']==64
+    assert data['normalized_size']=='2XL' and '200' not in data['description']
+    confirmed=client.post('/listing/'+data['folder']+'/measurements',json={'measurements':[{'role':'measure_length','value_cm':64}]})
+    assert confirmed.status_code==200 and '64 cm' in confirmed.json['description']
+    assert stage_calls==[1024,600,2500]  # Seller confirmation is free.

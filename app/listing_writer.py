@@ -1,10 +1,11 @@
-from app.services import model_usage
 """
 Listing writer: takes extractor output and generates a complete Vinted listing.
 
 Uses Claude Haiku 4.5 with prompts from prompts/ directory.
 Validates output against listing.schema.json before returning.
 """
+from app.services import model_usage
+
 import json
 import re
 from datetime import date

@@ -278,9 +278,7 @@ def _apply_pricing_inner(listing: dict, pricing_mode: str = "balanced") -> dict:
     return listing
 
 
-# Vinted buyer fee: ~5 % + £0.70 per sale (deducted from seller proceeds)
-_VINTED_FEE_PCT = 0.05
-_VINTED_FEE_FIXED = 0.70
+# Standard UK Vinted selling has no commission; buyer protection is a buyer charge.
 
 
 def _apply_profitability(listing: dict, final_price: float | None) -> None:
@@ -300,8 +298,8 @@ def _apply_profitability(listing: dict, final_price: float | None) -> None:
     if buy <= 0:
         return
 
-    # Net proceeds after Vinted fee
-    net_proceeds = final_price * (1 - _VINTED_FEE_PCT) - _VINTED_FEE_FIXED
+    # Gross item proceeds; optional seller expenses/tax are not estimated here.
+    net_proceeds = final_price
     profit = round(net_proceeds - buy, 2)
     multiple = round(final_price / buy, 2)
 

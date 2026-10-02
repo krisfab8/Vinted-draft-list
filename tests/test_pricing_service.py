@@ -260,8 +260,8 @@ class TestApplyPricing:
         listing = {"price_gbp": 50.0, "buy_price_gbp": 10.0}
         with _make_memory():
             apply_pricing(listing)
-        # net = 50 * 0.95 - 0.70 - 10 = 47.5 - 0.70 - 10 = 36.8
-        assert listing["estimated_profit_gbp"] == pytest.approx(36.8)
+        # standard Vinted seller proceeds: 50 - 10 = 40, before seller expenses
+        assert listing["estimated_profit_gbp"] == pytest.approx(40.0)
         assert listing["profit_multiple"] == pytest.approx(5.0)
         assert isinstance(listing["pricing_flags"], list)
         assert isinstance(listing["profit_warning"], bool)
@@ -285,10 +285,10 @@ class TestApplyPricing:
         assert "low_margin" in listing["pricing_flags"]
 
     def test_profit_warning_set_for_loss(self):
-        """Net proceeds after fee < buy_price → loss flag."""
+        """Sale below acquisition cost is a loss, without subtracting buyer fees."""
         from app.services.pricing import apply_pricing
-        # net = 10 * 0.95 - 0.70 - 10 = 9.50 - 0.70 - 10 = -1.20
-        listing = {"price_gbp": 10.0, "buy_price_gbp": 10.0}
+        # gross profit = 10 - 12 = -2
+        listing = {"price_gbp": 10.0, "buy_price_gbp": 12.0}
         with _make_memory():
             apply_pricing(listing)
         assert listing["profit_warning"] is True

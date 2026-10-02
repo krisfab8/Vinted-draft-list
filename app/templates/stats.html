@@ -241,7 +241,7 @@
       {% else %}£{{ "%.2f"|format(s) }}
       {% endif %}
     </div>
-    <div class="stat-label-text">AI spend</div>
+    <div class="stat-label-text">Estimated AI spend</div>
   </div>
   <div class="stat-card">
     <div class="stat-num muted">
@@ -257,9 +257,12 @@
 </div>
 
 <!-- ROI hero -->
+<p style="font-size:13px;color:#667">AI totals are estimates; provider billing is authoritative. Historical estimates may omit calls.
+{% if stats.unpriced_calls %}{{ stats.unpriced_calls }} call(s) have unknown cost.{% endif %}</p>
+
 {% if stats.profit_item_count > 0 %}
 <div class="roi-hero">
-  <div class="roi-eyebrow">Potential profit after Vinted fees</div>
+  <div class="roi-eyebrow">Potential profit before seller expenses</div>
   <div class="roi-amount">£{{ "%.0f"|format(stats.potential_profit_gbp) }}</div>
   <div class="roi-sub">across {{ stats.profit_item_count }} item{{ 's' if stats.profit_item_count != 1 }} · based on buy prices entered</div>
 </div>
@@ -279,7 +282,7 @@
   </div>
   {% endif %}
   <div class="val-row">
-    <div class="val-row-label">Total AI spend</div>
+    <div class="val-row-label">Total Estimated AI spend</div>
     <div class="val-row-value muted">
       {% set s = stats.total_spend_gbp %}
       {% if s == 0 %}0p

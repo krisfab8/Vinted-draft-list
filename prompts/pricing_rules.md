@@ -5,7 +5,7 @@ Price for ~1 month sell-through on Vinted UK. Aim for the price buyers actually 
 not too cheap (leaves money on table), not too high (sits unsold).
 
 ## Vinted Fees
-Vinted charges ~5% + £0.70 per sale. Factor this into your target net.
+Standard UK Vinted selling has no selling commission. Buyer protection is paid by the buyer; do not subtract it from seller proceeds. Optional promotion, packaging and other seller expenses are separate.
 
 ## Pricing Method — Market-First
 

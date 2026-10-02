@@ -90,7 +90,9 @@ def _log_cost(folder: str, extract_usage: dict, write_usage: dict, listing: dict
     cost_usd = _calc_cost_usd(extract_usage) + _calc_cost_usd(write_usage)
     cost_gbp = cost_usd * _USD_TO_GBP
 
+    calls = extract_usage.get("calls", []) + write_usage.get("calls", [])
     row = {
+        "run_id": calls[0]["run_id"] if calls else "",
         "timestamp": datetime.now().isoformat(timespec="seconds"),
         "folder": folder,
         "extract_model": extract_usage.get("model", ""),
@@ -102,6 +104,24 @@ def _log_cost(folder: str, extract_usage: dict, write_usage: dict, listing: dict
         "cost_usd": round(cost_usd, 5),
         "cost_gbp": round(cost_gbp, 5),
     }
+
+    # Upgrade old CSV headers without misaligning newly added run IDs.
+    if COST_LOG.exists():
+        with COST_LOG.open(newline="") as f:
+            reader = csv.DictReader(f)
+            old_header = reader.fieldnames
+            old_rows = list(reader)
+        if old_header != list(row):
+            import tempfile, os
+            with tempfile.NamedTemporaryFile(mode="w", newline="", dir=COST_LOG.parent, delete=False) as f:
+                temporary = Path(f.name)
+                writer = csv.DictWriter(f, fieldnames=row.keys(), extrasaction="ignore")
+                writer.writeheader()
+                writer.writerows(old_rows)
+            try:
+                os.replace(temporary, COST_LOG)
+            finally:
+                temporary.unlink(missing_ok=True)
 
     write_header = not COST_LOG.exists()
     with open(COST_LOG, "a", newline="") as f:
@@ -320,6 +340,9 @@ def upload_listing():
     except (ValueError, TypeError):
         return jsonify(error="Choose valid, unique photo roles; use Extra for other photos."), 422
 
+    if len(files) > 20:
+        return jsonify(error="Upload at most 20 photos."), 422
+
     buy_price = request.form.get("buy_price", "").strip()
     folder_name = f"upload_{uuid.uuid4().hex[:8]}"
     item_path = ITEMS_DIR / folder_name
@@ -535,16 +558,17 @@ def _get_cost_history() -> list[dict]:
 def _compute_stats(listings: list[dict], cost_history: list[dict]) -> dict:
     total_items = len(listings)
 
-    # De-duplicate: keep latest cost entry per folder
-    seen: set[str] = set()
-    unique_costs = []
-    for row in cost_history:
-        if row["folder"] not in seen:
-            seen.add(row["folder"])
-            unique_costs.append(row)
-
-    total_spend_gbp = sum(float(r.get("cost_gbp", 0)) for r in cost_history)
-    avg_cost = total_spend_gbp / len(cost_history) if cost_history else 0
+    from app.services import model_usage
+    events = model_usage.read_events()
+    run_ids = {e.get("run_id") for e in events if e.get("run_id")}
+    # Ledger events include paid responses that never produced a listing.
+    # Historical CSV estimates are additive, except runs already represented in the ledger.
+    legacy_rows = [r for r in cost_history if not r.get("run_id") or r["run_id"] not in run_ids]
+    total_spend_gbp = sum(float(r.get("cost_gbp", 0)) for r in legacy_rows)
+    total_spend_gbp += sum(e.get("cost_gbp") or 0 for e in events)
+    count = len(legacy_rows) + len(run_ids)
+    avg_cost = total_spend_gbp / count if count else 0
+    unpriced_calls = sum(e.get("cost_gbp") is None for e in events)
     total_value = sum(float(l.get("price_gbp", 0)) for l in listings)
 
     # ROI: items where we know the buy price
@@ -553,7 +577,7 @@ def _compute_stats(listings: list[dict], cost_history: list[dict]) -> dict:
         if l.get("buy_price_gbp") is not None and l.get("price_gbp")
     ]
     potential_profit = sum(
-        float(l["price_gbp"]) - float(l["buy_price_gbp"]) - (float(l["price_gbp"]) * 0.05 + 0.70)
+        float(l["price_gbp"]) - float(l["buy_price_gbp"])
         for l in profit_items
     )
 
@@ -561,7 +585,8 @@ def _compute_stats(listings: list[dict], cost_history: list[dict]) -> dict:
 
     return {
         "total_items": total_items,
-        "total_spend_gbp": round(total_spend_gbp, 4),
+        "total_spend_gbp": round(total_spend_gbp, 5),
+        "unpriced_calls": unpriced_calls,
         "avg_cost_gbp": round(avg_cost, 4),
         "total_value_gbp": round(total_value, 2),
         "potential_profit_gbp": round(potential_profit, 2),
@@ -1065,6 +1090,12 @@ def tracker_refresh(folder):
 def api_review_queue():
     """GET /api/listings/review-queue — folders with review_needed = 1, most recent first."""
     return jsonify(item_store.get_items_needing_review())
+
+
+@app.get("/api/model-calls")
+def api_model_calls():
+    from app.services import model_usage
+    return jsonify(list(reversed(model_usage.read_events()))[:200])
 
 
 @app.get("/api/run-logs/summary")

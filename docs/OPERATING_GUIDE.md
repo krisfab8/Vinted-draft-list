@@ -23,8 +23,8 @@ Target users: Kristian first, then a small UK clothing-reseller beta. Target eco
 
 - Reviewed base: `c160b70afa60176d15357922232f0bc22c8b0602` (26 April 2026).
 - Existing baseline suite: 760 passing tests during the review.
-- Current working branch: `work/vinted-revival-plan`.
-- Added opt-in OpenAI image extraction and listing writing. Defaults remain Haiku for local users; hosted configuration selects GPT-6 Luna for both stages.
+- Original hosted branch: `work/vinted-revival-plan`. Cost/measurement development is isolated on `work/vinted-cost-measurements`; see `COST_MEASUREMENT_IMPLEMENTATION.md` for checkpoints, tests and limitations.
+- Added opt-in OpenAI image extraction and listing writing. Defaults remain Haiku for local users; current hosted configuration selects Claude Haiku for both stages.
 - Added private, password-protected single-operator hosting entry point, durable-storage bootstrap and Render blueprint.
 - Vinted browser actions are blocked in this hosted test. Continue those in the local app until a real remote session architecture exists.
 - Model calls are mocked in automated checks. No claim of real Luna OCR performance, sub-penny cost, successful deployment or live Vinted/eBay integration follows from those checks.

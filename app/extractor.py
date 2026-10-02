@@ -1,4 +1,3 @@
-from app.services import model_usage
 """
 Vision extraction: analyse clothing photos and return structured item data.
 
@@ -6,6 +5,8 @@ Supports VISION_PROVIDER:
   - claude-haiku  (default) — Anthropic Claude Haiku 4.5
   - gemini-flash             — Google Gemini Flash (requires GOOGLE_AI_API_KEY)
 """
+from app.services import model_usage
+
 import base64
 import io
 import json
