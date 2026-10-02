@@ -39,7 +39,7 @@ wait.
 
 ## Verification and limits
 
-790 Python tests pass. Node checks cover resize dimensions, encoding contract,
+792 Python tests pass (12.80 s after image-processing optimizations). Node checks cover resize dimensions, encoding contract,
 resource cleanup, actual upload progress, error response and timeout behavior;
 existing measurement UI checks pass. Browser canvas/EXIF behavior on the actual
 phone still requires phone verification; these are simulated browser API checks.
@@ -65,3 +65,17 @@ carried authoritatively to the listing, with unknown labels marked low; the
 writer cannot replace these with numeric scores. Regression coverage includes
 invalid generated brand/material/tag-keyword confidence types. No success or
 latency claim is made for this failed test.
+
+The first retest's measured server time was 32.869 s: receive 0.616 s,
+image preparation 5.999 s, pipeline 26.254 s. Provider calls inside that
+pipeline totaled 11.648 s, exposing substantial local image-processing cost
+on the free instance. Further fixes replace a Python per-pixel count with an
+equivalent Pillow histogram count, and avoid redundant server JPEG encoding
+for already prepared images after format, size and metadata verification.
+Raw/oversized/metadata-bearing uploads still undergo normal preparation.
+
+Label cropping also computes the maximum-filter bounding box directly, avoiding
+a full-image 5x5 filter whose pixels were never otherwise used. Seeded masks
+cover empty, sparse, edge-touching and small images and compare exactly with
+Pillow's original maximum-filter bounds. Crop confidence uses the same source
+mask and histogram; no OCR threshold or image resolution is relaxed.

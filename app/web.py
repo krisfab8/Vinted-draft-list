@@ -283,16 +283,23 @@ _UPLOAD_MAX_DIM = 2048   # px — phone photos are typically 4000+ px wide
 _UPLOAD_MAX_BYTES = 8 * 1024 * 1024   # 8 MB — Vinted rejects anything ≥ 9 MB
 
 
-def _resize_photo(path: Path) -> Path:
+def _resize_photo(path: Path, *, prepared: bool = False) -> Path:
     """Resize a photo to ≤ _UPLOAD_MAX_DIM px and ≤ _UPLOAD_MAX_BYTES in-place.
 
-    Always normalises to JPEG with progressive encoding and EXIF stripping.
+    Normalises to JPEG and strips EXIF; verified prepared JPEGs pass through.
     Returns the (possibly renamed) path.
     """
     try:
         from PIL import Image, ImageOps
         orig_bytes = path.stat().st_size
-        img = ImageOps.exif_transpose(Image.open(path)).convert("RGB")
+        with Image.open(path) as source:
+            safe_info = {"jfif", "jfif_version", "jfif_unit", "jfif_density", "progressive", "progression"}
+            if (prepared and source.format == "JPEG" and source.mode == "RGB"
+                    and max(source.size) <= _UPLOAD_MAX_DIM and orig_bytes <= _UPLOAD_MAX_BYTES
+                    and not source.getexif() and set(source.info) <= safe_info):
+                source.verify()
+                return path  # Already prepared; avoid a second encode and CPU/quality cost.
+            img = ImageOps.exif_transpose(source).convert("RGB")
         w, h = img.size
         needs_resize = max(w, h) > _UPLOAD_MAX_DIM or orig_bytes > _UPLOAD_MAX_BYTES
         if needs_resize:
@@ -376,7 +383,7 @@ def upload_listing():
             continue
         temp_dest = item_path / f"_temp_{i:02d}{ext}"
         f.save(temp_dest)
-        temp_dest = _resize_photo(temp_dest)
+        temp_dest = _resize_photo(temp_dest, prepared=request.form.get("prepared_photos") == "1")
         temp_paths.append(temp_dest)
 
     if not temp_paths:

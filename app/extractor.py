@@ -321,6 +321,16 @@ _AUTOCROP_PAD_FRACTION  = 0.05  # padding around detected region as fraction of 
 _OCR_ROLES: frozenset[str] = frozenset({"brand", "model_size", "material"})
 
 
+def _label_mask_bbox(mask):
+    """Bounding box of a 5x5 maximum-filter mask without filtering every pixel."""
+    bbox = mask.getbbox()
+    if bbox is None:
+        return None
+    x1, y1, x2, y2 = bbox
+    w, h = mask.size
+    return max(0, x1 - 2), max(0, y1 - 2), min(w, x2 + 2), min(h, y2 + 2)
+
+
 def _autocrop_label(img: "Image.Image") -> tuple["Image.Image", dict]:
     """Detect and crop to the label/text region in a close-up label photo.
 
@@ -340,7 +350,7 @@ def _autocrop_label(img: "Image.Image") -> tuple["Image.Image", dict]:
       crop_confidence : float 0–1
       fallback_used   : bool
     """
-    from PIL import Image, ImageFilter
+    from PIL import Image
 
     w, h = img.size
 
@@ -368,9 +378,9 @@ def _autocrop_label(img: "Image.Image") -> tuple["Image.Image", dict]:
     table = [255 if abs(v - bg_val) > _AUTOCROP_TOLERANCE else 0 for v in range(256)]
     mask = grey.point(table, "L")
 
-    # Dilate (5×5 max filter = 2px radius) to merge nearby characters
-    mask_dilated = mask.filter(ImageFilter.MaxFilter(5))
-    bbox = mask_dilated.getbbox()
+    # Only the dilation's bounds are used, so expand the foreground bbox instead
+    # of performing an expensive 5x5 maximum filter on every image pixel.
+    bbox = _label_mask_bbox(mask)
     if not bbox:
         return _no_crop(0.0)
 
@@ -380,7 +390,7 @@ def _autocrop_label(img: "Image.Image") -> tuple["Image.Image", dict]:
         return _no_crop(0.0)
 
     # Confidence = fraction of (undilated) bbox that is genuinely foreground
-    fg_count = sum(1 for v in mask.crop((x1, y1, x2, y2)).tobytes() if v > 0)
+    fg_count = sum(mask.crop((x1, y1, x2, y2)).histogram()[1:])
     confidence = fg_count / bbox_area
 
     if confidence < _AUTOCROP_CONFIDENCE_MIN:

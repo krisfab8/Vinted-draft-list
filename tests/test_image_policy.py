@@ -525,3 +525,28 @@ class TestVintedGuard:
         check.write_bytes(captured_data[0])
         assert not _jpeg_has_exif(check), \
             "EXIF must be stripped from the vinted_guard compressed file"
+
+
+def test_prepared_photo_avoids_reencoding_but_still_strips_metadata(tmp_path):
+    from app.web import _resize_photo
+    clean=_make_jpg(tmp_path / "prepared.jpg", 800, 600)
+    original=clean.read_bytes()
+    assert _resize_photo(clean,prepared=True).read_bytes()==original
+    tagged=_make_jpg_with_exif(tmp_path / "tagged.jpg", 800, 600)
+    assert _jpeg_has_exif(tagged)
+    assert not _jpeg_has_exif(_resize_photo(tagged,prepared=True))
+    large=_make_jpg(tmp_path / "large_prepared.jpg", 4000, 3000)
+    assert max(Image.open(_resize_photo(large,prepared=True)).size)<=2048
+
+
+def test_fast_mask_bounds_match_full_maximum_filter():
+    import random
+    from PIL import ImageFilter
+    from app.extractor import _label_mask_bbox
+    rng=random.Random(42)
+    for width,height in [(1,1),(4,7),(32,45),(127,80)]:
+        for count in [0,1,4,20,100]:
+            mask=Image.new('L',(width,height))
+            for _ in range(count):
+                mask.putpixel((rng.randrange(width),rng.randrange(height)),255)
+            assert _label_mask_bbox(mask)==mask.filter(ImageFilter.MaxFilter(5)).getbbox()

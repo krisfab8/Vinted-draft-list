@@ -1614,6 +1614,7 @@
         form.append("photos", await prepareUploadPhoto(uploadPhotos[i]));
       }
       form.append("photo_roles", JSON.stringify(roles));
+      form.append("prepared_photos", "1");
       const bp = document.getElementById("buyPrice").value.trim();
       if (bp) form.append("buy_price", bp);
 
