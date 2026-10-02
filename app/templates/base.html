@@ -289,6 +289,11 @@
   {% block head %}{% endblock %}
 </head>
 <body>
+{% if hosted_test %}
+<div style="padding:12px 16px;background:#142d3f;color:white;font-size:14px;text-align:center" role="status">
+  Private OCR test · {{ hosted_vision_model }} · Vinted drafting uses the local app.
+</div>
+{% endif %}
   <header>
     <a href="/" class="logo">
       <div class="logo-mark">

@@ -907,19 +907,28 @@ def extract(item_folder: str | Path, hints: dict | None = None) -> dict:
     prompt = _build_prompt_with_hints(hints or {})
 
     _escalated = False
-    if VISION_PROVIDER == "gemini-flash":
+    if VISION_PROVIDER == "openai":
+        from app.config import OPENAI_VISION_MODEL
+        from app.services.openai_provider import generate
+        response = generate(prompt, OPENAI_VISION_MODEL, 2048, images=photos)
+        result = _safe_json_loads(response.content[0].text)
+        usage = {"input_tokens": response.usage.input_tokens,
+                 "output_tokens": response.usage.output_tokens, "model": OPENAI_VISION_MODEL}
+    elif VISION_PROVIDER == "gemini-flash":
         if not GOOGLE_AI_API_KEY:
             raise EnvironmentError("GOOGLE_AI_API_KEY required for gemini-flash provider")
         result = _extract_gemini(photos, prompt)
         usage = {"input_tokens": 0, "output_tokens": 0, "model": "gemini-flash"}
-    else:
+    elif VISION_PROVIDER == "claude-haiku":
         result, usage = _extract_claude(photos, HAIKU_MODEL, prompt)
+    else:
+        raise ValueError(f"Unsupported VISION_PROVIDER: {VISION_PROVIDER}")
 
     # Escalate to Sonnet only if confidence is low AND it's not just the brand field
     # (brand uncertainty is handled cheaply by _reread_brand_photo instead)
     confidence = result.get("confidence", 1.0)
     non_brand_uncertain = [f for f in result.get("low_confidence_fields", []) if f != "brand"]
-    if confidence < CONFIDENCE_THRESHOLD and non_brand_uncertain and VISION_PROVIDER != "gemini-flash":
+    if confidence < CONFIDENCE_THRESHOLD and non_brand_uncertain and VISION_PROVIDER == "claude-haiku":
         print(f"Low confidence ({confidence:.2f}) on {non_brand_uncertain}, escalating to {SONNET_MODEL}")
         result, usage = _extract_claude(photos, SONNET_MODEL, prompt)
         _escalated = True
@@ -936,10 +945,10 @@ def extract(item_folder: str | Path, hints: dict | None = None) -> dict:
     # If both brand and material rereads are needed, run them concurrently.
     # Each reread is isolated — failure of one never fails the other.
     # -----------------------------------------------------------------------
-    _do_brand_reread    = VISION_PROVIDER != "gemini-flash" and _should_reread_brand(result)
-    _do_material_full   = VISION_PROVIDER != "gemini-flash" and _should_reread_material(result)
+    _do_brand_reread    = VISION_PROVIDER == "claude-haiku" and _should_reread_brand(result)
+    _do_material_full   = VISION_PROVIDER == "claude-haiku" and _should_reread_material(result)
     _do_material_mill   = (
-        VISION_PROVIDER != "gemini-flash"
+        VISION_PROVIDER == "claude-haiku"
         and not _do_material_full
         and not result.get("fabric_mill")
     )
