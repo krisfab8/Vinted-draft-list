@@ -1,0 +1,29 @@
+services:
+  - type: web
+    name: vinted-private-test
+    runtime: docker
+    plan: starter
+    branch: work/vinted-revival-plan
+    autoDeploy: false
+    healthCheckPath: /health
+    disk:
+      name: vinted-test-data
+      mountPath: /var/data
+      sizeGB: 1
+    envVars:
+      - key: APP_USERNAME
+        value: kristian
+      - key: APP_PASSWORD
+        generateValue: true
+      - key: APP_STORAGE_PATH
+        value: /var/data/vinted
+      - key: VISION_PROVIDER
+        value: openai
+      - key: LISTING_PROVIDER
+        value: openai
+      - key: OPENAI_VISION_MODEL
+        value: gpt-6-luna
+      - key: OPENAI_LISTING_MODEL
+        value: gpt-6-luna
+      - key: OPENAI_API_KEY
+        sync: false

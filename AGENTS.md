@@ -1,5 +1,14 @@
 # Vinted App AI Working Context
 
+## Revival workflow (October 2026)
+
+Before starting a new task, read `docs/OPERATING_GUIDE.md` and
+`docs/TASK_TRACKER.md`. Keep task IDs/status/evidence current after changes.
+The expansion direction lives in `docs/CROSS_PLATFORM_ROADMAP.md`; hosted test
+capabilities and setup live in `docs/PRIVATE_TEST_DEPLOYMENT.md`.
+Distinguish implemented locally, tested with mocks and verified live. Do not
+infer deployment, paid OCR accuracy or marketplace publication from unit tests.
+
 This file is intended to be placed in the root of the Vinted app repo, ideally as `AGENTS.md` or `docs/AI_WORKING_CONTEXT.md`.
 
 Use it when asking Codex, Claude Code, or ChatGPT to audit, improve, or redesign the Vinted draft listing app.

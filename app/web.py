@@ -62,8 +62,10 @@ def handle_unhandled_exception(e):
 
 # Pricing (USD per million tokens)
 _PRICES = {
-    "haiku":  {"in": 0.80, "out": 4.00},
+    "haiku":  {"in": 1.00, "out": 5.00},
     "sonnet": {"in": 3.00, "out": 15.00},
+    "gpt-6-luna": {"in": 0.10, "out": 0.50},
+    "gpt-6.1-sol": {"in": 2.00, "out": 10.00},
 }
 _USD_TO_GBP = 0.79
 
@@ -71,6 +73,8 @@ COST_LOG = ROOT / "cost_log.csv"
 
 
 def _model_key(model: str) -> str:
+    if model in {"gpt-6-luna", "gpt-6.1-sol"}:
+        return model
     return "sonnet" if "sonnet" in model.lower() else "haiku"
 
 
@@ -384,9 +388,6 @@ def upload_listing():
             item_path, hints, buy_price_gbp=buy_price_gbp, pricing_mode=pricing_mode
         )
 
-        out_path = item_path / "listing.json"
-        out_path.write_text(json.dumps(listing, indent=2))
-
         # upload adds cost fields to the listing (not present in create-listing response)
         cost_usd = _calc_cost_usd(extract_usage) + _calc_cost_usd(write_usage)
         cost_gbp = cost_usd * _USD_TO_GBP
@@ -395,6 +396,9 @@ def upload_listing():
             "input":  extract_usage["input_tokens"] + write_usage["input_tokens"],
             "output": extract_usage["output_tokens"] + write_usage["output_tokens"],
         }
+
+        out_path = item_path / "listing.json"
+        out_path.write_text(json.dumps(listing, indent=2))
 
         listing["folder"] = folder_name
         _log_cost(folder_name, extract_usage, write_usage, listing)

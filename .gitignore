@@ -49,6 +49,8 @@ data/run_logs.jsonl
 data/corrections.jsonl
 data/items.db
 data/alias_memory.json
+data/user_profile.json
+items/*/*.webp
 
 # Debug / capture artifacts
 debug_screenshots/

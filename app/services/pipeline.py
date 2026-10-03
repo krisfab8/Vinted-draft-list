@@ -37,6 +37,9 @@ def run_pipeline(
     write_log = write_usage.pop("_write_log", {})
 
     pricing.apply_pricing(listing, pricing_mode=pricing_mode)
+    listing["analysis_models"] = {
+        "vision": extract_usage.get("model"), "listing": write_usage.get("model"),
+    }
 
     return listing, extract_usage, write_usage, extract_log, write_log
 

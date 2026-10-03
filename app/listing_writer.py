@@ -13,6 +13,7 @@ import anthropic
 
 from app.config import ANTHROPIC_API_KEY, ENABLE_CATEGORY_ITEM_TYPE_SLICE, ENABLE_PRICE_MEMORY, HAIKU_MODEL, PROMPTS_DIR
 from app.validate_listing import validate_or_raise
+from app.config import LISTING_PROVIDER, OPENAI_LISTING_MODEL
 
 # EU/Italian → UK chest size (subtract 10). Used for suits, blazers, tailoring.
 _EU_TO_UK: dict[int, int] = {eu: eu - 10 for eu in range(40, 70, 2)}
@@ -925,15 +926,20 @@ def write(item: dict, hints: dict | None = None) -> tuple[dict, dict]:
     import time
     _t_write_start = time.perf_counter()
 
-    client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
     prompt = _build_prompt(item, hints=hints)
-
-    response = client.messages.create(
-        model=HAIKU_MODEL,
-        max_tokens=2500,
-        system=_SYSTEM,
-        messages=[{"role": "user", "content": prompt}],
-    )
+    writer_model = HAIKU_MODEL
+    if LISTING_PROVIDER == "openai":
+        from app.services.openai_provider import generate
+        writer_model = OPENAI_LISTING_MODEL
+        response = generate(prompt, writer_model, 2500, system=_SYSTEM)
+    elif LISTING_PROVIDER == "claude-haiku":
+        client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
+        response = client.messages.create(
+            model=HAIKU_MODEL, max_tokens=2500, system=_SYSTEM,
+            messages=[{"role": "user", "content": prompt}],
+        )
+    else:
+        raise ValueError(f"Unsupported LISTING_PROVIDER: {LISTING_PROVIDER}")
 
     raw = response.content[0].text.strip()
     raw = re.sub(r"^```(?:json)?\s*|\s*```$", "", raw, flags=re.MULTILINE).strip()
@@ -1102,7 +1108,7 @@ def write(item: dict, hints: dict | None = None) -> tuple[dict, dict]:
     usage = {
         "input_tokens": response.usage.input_tokens,
         "output_tokens": response.usage.output_tokens,
-        "model": HAIKU_MODEL,
+        "model": writer_model,
         "_write_log": {
             "category_slice_level": _category_slice_level,
             "price_memory_match_level": listing["price_memory_match"],
