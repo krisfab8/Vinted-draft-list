@@ -79,7 +79,10 @@ OCR quality still require their own evidence; a deterministic synthetic OCR
 fixture is not a clothing-photo accuracy benchmark.
 
 Live deployment, recovered-item restore, missing-credential handling and
-first-write/cache-hit measurements will be recorded separately after running.
+first-write/cache-hit measurements are recorded in
+[QUALITY_MARKET_LIVE_VERIFICATION_20261003.md](QUALITY_MARKET_LIVE_VERIFICATION_20261003.md).
+Final runs: 1.52p cold / 0.97p warm; pair average 1.25p. Verified Vinted draft
+completion and a consistent sub-1p cost remain acceptance gates.
 
 ## Sources checked
 

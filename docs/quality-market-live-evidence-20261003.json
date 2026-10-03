@@ -1,0 +1,234 @@
+{
+  "earlier_runtime": "f6393383dbce40728040de63a4b7faf2b8737392",
+  "earlier_runs": [
+    {
+      "folder": "upload_444f80ba",
+      "cost_gbp": 0.01484,
+      "elapsed_seconds": 23.43,
+      "server_timing": null,
+      "brand": "Sweaty Betty",
+      "size": "S",
+      "materials": [
+        "81% Polyester",
+        "19% Elastane"
+      ],
+      "title": "Sweaty Betty Navy Joggers S",
+      "description": "Sweaty Betty joggers in navy. Lightweight polyester-elastane blend designed for comfort and movement. Made in Taiwan.\n\n- Very good condition \u2014 no major flaws noted.",
+      "calls": [
+        {
+          "billing_status": "estimated",
+          "cache_creation_input_tokens": 5698,
+          "cache_read_input_tokens": 0,
+          "cost_gbp": 0.011280015000000001,
+          "cost_usd": 0.0142785,
+          "error_type": null,
+          "id": "041b3504c30a4d28ba5ec1017006dc22",
+          "input_tokens": 4906,
+          "item": "upload_444f80ba",
+          "latency_ms": 6510,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 450,
+          "rate_version": "2026-10-02",
+          "run_id": "5165b647c7b84414b97b1af717b5cd24",
+          "stage": "extract",
+          "stop_reason": "end_turn",
+          "timestamp": "2026-10-03T07:48:17.002205+00:00",
+          "usd_to_gbp": 0.79
+        },
+        {
+          "billing_status": "estimated",
+          "cache_creation_input_tokens": 0,
+          "cache_read_input_tokens": 0,
+          "cost_gbp": 0.0035573700000000002,
+          "cost_usd": 0.004503,
+          "error_type": null,
+          "id": "0cd57352c70b4f5e9bb031b235ee357d",
+          "input_tokens": 3083,
+          "item": "upload_444f80ba",
+          "latency_ms": 3005,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 284,
+          "rate_version": "2026-10-02",
+          "run_id": "5165b647c7b84414b97b1af717b5cd24",
+          "stage": "write",
+          "stop_reason": "end_turn",
+          "timestamp": "2026-10-03T07:48:20.102648+00:00",
+          "usd_to_gbp": 0.79
+        }
+      ]
+    },
+    {
+      "folder": "upload_2f5ccc29",
+      "cost_gbp": 0.00954,
+      "elapsed_seconds": 22.93,
+      "server_timing": null,
+      "brand": "Sweaty Betty",
+      "size": "S",
+      "materials": [
+        "81% Polyester",
+        "19% Elastane"
+      ],
+      "title": "Sweaty Betty Navy Joggers Size S",
+      "description": "Navy joggers by Sweaty Betty in size S. Polyester-elastane blend with stretch comfort. Made in Taiwan.\n\n- Good used condition \u2014 normal signs of wear.",
+      "calls": [
+        {
+          "billing_status": "estimated",
+          "cache_creation_input_tokens": 0,
+          "cache_read_input_tokens": 5698,
+          "cost_gbp": 0.006067832,
+          "cost_usd": 0.0076808,
+          "error_type": null,
+          "id": "5b76808bf82a41019e7581c2e0311e79",
+          "input_tokens": 4906,
+          "item": "upload_2f5ccc29",
+          "latency_ms": 5759,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 441,
+          "rate_version": "2026-10-02",
+          "run_id": "748a8c3ac54d4a608c9749df37e11c07",
+          "stage": "extract",
+          "stop_reason": "end_turn",
+          "timestamp": "2026-10-03T07:48:40.156834+00:00",
+          "usd_to_gbp": 0.79
+        },
+        {
+          "billing_status": "estimated",
+          "cache_creation_input_tokens": 0,
+          "cache_read_input_tokens": 0,
+          "cost_gbp": 0.0034752100000000003,
+          "cost_usd": 0.004399,
+          "error_type": null,
+          "id": "5a87674e1dc0413880326b30ce3a5ae4",
+          "input_tokens": 3074,
+          "item": "upload_2f5ccc29",
+          "latency_ms": 2915,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 265,
+          "rate_version": "2026-10-02",
+          "run_id": "748a8c3ac54d4a608c9749df37e11c07",
+          "stage": "write",
+          "stop_reason": "end_turn",
+          "timestamp": "2026-10-03T07:48:43.077922+00:00",
+          "usd_to_gbp": 0.79
+        }
+      ]
+    }
+  ],
+  "final_runtime": "d217b312227a4bfde0bbf1014eae6bf5de49ef62",
+  "final_runs": [
+    {
+      "folder": "upload_56771b8d",
+      "cost_gbp": 0.0152,
+      "elapsed_seconds": 21.4,
+      "server_timing": "receive;dur=1085.5, prepare;dur=54.3, total;dur=15277.4, pipeline;dur=14137.5",
+      "brand": "Sweaty Betty",
+      "size": "S",
+      "materials": [
+        "81% Polyester",
+        "19% Elastane"
+      ],
+      "title": "Sweaty Betty Leggings Navy S",
+      "description": "Sweaty Betty leggings in navy, size S. Stretchy performance fabric for active wear.\n\n\u2022 Size: S\n\u2022 Material: 81% polyester, 19% elastane\n\u2022 Made in Taiwan\n\n- Very good condition \u2014 no major flaws noted.",
+      "calls": [
+        {
+          "billing_status": "estimated",
+          "cache_creation_input_tokens": 5698,
+          "cache_read_input_tokens": 0,
+          "cost_gbp": 0.011430115000000001,
+          "cost_usd": 0.0144685,
+          "error_type": null,
+          "id": "ff4b6981d9344db7b83437caeb25930e",
+          "input_tokens": 4906,
+          "item": "upload_56771b8d",
+          "latency_ms": 6794,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 488,
+          "rate_version": "2026-10-02",
+          "run_id": "98d45bc3feb64854a2514a706857a599",
+          "stage": "extract",
+          "stop_reason": "end_turn",
+          "timestamp": "2026-10-03T07:59:12.016951+00:00",
+          "usd_to_gbp": 0.79
+        },
+        {
+          "billing_status": "estimated",
+          "cache_creation_input_tokens": 0,
+          "cache_read_input_tokens": 0,
+          "cost_gbp": 0.0037659300000000007,
+          "cost_usd": 0.004767,
+          "error_type": null,
+          "id": "3bf75414828a4800b5d18fe14a3282c6",
+          "input_tokens": 3147,
+          "item": "upload_56771b8d",
+          "latency_ms": 3111,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 324,
+          "rate_version": "2026-10-02",
+          "run_id": "98d45bc3feb64854a2514a706857a599",
+          "stage": "write",
+          "stop_reason": "end_turn",
+          "timestamp": "2026-10-03T07:59:15.142938+00:00",
+          "usd_to_gbp": 0.79
+        }
+      ]
+    },
+    {
+      "folder": "upload_436104d2",
+      "cost_gbp": 0.00973,
+      "elapsed_seconds": 23.62,
+      "server_timing": "receive;dur=816.7, prepare;dur=13.2, total;dur=12940.3, pipeline;dur=12110.4",
+      "brand": "Sweaty Betty",
+      "size": "S",
+      "materials": [
+        "81% Polyester",
+        "19% Elastane"
+      ],
+      "title": "Sweaty Betty Navy Joggers S",
+      "description": "Sweaty Betty navy joggers in size S. Comfortable elasticated design ideal for activewear.\n\n\u2022 Size: S\n\u2022 Material: 81% Polyester, 19% Elastane\n\u2022 Made in Taiwan\n\n- Good used condition \u2014 normal signs of wear.",
+      "calls": [
+        {
+          "billing_status": "estimated",
+          "cache_creation_input_tokens": 0,
+          "cache_read_input_tokens": 5698,
+          "cost_gbp": 0.006087582,
+          "cost_usd": 0.0077058000000000005,
+          "error_type": null,
+          "id": "6daa8132062241348766d7dbc3033a0c",
+          "input_tokens": 4906,
+          "item": "upload_436104d2",
+          "latency_ms": 5690,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 446,
+          "rate_version": "2026-10-02",
+          "run_id": "d581c3e7bf81487995b73c317c1a8684",
+          "stage": "extract",
+          "stop_reason": "end_turn",
+          "timestamp": "2026-10-03T07:59:36.108291+00:00",
+          "usd_to_gbp": 0.79
+        },
+        {
+          "billing_status": "estimated",
+          "cache_creation_input_tokens": 0,
+          "cache_read_input_tokens": 0,
+          "cost_gbp": 0.0036450600000000003,
+          "cost_usd": 0.004614,
+          "error_type": null,
+          "id": "4f951ef5abae49ac85f7f235d45f270f",
+          "input_tokens": 3114,
+          "item": "upload_436104d2",
+          "latency_ms": 2649,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 300,
+          "rate_version": "2026-10-02",
+          "run_id": "d581c3e7bf81487995b73c317c1a8684",
+          "stage": "write",
+          "stop_reason": "end_turn",
+          "timestamp": "2026-10-03T07:59:38.762912+00:00",
+          "usd_to_gbp": 0.79
+        }
+      ]
+    }
+  ],
+  "synthetic_fixture": true,
+  "verified_vinted_draft": false
+}
