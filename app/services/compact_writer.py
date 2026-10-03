@@ -4,6 +4,8 @@ from app.config import PROMPTS_DIR, SCHEMA_PATH
 
 
 def build_prompt(item, hints, categories):
+    from app.services.copy_quality import writer_evidence
+    item = writer_evidence(item)
     data = {k:v for k,v in item.items() if not k.startswith('_') and k != 'measurement_proposals'}
     if hints:
         data['seller_confirmed'] = hints
@@ -18,8 +20,10 @@ Tailoring: preserve tagged EU/UK evidence; the app handles conversion. Do not co
 Use specific garment type: collared short-placket polo is a polo, not a jumper.
 Retain fabric mill/line and clearly read tag keywords. Do not put uncertain keywords in title.
 Rank premium natural fibres first; keep every distinct composition entry, including lining.
-Description: concise opening, size/material/origin/model bullets where known; honest condition,
-visible flaws; no unsupported designer/rare claims. Finish with relevant Keywords sentence.
+Description: concise opening and size/material/origin/model bullets where known.
+Do not put condition or flaws in description: the app adds one condition line.
+Keep visible flaws in flaws_note and condition_summary. Never infer storage/history.
+Exclude low-confidence pattern, secondary colour, model and tag claims from buyer-facing copy; no unsupported designer/rare claims. Finish with relevant Keywords sentence.
 Use plain natural English and useful buyer details; no hype, repetitive tags or invented facts.
 Return brand, item_type, title, description, tagged_size, normalized_size, materials, colour,
 gender, price_gbp, category, condition_summary, flaws_note, made_in, fabric_mill, fabric_line,

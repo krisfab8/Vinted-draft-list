@@ -1128,6 +1128,8 @@ def write(item: dict, hints: dict | None = None) -> tuple[dict, dict]:
     # Deterministic condition post-processing (after schema validation so
     # condition_line is not subject to schema constraints)
     from app.services import condition as _cond_svc
+    from app.services import copy_quality
+    copy_quality.apply(listing, item)
     _cond_svc.apply_condition(listing)
     _cond_svc.inject_condition_line(listing)
 

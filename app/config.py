@@ -57,3 +57,5 @@ ENABLE_EBAY_COMPS = os.getenv("ENABLE_EBAY_COMPS", "1") == "1"
 
 # Rollback switch: 0 restores the previous full writer prompt.
 ENABLE_COMPACT_WRITER = os.getenv("ENABLE_COMPACT_WRITER", "1") == "1"
+
+ENABLE_PROMPT_CACHE = os.getenv("ENABLE_PROMPT_CACHE", "1") == "1"

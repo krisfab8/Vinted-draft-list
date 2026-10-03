@@ -6,7 +6,10 @@ Priority order: private usable test → reliable state/costs → labeled model e
 
 ## Next action
 
-**Run a separately configured phone/model comparison of `work/vinted-cost-measurements` after preserving the current temporary-storage item/photos.** Cost, compact-writing, explicit-role and measurement-confirmation behavior now has automated coverage; paid copy/OCR quality, actual savings and ruler calibration remain unverified. Read `docs/COST_MEASUREMENT_IMPLEMENTATION.md` for checkpoints and rollback.
+**Verify the quality/cache/eBay branch on the phone, configure eBay developer
+credentials, and establish durable storage plus verified Vinted draft saving.**
+Read `QUALITY_COST_AND_EBAY_20261003.md` for the implemented scope, cost target,
+storage incident and remaining end-to-end draft gates.
 
 ## Foundation and testing
 
@@ -116,3 +119,5 @@ Keep IDs stable. Do not rename an open task to hide scope. Split partial work in
 - LAT-01 follow-up: first paid retest exposed a numeric tag-keyword confidence label and measured 32.869 s server total (0.616 s receive, 5.999 s preparation, 26.254 s pipeline; 11.648 s provider calls). Confidence labels now come from extraction. Verified prepared JPEGs skip redundant server encoding; equivalent histogram and bounding-box operations replace slow pixel loops/full-image filtering. 792 tests pass in 12.80 s; Node upload/measurement checks pass. Second live verification pending.
 
 - VAL-01 / LAT-01 second retest: preparation fell to 0.530 s and server total to 19.227 s, but the model returned capitalized gender. Exact minified schema added to compact prompt; harmless gender formatting canonicalized and unknown optional non-nullable fields omitted. Required invalid data still fail rather than being invented. 793 tests pass in 13.09 s; final real success verification pending.
+
+- 3 October: COPY-01 confidence-aware copy/condition deduplication and COST-06 exact-prefix Haiku caching implemented; PRICE-04 matched cached asking-price summaries, links and seller-entered sold research implemented locally. No automatic sold-data or Vinted draft save claimed. Private backup/export/restore added after confirmed free-host item loss; morning listing/accounting recovered, photos explicitly missing. 800 Python tests and three Node UI checks pass. Details and pending live evidence: `QUALITY_COST_AND_EBAY_20261003.md`.

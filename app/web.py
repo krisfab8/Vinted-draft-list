@@ -1067,11 +1067,60 @@ def fetch_ebay_comps(folder):
             "ebay_suggested_range", "ebay_vinted_range",
             "ebay_comps_count", "ebay_comps_titles",
             "ebay_comps_query", "ebay_comps_note",
-            "ebay_comps_fetched_at", "ebay_comps_skipped",
+            "ebay_comps_fetched_at", "ebay_comps_skipped", "ebay_market", "ebay_links", "ebay_comps_cache_hit",
         ) if k in listing}
         return jsonify(summary), 200
     except Exception:
         return jsonify({"error": traceback.format_exc()}), 500
+
+
+@app.get("/api/private/backup")
+def export_private_backup():
+    if not app.config.get("HOSTED_TEST"):
+        return jsonify(error="Private hosted backup only"), 503
+    from app.services import item_backup
+    try:
+        data=item_backup.export(ITEMS_DIR)
+    except (ValueError,OSError):
+        return jsonify(error="Could not export backup."),422
+    return app.response_class(data,mimetype="application/zip",headers={
+        "Content-Disposition":"attachment; filename=Vinted-Listings-Backup.zip"})
+
+
+@app.post("/api/private/restore-backup")
+def restore_private_backup():
+    if not app.config.get("HOSTED_TEST"):
+        return jsonify(error="Private hosted restore only"), 503
+    from app.services import item_backup
+    try:
+        folders = item_backup.restore(request.get_data(), ITEMS_DIR)
+        for folder in folders:
+            listing=json.loads((ITEMS_DIR/folder/"listing.json").read_text())
+            _sync_item_status(folder,listing)
+        return jsonify(restored=folders)
+    except (ValueError, OSError, __import__('zipfile').BadZipFile):
+        return jsonify(error="Invalid backup or item already exists; no seller edits overwritten."), 422
+
+
+@app.post("/api/listing/<folder>/ebay-research")
+def save_ebay_research(folder):
+    from app.services.ebay_comps import research_metrics
+    path = ITEMS_DIR / Path(folder).name / "listing.json"
+    if not path.exists():
+        return jsonify(error="Listing not found"), 404
+    body = request.get_json(silent=True) or {}
+    if not isinstance(body, dict):
+        return jsonify(error="Enter a research object."),422
+    try:
+        metrics = research_metrics(body.get("active_count"), body.get("sold_count"), body.get("period_days"), body.get("mean_sold_gbp"))
+    except (ValueError, TypeError):
+        return jsonify(error="Enter whole-number active/sold counts and a period from 1 to 90 days."), 422
+    listing = json.loads(path.read_text())
+    from app.services.ebay_comps import search_links
+    metrics["query"] = search_links(listing)["query"]
+    listing["ebay_research"] = metrics
+    path.write_text(json.dumps(listing, indent=2))
+    return jsonify(metrics)
 
 
 @app.get("/tracker/status/<folder>")

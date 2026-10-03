@@ -37,6 +37,11 @@ def run_pipeline(
     listing, write_usage = listing_writer.write(item, hints=hints or None)
     write_log = write_usage.pop("_write_log", {})
 
+    from app.services.ebay_comps import search_links, EbayQueryError
+    try:
+        listing["ebay_links"] = search_links(listing)
+    except EbayQueryError:
+        pass
     listing["measurement_proposals"] = item.get("measurement_proposals", [])
     pricing.apply_pricing(listing, pricing_mode=pricing_mode)
     if extract_log.get("reread_errors"):

@@ -222,9 +222,18 @@ def inject_condition_line(listing: dict) -> None:
 
     # Strip AI condition violations
     desc = _AI_COND_LINE_RE.sub("", desc)
-    desc = _AI_NO_DAMAGE_RE.sub("", desc)
+    # Sentence-level filtering below preserves product details in mixed paragraphs.
 
-    lines = desc.splitlines()
+    # Remove condition/no-damage sentences even when the writer put them into a
+    # paragraph alongside legitimate product details. Keep unrelated sentences.
+    cleaned = []
+    for line in desc.splitlines():
+        sentences = re.split(r'(?<=[.!?])\s+', line)
+        sentences = [sentence for sentence in sentences if not re.match(
+            r'^[-•]?\s*(?:(?:Very good|Excellent|Good|Satisfactory).*?condition|No (?:holes|tears|stains|visible damage|major flaws|flaws))',
+            sentence, re.I)]
+        cleaned.append(' '.join(sentences))
+    lines = cleaned
     insert_idx: int | None = None
     for i, line in enumerate(lines):
         if _ANCHOR_RE.match(line.strip()):

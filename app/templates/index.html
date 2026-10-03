@@ -2087,6 +2087,72 @@
     } catch(error) { status.textContent = error.message; }
   }
 
+  function ebayMarketHtml(d) {
+    const market = d.ebay_market, research = d.ebay_research;
+    const links = d.ebay_links || {};
+    const note = d.ebay_comps_skipped === "no credentials"
+      ? "Automatic comparisons need eBay developer credentials in hosting settings. Research links work now."
+      : d.ebay_comps_skipped ? `Comparisons unavailable: ${d.ebay_comps_skipped}.` : "Fetch matched active asking prices, without another AI call.";
+    return `<details style="margin:18px 0;padding:16px;border:1px solid var(--gray-3);border-radius:16px">
+      <summary>eBay price and demand research</summary>
+      <p>${esc(note)}</p>
+      <button class="btn-secondary" onclick="fetchEbayMarket('${esc(d.folder)}')">Check eBay asking prices</button>
+      <div id="ebay-status" role="status"></div>
+      ${market ? `<p>Matched sample: ${esc(market.sample_count)} listings · Average £${esc(market.mean_asking_gbp)} · Median £${esc(market.median_asking_gbp)}.</p>
+        <p>${esc(market.note)} Checked ${esc(market.fetched_at)}${d.ebay_comps_cache_hit ? " · cached" : ""}.</p>
+        ${market.examples.map(item=>`<p>${safeEbayLink(item.url,item.title)} · £${esc(item.price_gbp)}${item.shipping_gbp == null ? " · postage unknown" : ` + £${esc(item.shipping_gbp)} postage`}</p>`).join("")}` : ""}
+      ${links.active ? `<p>${safeEbayLink(links.active,'Active listings')} · ${safeEbayLink(links.sold,'Sold listings')} · ${safeEbayLink(links.research,'Product Research')}</p><p>Search: ${esc(links.query)}</p>` : ""}
+      <p>Use the same exact item filters and record a sold period. Counts entered below are seller-supplied research.</p>
+      <label>Active count <input id="ebay-active" type="number" min="0" step="1" value="${research ? esc(research.active_count) : ""}"></label>
+      <label>Sold count <input id="ebay-sold" type="number" min="0" step="1" value="${research ? esc(research.sold_count) : ""}"></label>
+      <label>Period (days) <input id="ebay-days" type="number" min="1" max="90" step="1" value="${research ? esc(research.period_days) : "90"}"></label>
+      <label>Average sold price (£, optional) <input id="ebay-sold-price" type="number" min="0" step="0.01" value="${research?.mean_sold_gbp == null ? "" : esc(research.mean_sold_gbp)}"></label>
+      <button class="btn-secondary" onclick="saveEbayResearch('${esc(d.folder)}')">Save research counts</button>
+      ${research ? `<p>Sold ÷ active: ${research.sales_to_active_percent == null ? "unknown" : esc(research.sales_to_active_percent)+"%"}. Active ÷ sold: ${research.active_to_sold_ratio == null ? "unknown" : esc(research.active_to_sold_ratio)}.</p><p>${esc(research.note)}${research.mean_sold_gbp == null ? "" : ` Seller-entered average sold price: £${esc(research.mean_sold_gbp)}.`}</p>` : ""}
+    </details>`;
+  }
+
+  function safeEbayLink(url, label) {
+    try {
+      const parsed = new URL(url);
+      if (parsed.protocol !== "https:" || !/(^|\.)ebay\.co\.uk$/.test(parsed.hostname)) return esc(label);
+      return `<a href="${esc(url)}" target="_blank" rel="noopener noreferrer">${esc(label)}</a>`;
+    } catch (_) { return esc(label); }
+  }
+
+  async function refreshEbayListing(folder) {
+    const response = await fetch('/listing/'+encodeURIComponent(folder));
+    const data = await readUploadResponse(response);
+    if (!response.ok) throw new Error(data.error || 'Could not reload listing.');
+    showResult(data);
+  }
+
+  async function fetchEbayMarket(folder) {
+    const status = document.getElementById('ebay-status');
+    status.textContent = 'Checking matched eBay prices…';
+    try {
+      const response = await fetch('/api/listing/'+encodeURIComponent(folder)+'/fetch-ebay-comps',{method:'POST'});
+      const data = await readUploadResponse(response);
+      if (!response.ok) throw new Error(data.error || 'Comparison failed.');
+      await refreshEbayListing(folder);
+    } catch(error) { status.textContent = error.message; }
+  }
+
+  async function saveEbayResearch(folder) {
+    const status = document.getElementById('ebay-status');
+    try {
+      const values = ['ebay-active','ebay-sold','ebay-days'].map(id=>document.getElementById(id).value.trim());
+      if (values.some(value=>value==='')) throw new Error('Enter both counts and a period. Zero is allowed.');
+      const response = await fetch('/api/listing/'+encodeURIComponent(folder)+'/ebay-research',{
+        method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({active_count:Number(values[0]),sold_count:Number(values[1]),period_days:Number(values[2]),
+          mean_sold_gbp:document.getElementById("ebay-sold-price").value.trim()==="" ? null : Number(document.getElementById("ebay-sold-price").value)})});
+      const data = await readUploadResponse(response);
+      if (!response.ok) throw new Error(data.error || 'Could not save research.');
+      await refreshEbayListing(folder);
+    } catch(error) { status.textContent=error.message; }
+  }
+
   function showResult(d) {
     // Reset W/L draft state when a different listing is shown
     if (d.folder !== _wlDraftFolder) {
@@ -2105,6 +2171,7 @@
     const callHtml = (d.model_calls || []).length ? `<details style="font-size:12px;margin:10px 0"><summary>Model calls and estimated cost</summary>
       ${(d.model_calls || []).map(call => `<div>${esc(call.stage)} · ${esc(call.model)} · ${call.cost_gbp == null ? "unknown cost" : (call.cost_gbp * 100).toFixed(3) + "p"}</div>`).join("")}
     </details>` : "";
+    const backupHtml = `<p><a href="/api/private/backup">Download a backup of listings and photos</a></p>`;
     const chips = [];
     if (d.premium)   chips.push(`<span class="chip chip-gold">★ Premium</span>`);
     if (d.gender)    chips.push(`<span class="chip chip-default">${esc(d.gender)}</span>`);
@@ -2208,6 +2275,9 @@
           </div>
         </div>
         ${measurementHtml(d)}
+        ${ebayMarketHtml(d)}
+        ${backupHtml}
+        ${d.photos_missing ? `<p style="color:var(--red)">This recovered listing has no saved photos. The free host cleared them; re-upload the originals before drafting.</p>` : ""}
         ${costHtml}
         ${callHtml}
         ${errHtml}

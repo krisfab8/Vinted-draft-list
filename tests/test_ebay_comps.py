@@ -274,7 +274,7 @@ class TestEnrich:
                     return enrich(listing)
 
     def test_writes_comps_to_listing(self):
-        items = [_ebay_item(f"Jacket {i}", 80 + i) for i in range(5)]
+        items = [_ebay_item(f"Barbour wax jacket {i}", 80 + i) for i in range(5)]
         listing = {"brand": "Barbour", "item_type": "wax jacket", "price_gbp": 70}
         self._run_enrich(listing, items)
         assert "ebay_suggested_range" in listing
@@ -356,7 +356,7 @@ class TestEnrich:
 
     def test_vinted_range_applies_discount(self):
         # 5 items at £100 each → eBay range mid=100, Vinted = 100*0.70=70
-        items = [_ebay_item(f"J{i}", 100.0) for i in range(5)]
+        items = [_ebay_item(f"X jacket J{i}", 100.0) for i in range(5)]
         listing = {"brand": "X", "item_type": "jacket"}
         self._run_enrich(listing, items, discount=0.70)
         v = listing.get("ebay_vinted_range", {})
@@ -373,7 +373,7 @@ class TestEnrich:
         assert listing.get("ebay_comps_count", 0) < 10
 
     def test_clears_prior_skipped_on_success(self):
-        items = [_ebay_item(f"J{i}", 80.0) for i in range(5)]
+        items = [_ebay_item(f"Barbour wax jacket J{i}", 80.0) for i in range(5)]
         listing = {
             "brand": "Barbour", "item_type": "wax jacket",
             "ebay_comps_skipped": "no results",  # stale from previous attempt

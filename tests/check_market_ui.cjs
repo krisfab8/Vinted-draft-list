@@ -1,0 +1,22 @@
+const fs=require('fs'),vm=require('vm'),assert=require('assert');
+const source=fs.readFileSync('app/templates/index.html','utf8');
+for(const match of source.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/g))new vm.Script(match[1]);
+const code=source.slice(source.indexOf('  function ebayMarketHtml'),source.indexOf('  function showResult'));
+const ctx={esc:v=>String(v??'').replaceAll('<','&lt;').replaceAll('"','&quot;'),URL,encodeURIComponent};
+vm.createContext(ctx);vm.runInContext(code,ctx);
+assert(!ctx.safeEbayLink('javascript:alert(1)','test').includes('<a'));
+assert(!ctx.safeEbayLink('https://ebay.co.uk.attacker.com/','test').includes('<a'));
+assert(ctx.safeEbayLink('https://www.ebay.co.uk/itm/1','test').includes('noopener'));
+let html=ctx.ebayMarketHtml({folder:'item',ebay_comps_skipped:'no credentials'});
+assert(html.includes('developer credentials'));assert(!html.includes('Median £'));
+html=ctx.ebayMarketHtml({folder:'item',ebay_research:{active_count:0,sold_count:0,period_days:90,sales_to_active_percent:null,active_to_sold_ratio:null,note:'Demand proxy'}});
+assert(html.includes('unknown'));assert(!html.includes('null%'));
+(async()=>{
+ const fields={'ebay-active':'100','ebay-sold':'200','ebay-days':'90','ebay-sold-price':''},status={textContent:''};
+ ctx.document={getElementById:id=>id==='ebay-status'?status:{value:fields[id]}};
+ let body;ctx.fetch=async(url,options)=>{body=JSON.parse(options.body);return {ok:true}};
+ ctx.readUploadResponse=async()=>({});ctx.refreshEbayListing=async()=>{};
+ await ctx.saveEbayResearch('item');assert.strictEqual(body.sold_count,200);
+ fields['ebay-active']='';await ctx.saveEbayResearch('item');assert(status.textContent.includes('Enter both'));
+ console.log('Market UI/safe-link checks passed');
+})().catch(e=>{console.error(e);process.exit(1)});
