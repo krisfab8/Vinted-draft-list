@@ -10,6 +10,8 @@ phone test service follows the same tested commit through its deployment branch.
 - Compact writing excludes uncertain pattern, secondary colour, model and tag
   evidence; a deterministic check removes uncertain pattern claims even when
   the writer ignores the instruction. Review fields/warnings remain available.
+- Known size and high-confidence material percentages are preserved in buyer
+  copy even if the writer omits them. The supplied condition grade is retained.
 - Condition appears once in buyer-facing copy. Mixed condition/product
   paragraphs retain the product sentence. Storage causes and absolute absence
   of holes/tears/stains are not inferred in generated condition summaries.
@@ -69,7 +71,7 @@ No paid infrastructure was provisioned.
 
 ## Verification
 
-800 Python tests pass; Node checks cover upload, measurements and eBay safe
+801 Python tests pass; Node checks cover upload, measurements and eBay safe
 links/rendering/form submission; inline JavaScript syntax and whitespace
 checks pass. Provider, eBay and browser tests are mocked unless the live
 verification below states otherwise. Real market API access and original-photo

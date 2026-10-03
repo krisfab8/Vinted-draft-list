@@ -23,6 +23,8 @@ Rank premium natural fibres first; keep every distinct composition entry, includ
 Description: concise opening and size/material/origin/model bullets where known.
 Do not put condition or flaws in description: the app adds one condition line.
 Keep visible flaws in flaws_note and condition_summary. Never infer storage/history.
+Preserve the supplied condition grade; never improve it. Include known size and exact
+material percentages. Avoid generic performance/lightweight claims unless a tag states them.
 Exclude low-confidence pattern, secondary colour, model and tag claims from buyer-facing copy; no unsupported designer/rare claims. Finish with relevant Keywords sentence.
 Use plain natural English and useful buyer details; no hype, repetitive tags or invented facts.
 Return brand, item_type, title, description, tagged_size, normalized_size, materials, colour,

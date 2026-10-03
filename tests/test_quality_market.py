@@ -122,3 +122,16 @@ def test_backup_roundtrip_and_invalid_paths_never_import_auth(tmp_path,monkeypat
         with zipfile.ZipFile(bad,'w') as z:z.writestr(name,'{}')
         with pytest.raises(ValueError):item_backup.restore(bad.getvalue(),tmp_path/'bad')
     assert not (tmp_path/'bad').exists()
+
+
+def test_copy_keeps_known_size_and_exact_composition_without_upgrading_condition():
+    item={'condition_summary':'Good condition; minor creasing from storage',
+          'material_confidence':'high','pattern':'Graphic','low_confidence_fields':['pattern']}
+    listing={'title':'Leggings','description':'Navy leggings.', 'normalized_size':'S',
+             'materials':['81% Polyester','19% Elastane'],'condition_summary':'Excellent condition','style':'Graphic'}
+    copy_quality.apply(listing,item)
+    assert '- Size: S' in listing['description'] and '81% Polyester, 19% Elastane' in listing['description']
+    assert listing['condition_summary'].startswith('Good condition') and 'storage' not in listing['condition_summary']
+    assert listing['style'] is None
+    original=listing['description'];copy_quality.apply(listing,item)
+    assert listing['description']==original

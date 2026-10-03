@@ -27,8 +27,20 @@ def apply(listing, item):
             text = re.sub(r' +([.,])', r'\1', text)
             listing[field] = text.strip()
         listing['pattern'] = None
-    summary = listing.get('condition_summary') or ''
+    if 'pattern' in uncertain and listing.get('style') == item.get('pattern'):
+        listing['style'] = None
+    summary = item.get('condition_summary') or listing.get('condition_summary') or ''
     summary = re.sub(r'\s+(?:from|due to) storage\b', '', summary, flags=re.I)
     summary = re.sub(r';?\s*no (?:holes|tears|stains)[^.;]*(?:[.;]|$)', '', summary, flags=re.I)
     listing['condition_summary'] = summary.strip(' ;')
+    desc = listing.get('description') or ''
+    additions = []
+    size = listing.get('normalized_size') or listing.get('tagged_size')
+    if size and not re.search(r'\bsize\s*:?[ \t]*'+re.escape(str(size))+r'(?![a-z0-9])',desc,re.I):
+        additions.append('- Size: '+str(size))
+    materials = listing.get('materials') or []
+    if item.get('material_confidence') == 'high' and materials and not all(str(value).lower() in desc.lower() for value in materials):
+        additions.append('- Material: '+', '.join(materials))
+    if additions:
+        listing['description'] = desc.rstrip()+'\n\n'+'\n'.join(additions)
     return listing
