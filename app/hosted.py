@@ -40,8 +40,8 @@ def provider_status(provider):
 def create_app():
     username = os.getenv("APP_USERNAME", "kristian")
     password = os.getenv("APP_PASSWORD", "")
-    if len(password) < 24:
-        raise RuntimeError("Hosted test requires APP_PASSWORD of at least 24 characters")
+    if len(password) < 6:
+        raise RuntimeError("Hosted test requires APP_PASSWORD of at least 6 characters")
     app.config["HOSTED_TEST"] = True
 
     @app.get("/api/provider-status")

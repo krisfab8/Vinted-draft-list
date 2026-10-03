@@ -84,3 +84,28 @@ assert config.GOOGLE_AI_API_KEY == "dummy-google"
 '''
     result = subprocess.run([sys.executable, '-c', script], env=env, capture_output=True, text=True, timeout=30)
     assert result.returncode == 0, result.stdout + result.stderr
+
+
+def test_hosted_six_character_password_and_rejection():
+    script = r'''
+import base64, os
+from app.hosted import create_app
+for password in ('', 'short'):
+    os.environ['APP_PASSWORD'] = password
+    try:
+        create_app()
+    except RuntimeError:
+        pass
+    else:
+        raise AssertionError('Missing or undersized password accepted')
+os.environ['APP_PASSWORD'] = 'sample'
+c = create_app().test_client()
+def auth(password):
+    return {'Authorization': 'Basic '+base64.b64encode(('kristian:'+password).encode()).decode()}
+assert c.get('/').status_code == 401
+assert c.get('/', headers=auth('wrong!')).status_code == 401
+assert c.get('/', headers=auth('sample')).status_code == 200
+'''
+    env = {**os.environ, 'APP_USERNAME': 'kristian'}
+    result = subprocess.run([sys.executable, '-c', script], env=env, capture_output=True, text=True, timeout=30)
+    assert result.returncode == 0, result.stdout + result.stderr

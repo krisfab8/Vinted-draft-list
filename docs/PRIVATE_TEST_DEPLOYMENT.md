@@ -4,7 +4,7 @@ Updated 2 October 2026. Target: existing Flask app, privately accessible from a 
 
 ## Included
 
-- `app.hosted:create_app()` requires a randomly generated password of at least 24 characters. Access uses browser HTTP Basic authentication over the hosting provider's HTTPS endpoint.
+- `app.hosted:create_app()` requires a configured password of at least 6 characters (a long random password remains recommended). Access uses browser HTTP Basic authentication over the hosting provider's HTTPS endpoint.
 - All app pages/data/actions require that password except `GET /health`, which reports only health.
 - Hosting guards reject invalid/escaping item folders and cross-site write requests and remove client tracebacks for unhandled errors.
 - Vinted draft, browser login and tracker-refresh actions return a clear local-browser-required error. The UI displays a private-test banner.
