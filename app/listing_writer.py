@@ -1001,6 +1001,28 @@ def write(item: dict, hints: dict | None = None) -> tuple[dict, dict]:
                 f"Original error: {exc}"
             ) from exc
 
+    listing = finalize_listing(listing, item, hints)
+
+    _category_slice_level = _get_category_slice_level(
+        item.get("gender", ""), item.get("item_type", "")
+    )
+    usage = {
+        "input_tokens": response.usage.input_tokens,
+        "output_tokens": response.usage.output_tokens,
+        "model": writer_model,
+        "_write_log": {
+            "category_slice_level": _category_slice_level,
+            "price_memory_match_level": listing["price_memory_match"],
+            "write_latency_ms": round((time.perf_counter() - _t_write_start) * 1000),
+            "prompt_version": "compact-v1" if ENABLE_COMPACT_WRITER else "legacy",
+            "prompt_chars": len(prompt),
+        },
+    }
+    return listing, usage
+
+
+def finalize_listing(listing: dict, item: dict, hints: dict | None = None) -> dict:
+    """Shared deterministic checks for AI-written and one-pass listings."""
     # Carry forward fields from extractor not covered by listing writer
     listing.setdefault("photos_folder", item.get("photos_folder", ""))
     listing.setdefault("listed_date", date.today().isoformat())
@@ -1133,19 +1155,4 @@ def write(item: dict, hints: dict | None = None) -> tuple[dict, dict]:
     _cond_svc.apply_condition(listing)
     _cond_svc.inject_condition_line(listing)
 
-    _category_slice_level = _get_category_slice_level(
-        item.get("gender", ""), item.get("item_type", "")
-    )
-    usage = {
-        "input_tokens": response.usage.input_tokens,
-        "output_tokens": response.usage.output_tokens,
-        "model": writer_model,
-        "_write_log": {
-            "category_slice_level": _category_slice_level,
-            "price_memory_match_level": listing["price_memory_match"],
-            "write_latency_ms": round((time.perf_counter() - _t_write_start) * 1000),
-            "prompt_version": "compact-v1" if ENABLE_COMPACT_WRITER else "legacy",
-            "prompt_chars": len(prompt),
-        },
-    }
-    return listing, usage
+    return listing

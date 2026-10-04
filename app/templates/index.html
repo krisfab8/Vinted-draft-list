@@ -1515,6 +1515,7 @@
       photoRoles.set(file,role); used.add(role);
     });
     photos = photos.concat(incoming);
+    incoming.forEach(file => queuePhotoPreparation(file));
     selectedForSwap = null;
     renderGrid();
   });
@@ -1530,6 +1531,19 @@
   /* ── Submit ── */
   // Resize before transfer, sequentially to bound memory use on phones. The server
   // already saves at 2048px: this keeps the same resolution for labels and rulers.
+  const preparedPhotos = new WeakMap();
+  let photoPreparationQueue = Promise.resolve();
+
+  function queuePhotoPreparation(file) {
+    if (!preparedPhotos.has(file)) {
+      const promise = photoPreparationQueue.then(() => prepareUploadPhoto(file));
+      preparedPhotos.set(file, promise);
+      // Catch immediately to avoid unhandled rejections while the seller edits.
+      photoPreparationQueue = promise.catch(() => {});
+    }
+    return preparedPhotos.get(file);
+  }
+
   function uploadDimensions(width, height) {
     const scale = Math.min(1, 2048 / Math.max(width, height));
     return [Math.max(1, Math.round(width * scale)), Math.max(1, Math.round(height * scale))];
@@ -1611,7 +1625,7 @@
       const uploadPhotos = [...photos];
       for (let i = 0; i < uploadPhotos.length; i++) {
         updateProgress(`Preparing photo ${i + 1} of ${uploadPhotos.length}…`);
-        form.append("photos", await prepareUploadPhoto(uploadPhotos[i]));
+        form.append("photos", await queuePhotoPreparation(uploadPhotos[i]));
       }
       form.append("photo_roles", JSON.stringify(roles));
       form.append("prepared_photos", "1");

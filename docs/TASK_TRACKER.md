@@ -6,10 +6,10 @@ Priority order: private usable test → reliable state/costs → labeled model e
 
 ## Next action
 
-**Verify the quality/cache/eBay branch on the phone, configure eBay developer
-credentials, and establish durable storage plus verified Vinted draft saving.**
-Read `QUALITY_COST_AND_EBAY_20261003.md` for the implemented scope, cost target,
-storage incident and remaining end-to-end draft gates.
+**Verify single-pass generation on representative phone photos.**
+Read `SPEED_COST_20261004.md`; 808 automated checks passed. The normal path
+uses one vision response plus deterministic copy; real latency/cost and quality
+comparison remain required. No twenty-item labeled photo set is available.
 
 ## Foundation and testing
 
@@ -68,6 +68,8 @@ storage incident and remaining end-to-end draft gates.
 | COST-02 | P0 | Correct lifetime spend totals | implemented_local | Sum every event; separate latest run/item lifetime/account totals; no per-folder deduplication |
 | COST-04 | P1 | Restrict irrelevant mill-only rereads | implemented_local | Preserve cloth-label/tailoring recognition; avoid leather/no-evidence checks; each attempted call recorded |
 | COST-05 | P1 | Reduce writer prompt / compare template copy | implemented_local | COST-01; approved copy accuracy retained; actual token/cost/correction comparison on same inputs |
+| COST-06 | P0 | Single-pass vision and deterministic copy | implemented_local | 808 tests; normal path one billable response; shared finalizer; targeted unclear-label rereads retained; real cost/latency/quality pending |
+| IMG-07 | P0 | Prepare selected photos before submit | implemented_local | Serialized preparation starts at selection; reuse on submit; roles/order preserved; Node checks pass |
 | COST-03 | P1 | Enforce cost budgets before calls | todo | COST-01; bounded output/attempts + estimated image cost; explicit over-budget review; rate/FX/version recorded |
 | PRICE-01 | P0 | Correct seller proceeds calculation | implemented_local | Vinted buyer fee not deducted from seller; seller expenses explicit; stats use same service |
 | PRICE-02 | P1 | Unify material/memory normalization | todo | Writer/pricing match the same attributes; mixed-fibre cases tested |

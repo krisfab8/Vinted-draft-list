@@ -47,7 +47,8 @@ def create_app():
     @app.get("/api/provider-status")
     def api_provider_status():
         # Protected by the same password gate; never return any credential value.
-        return jsonify(vision=provider_status(config.VISION_PROVIDER),
+        return jsonify(single_pass=config.ENABLE_SINGLE_PASS,
+                       vision=provider_status(config.VISION_PROVIDER),
                        listing=provider_status(config.LISTING_PROVIDER),
                        anthropic_key_configured=bool(config.ANTHROPIC_API_KEY),
                        openai_key_configured=bool(config.OPENAI_API_KEY))

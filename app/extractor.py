@@ -530,7 +530,7 @@ def _load_photos(folder: Path) -> tuple[list[dict], dict[str, dict]]:
     return blocks, crop_report
 
 
-def _extract_claude(photos: list[dict], model: str, prompt: str) -> tuple[dict, dict]:
+def _extract_claude(photos: list[dict], model: str, prompt: str, *, strict: bool = False) -> tuple[dict, dict]:
     client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY, max_retries=0, timeout=30)
     from app.config import ENABLE_PROMPT_CACHE
     if ENABLE_PROMPT_CACHE and prompt.endswith(_EXTRACT_PROMPT):
@@ -544,9 +544,11 @@ def _extract_claude(photos: list[dict], model: str, prompt: str) -> tuple[dict, 
         content = photos + [{"type": "text", "text": prompt}]
     response = model_usage.call(client.messages.create, stage="extract",
         model=model,
-        max_tokens=1024,
+        max_tokens=1536 if strict else 1024,
         messages=[{"role": "user", "content": content}],
     )
+    if strict and response.stop_reason == "max_tokens":
+        raise ValueError("Photo analysis was incomplete; no listing was saved.")
     raw = response.content[0].text.strip()
     # Strip markdown code fences if present
     raw = re.sub(r"^```(?:json)?\s*|\s*```$", "", raw, flags=re.MULTILINE).strip()
@@ -899,7 +901,7 @@ def _reread_brand_photo(folder: Path, model: str) -> dict | None:
 
 
 @model_usage.tracked("extract")
-def extract(item_folder: str | Path, hints: dict | None = None) -> dict:
+def extract(item_folder: str | Path, hints: dict | None = None, *, single_pass: bool = False) -> dict:
     """
     Extract structured item data from photos in item_folder.
 
@@ -937,7 +939,11 @@ def extract(item_folder: str | Path, hints: dict | None = None) -> dict:
             pct = 100 * (1 - (cw * ch) / (ow * oh)) if ow * oh > 0 else 0
             print(f"  Auto-crop {role}: {ow}×{oh} → {cw}×{ch} (-{pct:.0f}%, conf={meta['crop_confidence']:.2f})")
 
-    prompt = _build_prompt_with_hints(hints or {})
+    if single_pass:
+        from app.services.single_pass import build_prompt
+        prompt = build_prompt(hints or {})
+    else:
+        prompt = _build_prompt_with_hints(hints or {})
 
     _escalated = False
     if VISION_PROVIDER == "openai":
@@ -953,15 +959,23 @@ def extract(item_folder: str | Path, hints: dict | None = None) -> dict:
         result = _extract_gemini(photos, prompt)
         usage = {"input_tokens": 0, "output_tokens": 0, "model": "gemini-flash"}
     elif VISION_PROVIDER == "claude-haiku":
-        result, usage = _extract_claude(photos, HAIKU_MODEL, prompt)
+        if single_pass:
+            result, usage = _extract_claude(photos, HAIKU_MODEL, prompt, strict=True)
+        else:
+            result, usage = _extract_claude(photos, HAIKU_MODEL, prompt)
     else:
         raise ValueError(f"Unsupported VISION_PROVIDER: {VISION_PROVIDER}")
+
+    if single_pass:
+        result.setdefault("confidence", 0.0)
+        result.setdefault("brand_confidence", "low")
+        result.setdefault("material_confidence", "low")
 
     # Escalate to Sonnet only if confidence is low AND it's not just the brand field
     # (brand uncertainty is handled cheaply by _reread_brand_photo instead)
     confidence = result.get("confidence", 1.0)
     non_brand_uncertain = [f for f in result.get("low_confidence_fields", []) if f != "brand"]
-    if confidence < CONFIDENCE_THRESHOLD and non_brand_uncertain and VISION_PROVIDER == "claude-haiku":
+    if not single_pass and confidence < CONFIDENCE_THRESHOLD and non_brand_uncertain and VISION_PROVIDER == "claude-haiku":
         print(f"Low confidence ({confidence:.2f}) on {non_brand_uncertain}, escalating to {SONNET_MODEL}")
         result, usage = _extract_claude(photos, SONNET_MODEL, prompt)
         _escalated = True
@@ -1165,6 +1179,8 @@ def extract(item_folder: str | Path, hints: dict | None = None) -> dict:
 
     # Build observability log — popped by web.py before saving listing.json
     result["_extract_log"] = {
+        "pipeline_version": "single-pass-v1" if single_pass else "two-stage",
+        "prompt_chars": len(prompt),
         "photos_found": _photos_found,
         "crop_applied": {k: v.get("crop_applied", False) for k, v in crop_report.items()},
         "escalated": _escalated,

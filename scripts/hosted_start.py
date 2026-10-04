@@ -33,6 +33,7 @@ def prepare_storage(root, storage):
 
 
 if __name__ == "__main__":
+    os.environ.setdefault("ENABLE_SINGLE_PASS", "1")
     os.umask(0o077)
     root = Path(__file__).resolve().parent.parent
     os.chdir(root)

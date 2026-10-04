@@ -28,13 +28,22 @@ def run_pipeline(
     extract_log and write_log are observability dicts already popped from
     their respective usage/item dicts — callers don't need to pop them.
     """
-    item, extract_usage = extractor.extract(item_path, hints=hints or None)
+    from app.config import ENABLE_SINGLE_PASS, VISION_PROVIDER, LISTING_PROVIDER
+    single_pass = ENABLE_SINGLE_PASS and VISION_PROVIDER == LISTING_PROVIDER and VISION_PROVIDER in ("claude-haiku", "openai")
+    if single_pass:
+        item, extract_usage = extractor.extract(item_path, hints=hints or None, single_pass=True)
+    else:
+        item, extract_usage = extractor.extract(item_path, hints=hints or None)
     extract_log = item.pop("_extract_log", {})
 
     if buy_price_gbp is not None:
         item["buy_price_gbp"] = float(buy_price_gbp)
 
-    listing, write_usage = listing_writer.write(item, hints=hints or None)
+    if single_pass:
+        from app.services.single_pass import assemble
+        listing, write_usage = assemble(item, hints or {})
+    else:
+        listing, write_usage = listing_writer.write(item, hints=hints or None)
     write_log = write_usage.pop("_write_log", {})
 
     from app.services.ebay_comps import search_links, EbayQueryError
