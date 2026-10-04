@@ -40,6 +40,8 @@ function setup(serverItems, cached, options={}) {
   await run.ctx.window.fetch('/listing/'+existing,{method:'PATCH'});await run.ctx.window.DraftArchive.flush();
   await run.ctx.window.fetch('/listing/'+existing,{method:'DELETE'});await run.ctx.window.DraftArchive.flush();
   assert.equal(run.state.get(existing).deleted,true);
+  await run.ctx.window.DraftArchive.save('upload_44444444');
+  assert(run.state.has('upload_44444444')); // XHR upload uses the public save hook.
   assert(!run.calls.some(([url])=>url.includes('reprice')||url.includes('regen')));
   const quota=setup([existing],[],{failWrite:true});await quota.ctx.window.DraftArchive.ready;
   assert(quota.notice.textContent.includes('unavailable'));assert(!quota.state.has(existing));

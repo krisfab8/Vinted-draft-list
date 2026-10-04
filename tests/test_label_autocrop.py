@@ -308,8 +308,8 @@ class TestLoadPhotosWithAutocrop:
         assert captured.get("model_size") == 1024
         assert captured.get("material") == 1024
 
-    def test_front_uses_compress_image_at_768(self, tmp_path):
-        """Non-OCR roles go through _compress_image at max_dim=768."""
+    def test_front_preserves_label_resolution(self, tmp_path):
+        """Front slots may contain labels, so preserve max_dim=1024."""
         from unittest.mock import patch
         from app.extractor import _compress_image as real_ci
         self._make_photos(tmp_path)
@@ -324,7 +324,7 @@ class TestLoadPhotosWithAutocrop:
             from app.extractor import _load_photos
             _load_photos(tmp_path)
 
-        assert captured.get("front") == 768
+        assert captured.get("front") == 1024
 
 
 # ---------------------------------------------------------------------------

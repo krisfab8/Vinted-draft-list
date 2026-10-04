@@ -476,6 +476,9 @@ def upload_listing():
             "output": extract_usage["output_tokens"] + write_usage["output_tokens"],
         }
 
+        from app.services import review_evidence
+        review_evidence.capture(item_path, listing, extract_log=extract_log, write_log=write_log,
+                                pipeline_latency_ms=round((time.perf_counter() - _t0) * 1000))
         out_path = item_path / "listing.json"
         out_path.write_text(json.dumps(listing, indent=2))
 
@@ -730,6 +733,18 @@ def listing_feedback(folder):
     except ValueError as error:
         return jsonify(error=str(error)), 422
     return jsonify(result)
+
+
+@app.post("/listing/<folder>/check-evidence")
+def check_saved_evidence(folder):
+    from app.services import review_evidence
+    path = ITEMS_DIR / Path(folder).name
+    if not (path / "listing.json").is_file():
+        return jsonify(error="Listing not found"), 404
+    listing = review_evidence.recheck(path)
+    listing['folder'] = path.name
+    _sync_item_status(path.name, listing)
+    return jsonify(listing)
 
 
 @app.post("/listing/<folder>/measurements")

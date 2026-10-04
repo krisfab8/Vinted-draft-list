@@ -57,9 +57,9 @@ class TestCorePhotoList:
 # ---------------------------------------------------------------------------
 
 class TestPhotoMaxDimConfig:
-    def test_front_is_768(self):
+    def test_front_is_label_readable(self):
         from app.extractor import _PHOTO_MAX_DIM
-        assert _PHOTO_MAX_DIM["front"] == 768
+        assert _PHOTO_MAX_DIM["front"] == 1024
 
     def test_brand_is_1024(self):
         from app.extractor import _PHOTO_MAX_DIM
@@ -133,7 +133,7 @@ class TestLoadPhotos:
     non-OCR roles (front) go through _compress_image.
     """
 
-    def test_front_gets_768(self, tmp_path):
+    def test_front_gets_label_resolution(self, tmp_path):
         _make_jpg(tmp_path / "front.jpg", 1500, 2000)
         _make_jpg(tmp_path / "brand.jpg", 3024, 3024)
         _make_jpg(tmp_path / "model_size.jpg", 3024, 3024)
@@ -162,8 +162,8 @@ class TestLoadPhotos:
 
         dim_compress = dict(calls_compress)
         dim_autocrop = dict(calls_autocrop)
-        assert dim_compress.get("front") == 768, \
-            f"front should use 768 via _compress_image, got {dim_compress.get('front')}"
+        assert dim_compress.get("front") == 1024, \
+            f"front may be a label and should use 1024 via _compress_image, got {dim_compress.get('front')}"
         assert dim_autocrop.get("brand") == 1024, \
             f"brand should use 1024 via _compress_with_autocrop, got {dim_autocrop.get('brand')}"
         assert dim_autocrop.get("model_size") == 1024

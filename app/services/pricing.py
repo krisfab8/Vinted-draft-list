@@ -200,6 +200,20 @@ def _apply_pricing_inner(listing: dict, pricing_mode: str = "balanced") -> dict:
         materials=listing.get("materials") or listing.get("material"),
     )
 
+    from app.listing_writer import _is_premium_mill
+    tailoring = any(word in _normalise(listing.get('item_type')) for word in
+                    ('blazer', 'suit', 'jacket', 'coat', 'trouser', 'waistcoat'))
+    features = ' '.join(str(value) for value in [listing.get('cut'), *(listing.get('tag_keywords') or [])]).lower()
+    premium = tailoring and (_is_premium_mill(listing.get('fabric_mill')) or 'full canvas' in features)
+    generic_premium = bool(premium and memory_entry and not memory_entry.get('brand'))
+    if generic_premium:
+        adjustments.append('generic reference band skipped — premium cloth/construction needs comparable-sales review')
+        memory_entry = None
+        listing['price_memory_match'] = None
+        listing.setdefault('warnings', [])
+        if 'premium_price_review' not in listing['warnings']:
+            listing['warnings'].append('premium_price_review')
+
     if memory_entry:
         low = float(memory_entry.get("low", 0))
         high = float(memory_entry.get("high", 0))
@@ -231,6 +245,9 @@ def _apply_pricing_inner(listing: dict, pricing_mode: str = "balanced") -> dict:
         "note": "Stored reference band; not a fresh market lookup." if memory_entry else
                 "AI suggestion; no matching reference band or live comparable sales checked.",
     }
+
+    if generic_premium:
+        listing['price_evidence']['note'] = 'Provisional AI price: premium cloth/construction needs comparable-sales review.'
 
     # ── 2. Flaws discount (-15%) ──────────────────────────────────────────────
     flaws = (listing.get("flaws_note") or "").strip()

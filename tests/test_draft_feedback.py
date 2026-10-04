@@ -57,3 +57,14 @@ def test_feedback_validation_missing_and_export_scope(item):
     data=client.get('/api/private/backup?folder='+folder.name).data
     with zipfile.ZipFile(io.BytesIO(data)) as archive:
         assert all('upload_00000000' not in name for name in archive.namelist())
+
+
+def test_saved_evidence_route_does_not_generate_again(item):
+    client, folder, listing = item
+    listing.update(fabric_mill='Pey Lino Panavot', fabric_line='Zelander Dream',
+                   ai_price_gbp=110, materials=['100% Wool'], condition_summary='Good condition')
+    (folder/'listing.json').write_text(json.dumps(listing))
+    response=client.post('/listing/'+folder.name+'/check-evidence')
+    assert response.status_code==200
+    assert response.json['fabric_mill']=='Loro Piana' and response.json['price_gbp']==110
+    assert client.post('/listing/upload_00000000/check-evidence').status_code==404

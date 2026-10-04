@@ -133,13 +133,13 @@ def normalise_mill(raw: str | None) -> str | None:
     for key, canonical in _CANONICAL_MILLS.items():
         key_tokens = set(key.split())
         # Short keys (1-2 tokens) need exact inclusion; longer keys need ≥2 token match
-        min_match = 1 if len(key_tokens) <= 2 else 2
+        min_match = len(key_tokens) if len(key_tokens) <= 2 else 2
         if len(key_tokens & raw_tokens) >= min_match and len(key_tokens) >= 2:
             return canonical
 
     # 4. Substring match for multi-word mills
     for key, canonical in _CANONICAL_MILLS.items():
-        if key in low or low in key:
+        if key in low:
             return canonical
 
     # Not recognised — return the raw value cleaned of trailing generic words
@@ -242,3 +242,61 @@ _FIBRE_WORDS = frozenset({
     "viscose", "elastane", "nylon", "acrylic", "modal", "lyocell", "alpaca",
     "mohair", "angora", "leather", "suede", "polyamide", "lambswool",
 })
+
+
+# Unique cloth-line ownership evidenced by the operator's photographed label.
+# Do not use generic lines (e.g. Super 120s) to infer a fabric maker.
+_CLOTH_OWNERS = {
+    'zelanderdream': ('Loro Piana', 'Zelander Dream'),
+    'zealanderdream': ('Loro Piana', 'Zelander Dream'),
+    'zelanderream': ('Loro Piana', 'Zelander Dream'),
+}
+
+
+def verify_mill(result):
+    """Check single-pass evidence independently of model self-confidence.
+
+    An unknown maker stays in raw evidence, not confident copy. A uniquely
+    identified cloth line can resolve a noisy maker with no second API call.
+    """
+    import re
+    raw_mill = result.get('fabric_mill')
+    raw_line = result.get('fabric_line')
+    known = set(_CANONICAL_MILLS.values())
+    normalized = normalise_mill(raw_mill)
+    resolved = None
+    for text in [raw_line, raw_mill, *(result.get('tag_keywords') or [])]:
+        key = re.sub(r'[^a-z0-9]', '', str(text or '').lower())
+        if key in _CLOTH_OWNERS:
+            resolved = _CLOTH_OWNERS[key]
+            break
+    uncertain = list(result.get('low_confidence_fields') or [])
+    if resolved and (not normalized or normalized not in known or normalized == resolved[0]):
+        result.setdefault('fabric_mill_raw', raw_mill)
+        result.setdefault('fabric_line_raw', raw_line)
+        result['fabric_mill'], result['fabric_line'] = resolved
+        result['fabric_resolution'] = 'cloth_line_registry'
+        result['fabric_mill_confidence'] = 'high'
+        uncertain = [field for field in uncertain if field not in ('fabric_mill', 'fabric_line')]
+    elif normalized in known and not resolved:
+        result['fabric_mill'] = normalized
+        result['fabric_resolution'] = 'recognised_mill'
+        result['fabric_mill_confidence'] = 'high'
+        uncertain = [field for field in uncertain if field != 'fabric_mill']
+    elif raw_mill or resolved:
+        result.setdefault('fabric_mill_raw', raw_mill)
+        result['fabric_mill'] = None
+        result['fabric_resolution'] = 'needs_confirmation'
+        result['fabric_mill_confidence'] = 'low'
+        if 'fabric_mill' not in uncertain:
+            uncertain.append('fabric_mill')
+    result['low_confidence_fields'] = uncertain
+    # Keep the unsupported transcription in the raw record, never keywords.
+    replace = {str(value).casefold() for value in (raw_mill, raw_line)
+               if value and value not in (result.get('fabric_mill'), result.get('fabric_line'))}
+    result['tag_keywords'] = [word for word in result.get('tag_keywords') or []
+                              if str(word).casefold() not in replace]
+    for value in (result.get('fabric_mill'), result.get('fabric_line')):
+        if value and value not in result['tag_keywords']:
+            result['tag_keywords'].append(value)
+    return result

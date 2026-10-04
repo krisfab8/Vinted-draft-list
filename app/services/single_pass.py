@@ -21,6 +21,9 @@ Read the brand label letter by letter. Manufacturer = brand; model/fit/collectio
 model_name or sub_brand. Merge compound brand lines. Fabric mills (VBC, Reda,
 Lanificio, Tessuti Sondrio, Scabal, Dormeuil, cloth-supplier Loro Piana) are NOT
 the garment brand: store in fabric_mill; preserve fabric_line and material_hint.
+Read labels in ALL photos: selected photo slots may be wrong. Cursive "Ing. Loro
+Piana & C." is a cloth maker; ZELANDER DREAM is its cloth line, not its maker.
+Never turn unreadable cursive into a made-up maker; mark fabric_mill uncertain.
 Two leg openings = trousers/jeans/shorts; collar + short placket = polo shirt.
 Read EVERY composition line with EXACT percentages including lining/shell.
 Translate multilingual fibre names once, preserve minor fibres, do not guess
@@ -80,7 +83,9 @@ def assemble(item, hints):
     listing = listing_writer._convert_eu_suit_size(listing)
     listing = listing_writer._convert_eu_shoe_size(listing)
     gender = {'men\'s': 'Mens', 'women\'s': 'Womens', 'unisex': 'Unisex'}.get(listing.get('gender'), '')
-    parts = [listing.get('brand'), listing.get('model_name'), listing.get('colour'),
+    mill = listing.get('fabric_mill')
+    cloth = f'{mill} cloth' if mill and listing_writer._is_premium_mill(mill) and any(word in (listing.get('item_type') or '').lower() for word in ('blazer','suit','jacket','coat','trouser','waistcoat')) else None
+    parts = [listing.get('brand'), listing.get('model_name'), cloth, listing.get('colour'),
              listing.get('item_type'), gender, listing.get('normalized_size')]
     listing['title'] = ' '.join(str(p) for p in parts if p)[:120].strip()
     lines = [listing['title'] + '.']

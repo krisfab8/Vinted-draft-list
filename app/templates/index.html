@@ -1693,6 +1693,7 @@
       const resp = await uploadListingForm(form, updateProgress);
       const data = await readUploadResponse(resp);
       loading.style.display = "none";
+      if (resp.ok && data.folder && window.DraftArchive) window.DraftArchive.save(data.folder);
       resp.ok ? showResult(data) : showError(data.error || "Unknown error");
     } catch (err) {
       loading.style.display = "none";

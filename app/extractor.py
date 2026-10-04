@@ -87,9 +87,9 @@ def _safe_json_loads(raw: str) -> dict:
 _EXTRACT_PROMPT = """
 You are extracting structured data from clothing photos for a resale listing.
 
-Analyse the provided photos (front, brand label, model/size tag, material label, back if provided). Photo 2 is specifically the brand label — read the text on the main woven or printed label in that photo with extreme care, letter by letter, to identify the brand.
+Analyse ALL provided photos in any order. Photo slots are organisational hints only: a brand label, fabric-mill label, size tag or whole garment may be in any slot. Read every label letter by letter. Distinguish garment manufacturer from fabric supplier using the actual label wording, not its slot.
 
-Photo 1 (front view) determines item type — identify by SHAPE and SILHOUETTE:
+Find the whole-garment view in ANY photo to determine item type by SHAPE and SILHOUETTE:
 - TWO LEG OPENINGS at the bottom = a BOTTOM garment (trousers, track pants, jeans, shorts, joggers). NEVER classify a two-legged garment as a pullover, hoodie, or sweatshirt.
 - Arm openings at the sides, hangs from shoulders = a TOP (shirt, jacket, jumper, hoodie, sweatshirt).
 
@@ -460,10 +460,10 @@ def _compress_with_autocrop(path: Path, max_dim: int) -> tuple[str, str, dict]:
 
 
 # Per-role max resolution policy:
-#   overview photos (garment shots) → 768px  — saves tokens, resolution not needed
+#   core photos → 1024px — any main slot may contain a label
 #   label/OCR photos (tags, care labels) → 1024px — must read small printed text
 _PHOTO_MAX_DIM: dict[str, int] = {
-    "front":      768,   # overview
+    "front":      1024,  # may contain a label: role is a hint, not proof of content
     "back":       768,   # overview (kept here in case re-added)
     "brand":      1024,  # OCR — brand label text
     "model_size": 1024,  # OCR — size/model tag text
@@ -754,7 +754,7 @@ def _mill_check_relevant(result: dict) -> bool:
 
 
 def _reread_material_photo(folder: Path, model: str, full_reread: bool = False) -> dict | None:
-    """Single-photo targeted re-read of the material label photo.
+    """One targeted composition/mill read across the core photos, independent of slots.
 
     full_reread=False (default): targeted fabric_mill-only read.
         Returns {"fabric_mill": str_or_null}
@@ -763,7 +763,7 @@ def _reread_material_photo(folder: Path, model: str, full_reread: bool = False) 
         material_confidence is low/medium on a pricing-sensitive item.
         Returns {"materials": [...], "fabric_mill": str_or_null}
     """
-    for base in ("material", "model_size"):
+    for base in ("material", "model_size", "brand", "front"):
         for ext_suffix in (".jpg", ".jpeg", ".png", ".webp"):
             mat_photo = folder / f"{base}{ext_suffix}"
             if mat_photo.exists():
@@ -772,7 +772,7 @@ def _reread_material_photo(folder: Path, model: str, full_reread: bool = False) 
 
                 if full_reread:
                     prompt_text = (
-                        "Look at this clothing care/material label photo carefully.\n"
+                        "Read the care/material labels in ALL these photos carefully; their slots may be wrong.\n"
                         "1. Read ALL fibre/material composition percentages EXACTLY as printed. "
                         "Format each entry as '68% Wool' or '100% Cotton' etc. "
                         "Include EVERY fibre listed, including lining if shown separately. "
@@ -804,7 +804,7 @@ def _reread_material_photo(folder: Path, model: str, full_reread: bool = False) 
                     max_tokens = 180
                 else:
                     prompt_text = (
-                        "Look at this clothing care/material label photo carefully. "
+                        "Read the care/material labels in ALL these photos carefully; their slots may be wrong. "
                         "Is there a fabric mill or cloth supplier name printed on it? "
                         "Known fabric mill names to look for: Cerruti, Lanificio, Tessuti Sondrio, "
                         "Vitale Barberis Canonico, VBC, Reda, Loro Piana, Scabal, Holland & Sherry, "
@@ -823,10 +823,7 @@ def _reread_material_photo(folder: Path, model: str, full_reread: bool = False) 
                     max_tokens=max_tokens,
                     messages=[{
                         "role": "user",
-                        "content": [
-                            {"type": "image", "source": {"type": "base64", "media_type": media_type, "data": data}},
-                            {"type": "text", "text": prompt_text},
-                        ],
+                        "content": _load_photos(folder)[0] + [{"type": "text", "text": prompt_text}],
                     }],
                 )
                 raw = response.content[0].text.strip()
@@ -838,20 +835,42 @@ def _reread_material_photo(folder: Path, model: str, full_reread: bool = False) 
                     result, _ = json.JSONDecoder().raw_decode(raw, start)
                     return result
                 except Exception:
-                    pass  # try next candidate photo
+                    return None  # bounded to one reread call
                 break  # photo found for this base; don't try other extensions
     return None
 
 
+def _reread_unknown_fabric_labels(folder: Path, model: str, full_reread: bool = False):
+    """One bounded maker-only reread across core photos when slots may be wrong."""
+    photos, _ = _load_photos(folder)
+    client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY, max_retries=0, timeout=30)
+    prompt = (
+        "Read the fabric maker and cloth line on any label in these photos. "
+        "Photo slots may be wrong. Garment brand is not the cloth maker. "
+        "Known makers include Loro Piana, Vitale Barberis Canonico, Reda, Drago, "
+        "Dormeuil, Scabal, Holland & Sherry, Tessuti Sondrio, Cerruti, Lanificio. "
+        "Transcribe carefully, especially cursive. Do not invent an unreadable name. "
+        'Return JSON only: {"fabric_mill": "name or null", "fabric_line": "line or null"}.'
+    )
+    if full_reread:
+        prompt += ' Also return materials as an array of exact visible fibre percentages, including lining only if explicitly printed. Never infer composition from appearance.'
+    response = model_usage.call(client.messages.create, stage="material_reread", model=model,
+                               max_tokens=500 if full_reread else 120, messages=[{"role":"user", "content":
+                                   photos + [{"type":"text", "text":prompt}]}])
+    if response.stop_reason == "max_tokens":
+        raise ValueError("Fabric label reread incomplete")
+    return _safe_json_loads(response.content[0].text)
+
+
 def _reread_brand_photo(folder: Path, model: str) -> dict | None:
     """
-    Single-photo targeted re-read of the brand label photo.
+    One targeted brand read across the core photos, independent of slots.
     Returns dict with 'brand' and optionally 'collection_keywords'.
     Always runs when a brand photo exists — cheap (~£0.00002) and more accurate
     than multi-photo extraction for the brand field.
     """
     for ext in (".jpg", ".jpeg", ".png", ".webp"):
-        brand_photo = folder / f"brand{ext}"
+        brand_photo = next((folder / f"{role}{ext}" for role in ("brand", "front", "model_size", "material") if (folder / f"{role}{ext}").exists()), folder / f"brand{ext}")
         if brand_photo.exists():
             data, media_type, _ = _compress_with_autocrop(brand_photo, max_dim=1024)
             client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY, max_retries=0, timeout=30)
@@ -860,10 +879,9 @@ def _reread_brand_photo(folder: Path, model: str) -> dict | None:
                 max_tokens=80,
                 messages=[{
                     "role": "user",
-                    "content": [
-                        {"type": "image", "source": {"type": "base64", "media_type": media_type, "data": data}},
+                    "content": _load_photos(folder)[0] + [
                         {"type": "text", "text": (
-                            'Look at this clothing brand label photo carefully.\n'
+                            'Read the garment brand in ANY of these photos. Slots may be wrong. A fabric supplier label (for example fabric made by Loro Piana) is not the garment brand.\n'
                             '1. Read the MAIN brand/manufacturer name letter by letter. '
                             'Common brands you might see (use exact spelling if it matches): '
                             'Suitsupply, Barbour, Hugo Boss, Paul Smith, Hackett, Canali, Corneliani, '
@@ -986,6 +1004,7 @@ def extract(item_folder: str | Path, hints: dict | None = None, *, single_pass: 
     # Cloth-label post-processing: normalise mill name + scan for missed signals
     from app.services import fabric_mill as _fabric_mill_svc
     result = _fabric_mill_svc.scan_for_mill(result)
+    result = _fabric_mill_svc.verify_mill(result)
 
     # -----------------------------------------------------------------------
     # Parallel rereads (Step 3: ENABLE_PARALLEL_REREADS)
@@ -1024,6 +1043,10 @@ def extract(item_folder: str | Path, hints: dict | None = None, *, single_pass: 
         if not _do_material_full:
             print(f"  Material re-read skipped (confidence=high, fabric_mill already set)")
 
+    material_reader = (_reread_unknown_fabric_labels
+                       if result.get('fabric_resolution') == 'needs_confirmation'
+                       else _reread_material_photo)
+
     # Decide whether to use parallel execution path
     _use_parallel = (
         ENABLE_PARALLEL_REREADS
@@ -1046,7 +1069,7 @@ def extract(item_folder: str | Path, hints: dict | None = None, *, single_pass: 
 
         def _mat_task():
             full = _do_material_full
-            return _reread_material_photo(folder, HAIKU_MODEL, full_reread=full)
+            return material_reader(folder, HAIKU_MODEL, full_reread=full)
 
         with ThreadPoolExecutor(max_workers=2) as _pool:
             _fut_brand = _pool.submit(copy_context().run, _brand_task)
@@ -1075,7 +1098,7 @@ def extract(item_folder: str | Path, hints: dict | None = None, *, single_pass: 
                 print(f"  Brand re-read FAILED: {_e}")
         if _do_material_full or _do_material_mill:
             try:
-                _reread_mat_result = _reread_material_photo(
+                _reread_mat_result = material_reader(
                     folder, HAIKU_MODEL, full_reread=_do_material_full
                 )
             except Exception as _e:
@@ -1127,6 +1150,8 @@ def extract(item_folder: str | Path, hints: dict | None = None, *, single_pass: 
     # If made_in is uncertain, clear it — a wrong country is worse than none
     if "made_in" in result.get("low_confidence_fields", []):
         result["made_in"] = None
+
+    result = _fabric_mill_svc.verify_mill(result)
 
     # Ensure fabric_mill is always in tag_keywords so it appears at minimum in keywords line
     mill = result.get("fabric_mill")

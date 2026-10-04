@@ -108,5 +108,5 @@
   window.addEventListener('pageshow', event => {
     if (event.persisted && location.pathname === '/drafts') location.reload();
   });
-  window.DraftArchive = {ready: queue(recover), flush: () => pending};
+  window.DraftArchive = {ready: queue(recover), flush: () => pending, save: folder => queue(() => save(folder))};
 })();

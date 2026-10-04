@@ -162,6 +162,11 @@ def test_full_upload_pipeline_including_three_recorded_model_stages(tmp_path,mon
     timing=result.headers['Server-Timing']
     assert all(stage+';dur=' in timing for stage in ['receive','prepare','pipeline','total'])
     data=result.json
+    snapshot_path=web.ITEMS_DIR/data['folder']/'analysis.json'
+    snapshot=json.loads(snapshot_path.read_text())
+    assert snapshot['listing']['cost_gbp']==data['cost_gbp']
+    assert snapshot['listing']['measurements']==[]
+    assert snapshot['extract_log']['photos_found']==['front','material']
     assert stage_calls==[1024,600,2500]
     assert [c['stage'] for c in data['model_calls']]==['extract','measurements','write']
     assert len({c['run_id'] for c in data['model_calls']})==1
@@ -172,4 +177,5 @@ def test_full_upload_pipeline_including_three_recorded_model_stages(tmp_path,mon
     assert data['normalized_size']=='2XL' and '200' not in data['description']
     confirmed=client.post('/listing/'+data['folder']+'/measurements',json={'measurements':[{'role':'measure_length','value_cm':64}]})
     assert confirmed.status_code==200 and '64 cm' in confirmed.json['description']
+    assert json.loads(snapshot_path.read_text())==snapshot
     assert stage_calls==[1024,600,2500]  # Seller confirmation is free.
