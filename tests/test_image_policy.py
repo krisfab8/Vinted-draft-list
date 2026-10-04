@@ -297,6 +297,26 @@ class TestBrandCorrections:
         result = _apply_brand_corrections("Zzzzyx Unknown Brand Co")
         assert result == "Zzzzyx Unknown Brand Co"
 
+    def test_confident_label_not_replaced_by_similar_dictionary_brand(self):
+        from app.extractor import _apply_brand_corrections
+        assert _apply_brand_corrections('Toast', allow_fuzzy=False) == 'Toast'
+        assert _apply_brand_corrections('TOAST', allow_fuzzy=False) == 'TOAST'
+        assert _apply_brand_corrections('coast', allow_fuzzy=False) == 'Coast'
+        assert _apply_brand_corrections('levis', allow_fuzzy=False) == "Levi's"
+
+
+def test_escalation_ignores_absent_labels_and_preserves_ambiguous_readings():
+    from app.extractor import _escalation_fields
+    result = {'confidence': 0.3, 'brand': 'Toast', 'brand_confidence': 'high',
+              'tagged_size': None, 'normalized_size': None, 'made_in': None,
+              'materials': [], 'material_confidence': 'low', 'gender': "women's",
+              'low_confidence_fields': ['tagged_size','normalized_size','made_in',
+                                        'materials','material_confidence','gender']}
+    assert _escalation_fields(result) == []
+    result.update(tagged_size='38?', item_type='trousers',
+                  low_confidence_fields=['tagged_size','item_type','materials'])
+    assert _escalation_fields(result) == ['tagged_size','item_type']
+
 
 # ---------------------------------------------------------------------------
 # 7. Prompt builder

@@ -720,7 +720,7 @@ def _should_reread_material(result: dict) -> bool:
     return False  # medium confidence, non-premium material, basic item → skip
 
 
-def _apply_brand_corrections(brand: str | None) -> str | None:
+def _apply_brand_corrections(brand: str | None, *, allow_fuzzy: bool = True) -> str | None:
     """Fix known OCR misreads — exact dict first, then fuzzy match against brands.txt."""
     if not brand:
         return brand
@@ -734,12 +734,31 @@ def _apply_brand_corrections(brand: str | None) -> str | None:
     # 2. Fuzzy match against brands.txt (handles generic OCR typos)
     import difflib
     brand_list = _load_brand_list()
+    canonical = next((b for b in brand_list if b.casefold() == brand_stripped.casefold()), None)
+    if canonical:
+        return canonical
+    if not allow_fuzzy:
+        return brand_stripped
     if brand_list:
         matches = difflib.get_close_matches(brand_stripped, brand_list, n=1, cutoff=0.80)
         if matches:
             return matches[0]
 
     return brand_stripped
+
+
+def _escalation_fields(result: dict) -> list[str]:
+    """Upgrade ambiguous readings, not missing fields or dedicated reread work.
+
+    A low overall score caused by absent size/origin labels is not evidence that
+    another full-image model can recover them. Brand/material ambiguity already
+    has bounded label rereads. Unknown values remain unknown and reviewable.
+    """
+    delegated = {'brand', 'brand_confidence', 'materials', 'material',
+                 'material_confidence', 'gender', 'gender_confidence',
+                 'colour_from_tag', 'colour_from_tag_confidence'}
+    return [field for field in result.get('low_confidence_fields', [])
+            if field not in delegated and result.get(field) not in (None, '', [])]
 
 
 def _mill_check_relevant(result: dict) -> bool:
@@ -993,7 +1012,7 @@ def extract(item_folder: str | Path, hints: dict | None = None, *, single_pass: 
     # Escalate to Sonnet only if confidence is low AND it's not just the brand field
     # (brand uncertainty is handled cheaply by _reread_brand_photo instead)
     confidence = result.get("confidence", 1.0)
-    non_brand_uncertain = [f for f in result.get("low_confidence_fields", []) if f != "brand"]
+    non_brand_uncertain = _escalation_fields(result)
     if not single_pass and confidence < CONFIDENCE_THRESHOLD and non_brand_uncertain and VISION_PROVIDER == "claude-haiku":
         print(f"Low confidence ({confidence:.2f}) on {non_brand_uncertain}, escalating to {SONNET_MODEL}")
         result, usage = _extract_claude(photos, SONNET_MODEL, prompt)
@@ -1109,7 +1128,7 @@ def extract(item_folder: str | Path, hints: dict | None = None, *, single_pass: 
     # Apply brand reread result
     if _do_brand_reread and _reread_brand_result and _reread_brand_result.get("brand"):
         old_brand = result.get("brand")
-        new_brand = _apply_brand_corrections(_reread_brand_result["brand"])
+        new_brand = _apply_brand_corrections(_reread_brand_result["brand"], allow_fuzzy=False)
         if new_brand != old_brand:
             print(f"  Brand re-read: '{old_brand}' -> '{new_brand}'")
         result["brand"] = new_brand
@@ -1146,7 +1165,8 @@ def extract(item_folder: str | Path, hints: dict | None = None, *, single_pass: 
             result["material_hint"] = _reread_mat_result["material_hint"]
 
     # Deterministic brand correction as fallback (catches misreads without brand photo)
-    result["brand"] = _apply_brand_corrections(result.get("brand"))
+    result["brand"] = _apply_brand_corrections(result.get("brand"),
+                                              allow_fuzzy=result.get("brand_confidence") != "high")
 
     # If made_in is uncertain, clear it — a wrong country is worse than none
     if "made_in" in result.get("low_confidence_fields", []):

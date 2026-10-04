@@ -98,6 +98,36 @@ class TestParallelRereadsFlag:
         from app.extractor import ENABLE_PARALLEL_REREADS  # noqa: F401
 
 
+def test_toast_missing_labels_retains_brand_and_targeted_material_reread(tmp_path, monkeypatch):
+    from copy import deepcopy
+    from app import extractor
+    folder = _make_folder(tmp_path)
+    item = _base_extraction({'brand':'Toast', 'brand_confidence':'high',
+                            'item_type':'corduroy trousers', 'confidence':0.3,
+                            'tagged_size':None, 'normalized_size':None,
+                            'made_in':None, 'low_confidence_fields':[
+                                'tagged_size','normalized_size','materials',
+                                'material_confidence','made_in','gender']})
+    full_calls, rereads = [], []
+    def full_read(photos, model, prompt, **kwargs):
+        full_calls.append(model)
+        return deepcopy(item), {'input_tokens':100, 'output_tokens':20, 'model':model}
+    def material_read(folder, model, full_reread=False):
+        rereads.append(full_reread)
+        return {'materials':[], 'fabric_mill':None, 'fabric_line':None}
+    monkeypatch.setattr(extractor,'ANTHROPIC_API_KEY','test-key')
+    monkeypatch.setattr(extractor,'VISION_PROVIDER','claude-haiku')
+    monkeypatch.setattr(extractor,'_extract_claude',full_read)
+    monkeypatch.setattr(extractor,'_reread_material_photo',material_read)
+    result, usage = extractor.extract(folder)
+    assert full_calls == [extractor.HAIKU_MODEL]
+    assert rereads == [True]
+    assert result['brand'] == 'Toast'
+    assert result['tagged_size'] is None
+    assert result['materials'] == []
+    assert result['_extract_log']['escalated'] is False
+
+
 # ---------------------------------------------------------------------------
 # 2. _should_reread_brand / _should_reread_material gate logic (unchanged)
 # ---------------------------------------------------------------------------
