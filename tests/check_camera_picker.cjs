@@ -1,0 +1,18 @@
+const fs=require('fs'),vm=require('vm'),assert=require('assert');
+const source=fs.readFileSync('app/templates/index.html','utf8');
+const code=source.slice(source.indexOf('  function openFilePicker()'),source.indexOf('  function removePhoto'));
+const order=[],listeners={},inputs={};
+for(const id of ['fileInput','cameraInput'])inputs[id]={value:'old',files:[],click(){order.push(id)},addEventListener(type,fn){listeners[id]=fn}};
+const dialog={showModal(){order.push('open')},close(){order.push('close')}};
+const context={document:{getElementById:id=>id==='photoSourceDialog'?dialog:inputs[id]},photos:[],photoRoles:new WeakMap(),selectedForSwap:null,queuePhotoPreparation:f=>order.push(f.name),renderGrid:()=>order.push('render')};
+vm.createContext(context);vm.runInContext(code,context);
+context.openFilePicker();context.choosePhotoSource('cameraInput');
+assert.deepStrictEqual(order,['open','close','cameraInput']);assert.equal(inputs.cameraInput.value,'');
+inputs.cameraInput.files=[{name:'camera.jpg'}];listeners.cameraInput.call(inputs.cameraInput);
+inputs.fileInput.files=[{name:'gallery1.jpg'},{name:'gallery2.jpg'}];listeners.fileInput.call(inputs.fileInput);
+assert.equal(context.photos.length,3);assert.equal(context.photoRoles.get(context.photos[0]),'front');assert.equal(context.photoRoles.get(context.photos[1]),'brand');
+inputs.cameraInput.files=[];listeners.cameraInput.call(inputs.cameraInput);assert.equal(context.photos.length,3);
+context.photos=Array.from({length:19},()=>({}));inputs.fileInput.files=[{name:'one.jpg'},{name:'two.jpg'}];listeners.fileInput.call(inputs.fileInput);assert.equal(context.photos.length,20);
+assert.match(source,/<input[^>]+id="cameraInput"[^>]+capture="environment"/);
+assert(!source.match(/<input[^>]+id="fileInput"[^>]+capture=/));
+console.log('Camera/gallery selection, cancellation, preparation and photo limit checks passed');

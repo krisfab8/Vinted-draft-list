@@ -1283,6 +1283,11 @@
   .btn-save-review:disabled { background: var(--gray-3); cursor: not-allowed; }
 
   input[type="file"] { display: none; }
+  .photo-source-dialog { border:0; border-radius:20px; padding:24px; width:min(340px, calc(100% - 32px)); color:var(--text, #222); }
+  .photo-source-dialog::backdrop { background:rgba(0,0,0,.4); }
+  .photo-source-dialog h2 { margin:0 0 18px; font-size:20px; }
+  .photo-source-dialog button { display:block; width:100%; min-height:48px; margin-top:10px; border:1px solid #ddd; border-radius:12px; background:#fff; color:#222; font:inherit; cursor:pointer; }
+  .photo-source-dialog button:first-of-type { background:#0bbf87; color:#fff; border-color:#0bbf87; }
 
   @media (prefers-reduced-motion: reduce) {
     .loading-ring { animation: none; }
@@ -1398,7 +1403,14 @@
 <div class="result-card" id="resultCard"></div>
 <div id="reviewCard"></div>
 
+<dialog id="photoSourceDialog" class="photo-source-dialog" aria-labelledby="photoSourceTitle">
+  <h2 id="photoSourceTitle">Add photos</h2>
+  <button type="button" onclick="choosePhotoSource('cameraInput')">📷 Take photo</button>
+  <button type="button" onclick="choosePhotoSource('fileInput')">▧ Choose photos</button>
+  <button type="button" onclick="document.getElementById('photoSourceDialog').close()">Cancel</button>
+</dialog>
 <input type="file" id="fileInput" accept="image/*" multiple>
+<input type="file" id="cameraInput" accept="image/*" capture="environment">
 {% endblock %}
 
 {% block scripts %}
@@ -1472,6 +1484,12 @@
     if (photos.length < 20) {
       const btn = document.createElement("div");
       btn.className = "add-more-btn";
+      btn.tabIndex = 0;
+      btn.setAttribute("role", "button");
+      btn.setAttribute("aria-label", "Add photos");
+      btn.onkeydown = event => {
+        if (event.key === "Enter" || event.key === " ") { event.preventDefault(); btn.click(); }
+      };
       const nextLabel = photos.length === 0
         ? "Add photos"
         : (SLOT_LABELS[photos.length] || `Extra ${photos.length - 4}`);
@@ -1502,12 +1520,17 @@
   }
 
   function openFilePicker() {
-    const input = document.getElementById("fileInput");
+    document.getElementById("photoSourceDialog").showModal();
+  }
+
+  function choosePhotoSource(inputId) {
+    document.getElementById("photoSourceDialog").close();
+    const input = document.getElementById(inputId);
     input.value = "";
     input.click();
   }
 
-  document.getElementById("fileInput").addEventListener("change", function () {
+  function addSelectedPhotos() {
     const incoming = Array.from(this.files).slice(0, 20 - photos.length);
     const used = new Set(photos.map(file => photoRoles.get(file)));
     incoming.forEach(file => {
@@ -1518,6 +1541,10 @@
     incoming.forEach(file => queuePhotoPreparation(file));
     selectedForSwap = null;
     renderGrid();
+    this.value = "";
+  }
+  ["fileInput", "cameraInput"].forEach(id => {
+    document.getElementById(id).addEventListener("change", addSelectedPhotos);
   });
 
   function removePhoto(e, index) {
