@@ -68,3 +68,23 @@ def test_saved_evidence_route_does_not_generate_again(item):
     assert response.status_code==200
     assert response.json['fabric_mill']=='Loro Piana' and response.json['price_gbp']==110
     assert client.post('/listing/upload_00000000/check-evidence').status_code==404
+
+
+def test_restore_unknown_optional_colour_preserves_evidence_and_required_errors(item, tmp_path):
+    client, folder, listing = item
+    listing['colour'] = None
+    (folder/'listing.json').write_text(json.dumps(listing))
+    review_evidence.capture(folder, listing)
+    archive = client.get('/api/private/backup?folder='+folder.name).data
+    target = tmp_path/'unknown-colour'
+    item_backup.restore(archive, target)
+    restored = json.loads((target/folder.name/'listing.json').read_text())
+    assert 'colour' not in restored
+    assert restored['title'] == listing['title']
+    assert json.loads((target/folder.name/'analysis.json').read_text())['listing']['colour'] is None
+    listing['price_gbp'] = None
+    (folder/'listing.json').write_text(json.dumps(listing))
+    invalid = client.get('/api/private/backup?folder='+folder.name).data
+    with pytest.raises(ValueError, match='price_gbp'):
+        item_backup.restore(invalid, tmp_path/'invalid-required')
+    assert not (tmp_path/'invalid-required').exists()

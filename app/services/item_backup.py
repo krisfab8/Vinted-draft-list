@@ -6,7 +6,7 @@ import tempfile
 import zipfile
 from pathlib import Path
 from PIL import Image
-from app.validate_listing import validate_or_raise
+from app.validate_listing import normalize_generated_listing, validate_or_raise
 from app.services import model_usage
 
 FOLDER = re.compile(r'upload_[a-f0-9]{8}')
@@ -48,6 +48,9 @@ def restore(data, items_dir):
         if 'listing.json' not in files:
             raise ValueError('Backup item has no listing.')
         listing=json.loads(files['listing.json'])
+        # Older UI edits can store unknown optional values as null. Use the
+        # same normalization as generated listings, retaining required errors.
+        normalize_generated_listing(listing)
         validate_or_raise(listing)
         target=(Path(items_dir)/folder)
         if target.exists():
