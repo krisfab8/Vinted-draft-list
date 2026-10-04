@@ -19,10 +19,13 @@ function setup(serverItems, cached, options={}) {
   const fetch=async (url,opts={})=>{
     calls.push([url,opts.method||'GET']);
     if(url==='/api/listings')return {ok:true,json:async()=>[...server.values()]};
+    if(url==='/api/sales/backup')return {ok:true,json:async()=>[]};
+    if(url==='/api/sales/restore')return {ok:true,json:async()=>({restored:0})};
     if(url.startsWith('/api/private/backup?'))return {ok:!options.failBackup,blob:async()=> 'latest:'+url.split('=')[1]};
     if(url==='/api/private/restore-backup'){server.set(opts.body,{folder:opts.body});return {ok:true};}
     if(opts.method==='DELETE'){server.delete(url.split('/')[2]);return {ok:true};}
     if(opts.method==='PATCH')return {ok:true};
+    if(url.endsWith('/outcome') && opts.method==='POST')return {ok:true};
     if(url==='/upload')return {ok:true,clone:()=>({json:async()=>({folder:'upload_22222222'})})};
     throw Error('Unexpected URL '+url);
   };
@@ -50,5 +53,12 @@ function setup(serverItems, cached, options={}) {
   assert(!quota.calls.some(([,method])=>method==='DELETE'));
   const failure=setup([existing],[],{failBackup:true});await failure.ctx.window.DraftArchive.ready;
   assert(failure.notice.textContent.includes('unavailable'));assert(!failure.state.has(existing));
+  const history=setup([],[{folder:'__sales_history__',rows:[{folder:deleted}]},{folder:deleted,deleted:true}]);
+  await history.ctx.window.DraftArchive.ready;
+  assert(history.calls.some(([url])=>url==='/api/sales/restore'));
+  assert(!history.calls.some(([url])=>url==='/api/private/restore-backup'));
+  await run.ctx.window.fetch('/listing/'+missing+'/outcome',{method:'POST'});
+  await run.ctx.window.DraftArchive.flush();
+  assert(run.calls.filter(([url])=>url==='/api/sales/backup').length>=2);
   console.log('Archive recovery, server-edit precedence, delete tombstones and failure visibility passed');
 })().catch(error=>{console.error(error);process.exit(1)});

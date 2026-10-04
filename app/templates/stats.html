@@ -222,6 +222,19 @@
 {% endblock %}
 
 {% block content %}
+{% if sales_metrics is defined %}
+<details class="section-block" style="padding:16px">
+  <summary style="cursor:pointer;font-weight:600">Sales history · {{ sales_metrics.sold }} sold</summary>
+  <div style="display:grid;gap:10px;margin-top:12px;font-size:14px">
+    <p>{{ sales_metrics.tracked }} tracked items · Actual sales £{{ '%.2f'|format(sales_metrics.revenue_gbp) }}</p>
+    <p>Recorded profit £{{ '%.2f'|format(sales_metrics.profit_gbp) }} across {{ sales_metrics.profit_known_count }} sales with complete cost data.</p>
+    <p>Median time to sell: {{ sales_metrics.median_days_to_sell if sales_metrics.median_days_to_sell is not none else 'Unknown' }} days ({{ sales_metrics.days_known_count }} known dates).</p>
+    <p>30-day sell-through: {{ (sales_metrics.sell_through_30d_percent|string)+'%' if sales_metrics.sell_through_30d_percent is not none else 'Not enough dated inventory yet' }} · {{ sales_metrics.cohort_sold_count }}/{{ sales_metrics.cohort_count }} eligible items.</p>
+    <small>{{ sales_metrics.cohort_note }}</small>
+    <a href="/api/sales/export.csv">Download sales data</a>
+  </div>
+</details>
+{% endif %}
 <div style="margin-bottom:24px">
   <div class="page-title">Stats</div>
 </div>

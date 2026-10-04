@@ -1,15 +1,16 @@
 # Vinted / Dodis task tracker
 
-Updated 2 October 2026. Canonical task list. Read `OPERATING_GUIDE.md` before changing statuses.
+Updated 4 October 2026. Canonical task list. Read `OPERATING_GUIDE.md` before changing statuses.
 
 Priority order: private usable test → reliable state/costs → labeled model evaluation → eBay seller workflow → controlled multi-user beta → further platforms.
 
 ## Next action
 
-**Verify single-pass generation on representative phone photos.**
-Read `SPEED_COST_20261004.md`; 808 automated checks passed. The normal path
-uses one vision response plus deterministic copy; real latency/cost and quality
-comparison remain required. No twenty-item labeled photo set is available.
+**Measure compact-v2 against the saved accuracy-first baseline, then broaden the labeled test set.**
+Read `COST_ONE_PENNY_20261004.md`. The current path uses full vision extraction
+plus a compact writer; single-pass remains disabled after premium-label regressions.
+849 automated checks passed. Preserve the independent baseline on Vinted-APP main.
+No twenty-item labeled photo set is available.
 
 ## Foundation and testing
 
@@ -144,3 +145,13 @@ Keep IDs stable. Do not rename an open task to hide scope. Split partial work in
 - BASE-01 (4 October): prepared independent repository snapshot of 3f037e8 with all four current saved drafts/photos and fresh Boggi rerun accounting; accuracy-first baseline documented in BASELINE.md. New private repository krisfab8/Vinted-APP populated on main through GitHub tools; no app changes/deployment or additional paid analysis.
 
 - COST-08 / STATS-02 (4 October): compact-v2 delta writer keeps extracted facts authoritative, removes full-schema echo and repeated pricing prose; cold prompt caching off by default for sparse tests (batch opt-in retained). Stats shows input/output totals including cached input, recent ledger runs and four-decimal GBP estimates. 844 tests + Node checks pass. See COST_ONE_PENNY_20261004.md. Deployment and controlled paid comparisons pending; full image analysis unchanged.
+
+- COST-09 / BRAND-02 (4 October): first live cost test exposed an existing unnecessary Sonnet escalation and Toast→Coast fuzzy correction. Missing optional fields no longer trigger full escalation; dedicated label rereads retained, confidently read brands bypass fuzzy replacement. 848 tests pass. Fresh corrected Toast measurement pending.
+
+- COST-09 / BRAND-02 measured: corrected Toast 1.5668p (previous 1.9028p), no Sonnet, Toast retained; Boggi 1.2160p (previous 1.5342p), Loro Piana/merino/Full Canvas retained. New material-source guard prevents unsupported Cotton reread from overturning explicit absent-label evidence; 849 tests pass. Sparse ~1p target remains outstanding. All paid failures retained in ledger/evidence; original baseline main untouched.
+
+- COPY-01 (4 October): standard generated description uses short opening then dash details in Size, Made in, Fabric mill, Fabric line, Fit, Model, Material order. Known EU tag and validated UK conversion appear together on the first size line (UK 44R / EU 54); unsupported size systems remain label/equivalent and missing sizes stay absent. Saved edits are not automatically rewritten. Shared finalizer and compact title ordering updated; no recognition/model changes or new AI calls. Full suite/deployment verification below.
+
+- COPY-01 verified_live: 852 tests passed. Render commit 42d88e7ffbf5f5348e92d91e6414b383983b4a83 live; three drafts restored after restart. Both Boggi descriptions patched/read back with paired UK/EU sizes, unchanged £72/£95 prices, no model calls. Original analysis snapshots preserved. See test-evidence/Description-Layout-20261004.json.
+
+- UI-REFRESH-01 / PRICE-05 / PRICE-06 (5 October): fresh-on-open drafts and restored-layout migration; indexed seller-confirmed lifecycle database, tracked cohort sell-through, actual-sale price learning with >=3 strict platform-specific matches, separate device history backup and optional CSV export. 865 Python checks + Node refresh/archive/camera and template syntax checks pass. Details/limitations: SALES_HISTORY_20261005.md. No AI/Jev calls, no pooled-user pricing or new hosting provisioned. Deployment verification pending.

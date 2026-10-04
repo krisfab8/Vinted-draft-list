@@ -48,6 +48,8 @@ auth_state.json
 data/run_logs.jsonl
 data/corrections.jsonl
 data/items.db
+data/sales.db
+data/sales.db-*
 data/alias_memory.json
 data/user_profile.json
 items/*/*.webp

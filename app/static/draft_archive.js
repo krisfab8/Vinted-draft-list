@@ -32,6 +32,12 @@
     await transaction('readwrite', store => store.put({folder, blob, savedAt:Date.now()}));
     notice('Backed up on this device');
   }
+  async function saveSales() {
+    const response = await nativeFetch('/api/sales/backup', {cache:'no-store'});
+    if (!response.ok) throw new Error('Sales backup failed');
+    const rows = await response.json();
+    await transaction('readwrite', store => store.put({folder:'__sales_history__',rows,savedAt:Date.now()}));
+  }
   function queue(action) {
     notice('Saving device backup…');
     pending = pending.then(action).catch(() => {
@@ -46,9 +52,16 @@
       const listings = await response.json();
       const current = new Set(listings.map(item => item.folder));
       const saved = await transaction('readonly', store => store.getAll());
+      const history = saved.find(item => item.folder === '__sales_history__');
+      if (history?.rows?.length) {
+        const restoredSales = await nativeFetch('/api/sales/restore', {
+          method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(history.rows)
+        });
+        if (!restoredSales.ok) throw new Error('Sales history restoration failed');
+      }
       let restored = 0;
       for (const item of saved) {
-        if (item.deleted || current.has(item.folder)) continue;
+        if (item.folder === '__sales_history__' || item.deleted || current.has(item.folder)) continue;
         const result = await nativeFetch('/api/private/restore-backup', {
           method:'POST', headers:{'Content-Type':'application/zip'}, body:item.blob
         });
@@ -59,6 +72,7 @@
         } else restored++;
       }
       for (const item of listings) await save(item.folder);
+      await saveSales();
       if (saved.length || listings.length) notice('Backed up on this device');
       if (restored && location.pathname === '/drafts') location.reload();
     } catch (_) {
@@ -89,7 +103,7 @@
       const match = url.pathname.match(/^(?:\/listing\/|\/api\/listing\/|\/reprice\/|\/regen\/)(upload_[a-f0-9]{8})(?:\/[^/]+)?$/);
       if (match) {
         if (method === 'DELETE') notice('Listing deleted');
-        else queue(() => save(match[1]));
+        else queue(async () => { await save(match[1]); if (url.pathname.endsWith('/outcome')) await saveSales(); });
       } else if (url.pathname === '/upload') {
         const result = await response.clone().json();
         if (result.folder) queue(() => save(result.folder));

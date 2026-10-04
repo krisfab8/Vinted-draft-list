@@ -21,9 +21,23 @@ def size_text(listing):
     return normalized or tagged
 
 
+def recover_tag(listing):
+    """Recover a legacy tailoring tag only from an explicit saved Size keyword."""
+    from app.listing_writer import _TAILORING_KEYWORDS, _EU_TO_UK
+    kind = (listing.get('item_type') or '').lower()
+    normalized = listing.get('normalized_size')
+    if listing.get('tagged_size') != normalized or not any(word in kind for word in _TAILORING_KEYWORDS): return
+    for value in listing.get('tag_keywords') or []:
+        match = re.fullmatch(r'Size\s+(?:EU\s*)?(\d{2})', str(value), re.I)
+        if match and f'{_EU_TO_UK.get(int(match[1]))}R' == normalized:
+            listing['tagged_size'] = match[1]
+            return
+
+
 def apply(listing):
     """Normalize generated descriptions; editing a saved draft does not call this."""
     desc = listing.get('description') or ''
+    listing['description_layout_version'] = 'dash-details-v1'
     # Keep opening prose, other useful bullets, keywords and confirmed measurements.
     # Rebuild only these labelled details, so contradictory/duplicate size lines disappear.
     managed = r'(?:Size|Made in|Fabric mill|Fabric line|Cloth|Fit|Model|Material|Materials)'

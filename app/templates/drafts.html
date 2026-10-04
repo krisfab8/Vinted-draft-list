@@ -531,6 +531,7 @@
 <div class="drafts-heading">
   <div style="display:flex;align-items:center;gap:10px">
     <div class="page-title" style="margin-bottom:0">Drafts</div>
+    <button type="button" onclick="location.href='/drafts?refresh='+Date.now()" aria-label="Refresh drafts" title="Refresh drafts" style="border:0;background:none;font-size:22px;cursor:pointer">↻</button>
     <span id="review-count-badge" style="display:none;background:var(--gold-bg);color:#b86a00;border:1px solid rgba(184,106,0,0.2);font-size:11px;font-weight:700;padding:3px 10px;border-radius:var(--r-pill)"></span>
   </div>
   {% if listings %}
@@ -641,12 +642,27 @@ function relDate(iso) {
 }
 
 function esc(s) {
-  return String(s || "")
+  return String(s ?? "")
     .replace(/&/g,"&amp;").replace(/</g,"&lt;")
     .replace(/>/g,"&gt;").replace(/"/g,"&quot;");
 }
 
-function openSheet(idx) {
+async function openSheet(idx) {
+  const cached = LISTINGS[idx];
+  if (!cached?.folder) return;
+  const folder = cached.folder;
+  currentFolder = folder;
+  try {
+    const response = await fetch('/listing/'+encodeURIComponent(folder)+'?fresh='+Date.now(), {cache:'no-store'});
+    if (!response.ok) throw new Error('Could not refresh this draft');
+    const fresh = await response.json();
+    if (currentFolder !== folder) return;
+    LISTINGS[idx] = {...cached, ...fresh};
+    renderSheet(idx);
+  } catch (_) { showToast('Could not load the latest draft. Tap refresh and try again.'); }
+}
+
+function renderSheet(idx) {
   const item = LISTINGS[idx];
   if (!item) return;
   currentFolder = item.folder || null;
@@ -711,6 +727,22 @@ function openSheet(idx) {
     ${item.category ? `<div class="sheet-category">📂 ${esc(item.category).replace(/ &gt; /g, ' › ')}</div>` : ""}
     ${draftBtn}
     ${item.folder ? `<a class="btn-sheet-edit" href="/?edit=${esc(item.folder)}" aria-label="Edit listing">✎ Edit</a>` : ""}
+    <details style="margin-top:16px"><summary style="cursor:pointer">${item.outcome ? 'Sale / listing record · '+esc(item.outcome.status) : 'Record listing or sale'}</summary>
+      <form onsubmit="saveOutcome(event, '${esc(item.folder)}')" style="display:grid;gap:10px;margin-top:12px">
+        <label>Status <select name="status" aria-label="Item status">${['sold','listed','withdrawn','returned'].map(s=>`<option value="${s}" ${item.outcome?.status===s?'selected':''}>${s==='listed'?'Live / unsold':s[0].toUpperCase()+s.slice(1)}</option>`).join('')}</select></label>
+        <label>Platform <select name="platform">${['Vinted','eBay','Depop','Other'].map(p=>`<option ${item.outcome?.platform===p?'selected':''}>${p}</option>`).join('')}</select></label>
+        <label>Actual sold price (£, postage excluded) <input name="sold_price_gbp" type="number" min="0.01" step="0.01" value="${esc(item.outcome?.sold_price_gbp ?? '')}"></label>
+        <label>Sale date <input name="sold_date" type="date" value="${esc(item.outcome?.sold_date || '')}"></label>
+        <label>First published date <input name="published_date" type="date" value="${esc(item.outcome?.published_date || '')}"></label>
+        <label>Purchase cost (£, optional) <input name="buy_price_gbp" type="number" min="0" step="0.01" value="${esc(item.outcome?.buy_price_gbp ?? item.buy_price_gbp ?? '')}"></label>
+        <label>Selling costs (£, optional; fees / seller-paid postage) <input name="selling_cost_gbp" type="number" min="0" step="0.01" value="${esc(item.outcome?.selling_cost_gbp ?? '')}"></label>
+        <small>Record live unsold items too, so sell-through has a complete denominator. Enter 0 for a known zero cost; leave unknown costs blank.</small>
+        <button type="submit" class="btn-sheet-edit">Save record</button>
+      </form>
+    </details>
+    ${item.sales_history?.sample_count ? `<details style="margin-top:16px"><summary>Your matching sales · ${esc(item.sales_history.sample_count)}</summary>
+      <p>${item.sales_history.median_gbp == null ? 'At least 3 recent matching sales needed for a price.' : `Median accepted price £${esc(item.sales_history.median_gbp)} · Average £${esc(item.sales_history.mean_gbp)}`}</p>
+      <small>${esc(item.sales_history.note)}</small></details>` : ''}
   `;
 
   document.getElementById("sheetOverlay").classList.add("open");
@@ -718,8 +750,28 @@ function openSheet(idx) {
 }
 
 function closeSheet() {
+  currentFolder = null;
   document.getElementById("sheetOverlay").classList.remove("open");
   document.body.style.overflow = "";
+}
+
+async function saveOutcome(event, folder) {
+  event.preventDefault();
+  const form = event.target;
+  const values = new FormData(form);
+  const body = Object.fromEntries(values);
+  for (const key of ['sold_price_gbp','buy_price_gbp','selling_cost_gbp']) body[key] = body[key] === '' ? null : Number(body[key]);
+  const button = form.querySelector('button[type="submit"]');
+  button.disabled = true;
+  try {
+    const response = await fetch('/listing/'+encodeURIComponent(folder)+'/outcome', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.error || 'Could not save');
+    const index = LISTINGS.findIndex(item=>item.folder===folder);
+    if (index>=0) LISTINGS[index].outcome=result.outcome;
+    showToast('Saved. No AI charge.');
+  } catch (error) { showToast(error.message); }
+  finally { button.disabled = false; }
 }
 
 function closeIfBackdrop(e) {

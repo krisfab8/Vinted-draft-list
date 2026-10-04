@@ -1,7 +1,7 @@
 """
 Deterministic post-processing pricing service.
 
-Pure functions only — no I/O, no AI calls, no side effects.
+Deterministic rules plus read-only confirmed-sale lookup; no AI calls.
 
 Called after listing_writer.write() to:
 1. Preserve the raw AI price as ai_price_gbp
@@ -280,6 +280,17 @@ def _apply_pricing_inner(listing: dict, pricing_mode: str = "balanced") -> dict:
         if mem_high > 0 and final_price is not None and final_price > mem_high:
             adjustments.append(f"clamped to memory ceiling £{int(mem_high)}")
             final_price = mem_high
+
+    # Observed accepted prices supersede generic estimates only with 3 recent,
+    # strictly matched sales on the same platform. This runs only on generation/reprice.
+    from app.services import sales_history
+    history = sales_history.comparisons(listing)
+    listing['sales_history'] = history
+    if history.get('median_gbp') is not None:
+        final_price = history['median_gbp']
+        listing['price_evidence'] = dict(history, confidence='observed_sample',
+            note=f"Suggested from {history['sample_count']} matching confirmed Vinted sales (median accepted price; postage excluded).")
+        adjustments.append('matching confirmed sale history used')
 
     # ── 4. Round to nearest £1 and write back ─────────────────────────────────
     if final_price is not None:

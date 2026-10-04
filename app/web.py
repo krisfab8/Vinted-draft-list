@@ -42,6 +42,8 @@ except Exception:
 
 app = Flask(__name__)
 app.config["MAX_CONTENT_LENGTH"] = 50 * 1024 * 1024  # 50 MB max upload
+from app.sales_api import sales as sales_blueprint
+app.register_blueprint(sales_blueprint)
 
 try:
     item_store.init_db()
@@ -513,7 +515,8 @@ def stats_page():
     listings = _get_all_listings()
     cost_history = _get_cost_history()
     stats = _compute_stats(listings, cost_history)
-    return render_template("stats.html", stats=stats, cost_history=cost_history,
+    from app.services import sales_history
+    return render_template("stats.html", stats=stats, cost_history=cost_history, sales_metrics=sales_history.metrics(),
                            draft_count=len(listings), active_tab="stats")
 
 
@@ -748,6 +751,9 @@ def get_listing(folder):
         return jsonify({"error": "listing not found"}), 404
     listing = json.loads(listing_path.read_text())
     listing["folder"] = safe_folder
+    from app.services import sales_history
+    listing['outcome'] = sales_history.get(safe_folder)
+    listing['sales_history'] = sales_history.comparisons(listing)
     from app.services.ebay_comps import search_links, EbayQueryError
     try:
         listing['ebay_links'] = search_links(listing)

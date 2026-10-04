@@ -16,7 +16,7 @@ PHOTO = re.compile(r'(?:front|brand|model_size|material|back|extra_\d{2}|measure
 def restore(data, items_dir):
     if len(data) > 30*1024*1024:
         raise ValueError('Backup too large.')
-    groups, events = {}, []
+    groups, events, sales_rows = {}, [], []
     with zipfile.ZipFile(io.BytesIO(data)) as archive:
         infos = archive.infolist()
         if len(infos) > 500 or sum(i.file_size for i in infos) > 100*1024*1024:
@@ -28,6 +28,9 @@ def restore(data, items_dir):
             seen.add(info.filename)
             if info.filename == 'model_calls.json':
                 events=json.loads(archive.read(info))
+                continue
+            if info.filename == 'sales_history.json':
+                sales_rows = json.loads(archive.read(info))
                 continue
             parts=info.filename.split('/')
             if len(parts)!=3 or parts[0]!='items' or not FOLDER.fullmatch(parts[1]):
@@ -57,10 +60,18 @@ def restore(data, items_dir):
             raise ValueError('Item already exists; restore does not overwrite seller edits.')
         listing['folder']=folder
         listing['photos_folder']=str(target)
+        # Old phone backups can reintroduce the pre-update generated layout.
+        # Migrate structured details once; keep free text and exact item facts.
+        from app.services import description_layout
+        if not listing.get('description_layout_version'):
+            description_layout.recover_tag(listing)
+            description_layout.apply(listing)
         files['listing.json']=json.dumps(listing,indent=2).encode()
     if not isinstance(events,list) or any(not isinstance(e,dict) or not re.fullmatch(r'[a-f0-9]{32}',str(e.get('id',''))) for e in events):
         raise ValueError('Invalid usage ledger.')
     Path(items_dir).mkdir(parents=True,exist_ok=True)
+    from app.services import sales_history
+    sales_history.restore(sales_rows)
     for folder, files in groups.items():
         with tempfile.TemporaryDirectory(dir=items_dir) as temp:
             stage=Path(temp)/folder;stage.mkdir()
@@ -105,4 +116,8 @@ def export(items_dir, selected_folder=None):
         if selected_folder:
             events = [event for event in events if event.get('item') == selected_folder]
         archive.writestr('model_calls.json',json.dumps(events))
+        from app.services import sales_history
+        rows = sales_history.read_all()
+        if selected_folder: rows = [row for row in rows if row['folder'] == selected_folder]
+        archive.writestr('sales_history.json', json.dumps(rows))
     return output.getvalue()
