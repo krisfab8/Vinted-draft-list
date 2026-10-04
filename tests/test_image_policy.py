@@ -318,6 +318,16 @@ def test_escalation_ignores_absent_labels_and_preserves_ambiguous_readings():
     assert _escalation_fields(result) == ['tagged_size','item_type']
 
 
+def test_reread_cannot_infer_composition_after_absent_label_finding():
+    from app.extractor import _reread_composition_supported
+    original = {'material_reason':'No care or composition label visible in any of the provided photos.'}
+    assert not _reread_composition_supported(original, {'materials':['100% Cotton']})
+    assert not _reread_composition_supported(original, {'materials':['100% Cotton'], 'composition_label_text':'TOAST'})
+    assert not _reread_composition_supported(original, {'materials':['100% Cotton'], 'composition_label_text':'98% Cotton 2% Elastane'})
+    assert _reread_composition_supported(original, {'materials':['100% Cotton'], 'composition_label_text':'100 % COTONE / COTTON'})
+    assert _reread_composition_supported({'material_reason':'Partially obscured composition label'}, {'materials':['100% Cotton']})
+
+
 # ---------------------------------------------------------------------------
 # 7. Prompt builder
 # ---------------------------------------------------------------------------

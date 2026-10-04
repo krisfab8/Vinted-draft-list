@@ -761,6 +761,21 @@ def _escalation_fields(result: dict) -> list[str]:
             if field not in delegated and result.get(field) not in (None, '', [])]
 
 
+def _reread_composition_supported(original: dict, reread: dict) -> bool:
+    """Require label text to overturn an explicit finding of no composition label."""
+    reason = original.get('material_reason') or ''
+    absent = re.search(r'\bno\b[^.;]{0,80}\b(?:care|composition|material)\b'
+                       r'[^.;]{0,60}\blabels?\b[^.;]{0,40}\bvisible\b', reason, re.I)
+    if not absent:
+        return True
+    quote = reread.get('composition_label_text')
+    if not isinstance(quote, str) or not quote.strip():
+        return False
+    percentages = re.findall(r'\d+(?:\.\d+)?\s*%', ' '.join(reread.get('materials') or []))
+    return bool(percentages) and all(re.sub(r'\s+', '', value) in re.sub(r'\s+', '', quote)
+                                     for value in percentages)
+
+
 def _mill_check_relevant(result: dict) -> bool:
     """Reserve confident mill-only rereads for cloth evidence or woven tailoring."""
     if result.get("fabric_line") or result.get("material_hint"):
@@ -819,7 +834,10 @@ def _reread_material_photo(folder: Path, model: str, full_reread: bool = False) 
                         "4. If you see a descriptive wool/fibre origin without percentages "
                         "(e.g. 'Pure New Zealand Merino Wool', 'Escorial Wool'), record it in material_hint.\n"
                         'Return only JSON: {"materials": ["list of fibres exactly as on label — empty list [] if cloth-only label"], '
-                        '"fabric_mill": "NAME or null", "fabric_line": "LINE or null", "material_hint": "DESCRIPTION or null"}'
+                        '"fabric_mill": "NAME or null", "fabric_line": "LINE or null", "material_hint": "DESCRIPTION or null", '
+                        '"composition_label_text": "quote the visible percentage/fibre label text, or null if absent"}. '
+                        'A fabric appearance or brand name is not composition evidence. If no percentage label is visible, '
+                        'return materials=[] and composition_label_text=null; never infer cotton from corduroy.'
                     )
                     max_tokens = 180
                 else:
@@ -1147,7 +1165,8 @@ def extract(item_folder: str | Path, hints: dict | None = None, *, single_pass: 
 
     # Apply material reread result
     if (_do_material_full or _do_material_mill) and _reread_mat_result:
-        if _do_material_full and _reread_mat_result.get("materials"):
+        if (_do_material_full and _reread_mat_result.get("materials")
+                and _reread_composition_supported(result, _reread_mat_result)):
             old_mats = result.get("materials")
             result["materials"] = _reread_mat_result["materials"]
             result["material_confidence"] = "high"
@@ -1156,6 +1175,9 @@ def extract(item_folder: str | Path, hints: dict | None = None, *, single_pass: 
             ]
             if _reread_mat_result["materials"] != old_mats:
                 print(f"  Materials updated: {_reread_mat_result['materials']}")
+        elif _do_material_full and _reread_mat_result.get('materials'):
+            result.setdefault('low_confidence_fields', []).append('materials')
+            print('  Material reread ignored: absent label finding has no quoted composition evidence')
         if _reread_mat_result.get("fabric_mill") and not result.get("fabric_mill"):
             print(f"  Fabric mill re-read: '{_reread_mat_result['fabric_mill']}'")
             result["fabric_mill"] = _reread_mat_result["fabric_mill"]
