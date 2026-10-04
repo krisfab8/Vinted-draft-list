@@ -717,6 +717,11 @@ def get_listing(folder):
         return jsonify({"error": "listing not found"}), 404
     listing = json.loads(listing_path.read_text())
     listing["folder"] = safe_folder
+    from app.services.ebay_comps import search_links, EbayQueryError
+    try:
+        listing['ebay_links'] = search_links(listing)
+    except EbayQueryError:
+        pass
     return jsonify(listing), 200
 
 
@@ -1174,6 +1179,27 @@ def save_ebay_research(folder):
     listing["ebay_research"] = metrics
     path.write_text(json.dumps(listing, indent=2))
     return jsonify(metrics)
+
+
+@app.post("/api/listing/<folder>/sold-comparisons")
+def save_sold_comparisons(folder):
+    path = ITEMS_DIR / Path(folder).name / 'listing.json'
+    if not path.exists():
+        return jsonify(error='Listing not found'), 404
+    body = request.get_json(silent=True)
+    if not isinstance(body, dict):
+        return jsonify(error='Enter sold comparison titles and prices.'), 422
+    listing = json.loads(path.read_text())
+    from app.services.ebay_comps import sold_comparison_summary
+    try:
+        summary = sold_comparison_summary(listing, body.get('text'))
+    except ValueError as error:
+        return jsonify(error=str(error)), 422
+    listing['ebay_sold_comparisons'] = summary
+    temporary = path.with_suffix('.json.tmp')
+    temporary.write_text(json.dumps(listing, indent=2))
+    temporary.replace(path)
+    return jsonify(summary)
 
 
 @app.get("/tracker/status/<folder>")

@@ -1156,6 +1156,8 @@ def finalize_listing(listing: dict, item: dict, hints: dict | None = None) -> di
     from app.services import condition as _cond_svc
     from app.services import copy_quality
     copy_quality.apply(listing, item)
+    from app.services import premium_features
+    premium_features.ensure_title(listing, item)
     _cond_svc.apply_condition(listing)
     _cond_svc.inject_condition_line(listing)
 

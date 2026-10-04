@@ -115,7 +115,7 @@ def _build_query(listing: dict) -> str:
     # Append primary material only when brand confidence is high and item has one
     brand_conf = (listing.get("brand_confidence") or "").lower()
     materials = listing.get("materials") or []
-    if brand_conf == "high" and materials:
+    if brand_conf == "high" and materials and listing.get("material_confidence") != "low" and not {"material", "materials"} & set(listing.get("low_confidence_fields") or []):
         # Take first material, one word only
         first_mat = re.sub(r"^\s*\d+(?:\.\d+)?%\s*", "", str(materials[0])).split()[0].lower() if isinstance(materials, list) else ""
         # Only add if it meaningfully qualifies the search (skip "cotton", "other", etc.)
@@ -126,9 +126,12 @@ def _build_query(listing: dict) -> str:
     model = listing.get("model_name")
     if model and listing.get("model_confidence") == "high":
         parts.append(str(model).strip())
-    size = listing.get("normalized_size") or listing.get("tagged_size")
-    if size and not {"size", "normalized_size", "tagged_size"} & set(listing.get("low_confidence_fields") or []):
-        parts.append(str(size).strip())
+    from app.services.premium_features import confirmed_terms, tokens
+    # Premium evidence is mandatory; size/colour are intentionally left open.
+    # This gives comparable garments in other sizes a chance to appear.
+    for term in confirmed_terms(listing):
+        if not tokens(term) <= tokens(' '.join(parts)):
+            parts.append(term)
     return " ".join(parts)
 
 
@@ -244,10 +247,9 @@ def _relevant(item, listing):
     model = listing.get('model_name') if listing.get('model_confidence') == 'high' else None
     if model and not set(re.findall(r"[a-z0-9]+",str(model).lower())) <= words:
         return False
-    size = listing.get('normalized_size') or listing.get('tagged_size')
-    if size and not {'size', 'normalized_size', 'tagged_size'} & set(listing.get('low_confidence_fields') or []):
-        if not re.search(r'(?<![a-z0-9])'+re.escape(str(size).lower())+r'(?![a-z0-9])',title):
-            return False
+    from app.services.premium_features import confirmed_terms, tokens
+    if any(not tokens(term) <= tokens(title) for term in confirmed_terms(listing)):
+        return False
     return True
 
 
@@ -327,7 +329,7 @@ def enrich(listing: dict) -> dict:
     try:
         listing['ebay_links'] = search_links(listing)
         for field in list(listing):
-            if field.startswith('ebay_') and field not in ('ebay_links','ebay_research'):
+            if field.startswith('ebay_') and field not in ('ebay_links','ebay_research','ebay_sold_comparisons'):
                 listing.pop(field)
         return _enrich_inner(listing)
     except Exception as exc:
@@ -344,7 +346,7 @@ def _enrich_inner(listing: dict) -> dict:
         return listing
 
     query = _build_query(listing)
-    key = hashlib.sha256((query + "|GB|GBP|USED|FIXED_PRICE|v2").encode()).hexdigest()
+    key = hashlib.sha256((query + "|GB|GBP|USED|FIXED_PRICE|premium-v3").encode()).hexdigest()
     cached = _cache_get(key)
     if cached:
         listing.update(cached)
@@ -457,3 +459,52 @@ class EbayApiError(RuntimeError):
 
 class EbayRateLimitError(EbayApiError):
     pass
+
+
+def sold_comparison_summary(listing, text):
+    """Match seller-provided sold titles/prices. Never imply fetched sale evidence."""
+    if not isinstance(text, str) or len(text) > 20000:
+        raise ValueError('Enter up to 50 sold comparisons, one title | price per line.')
+    lines = [line.strip() for line in text.splitlines() if line.strip()]
+    if not 1 <= len(lines) <= 50:
+        raise ValueError('Enter between 1 and 50 sold comparisons.')
+    if not listing.get('brand') or not listing.get('item_type'):
+        raise ValueError('Confirm the garment brand and item type before matching sales.')
+    seen, matched, rejected = set(), [], 0
+    from app.services.premium_features import tokens
+    for line in lines:
+        try:
+            title, price = line.rsplit('|', 1)
+            title = title.strip()
+            price = float(price.strip().removeprefix('£').strip())
+        except (ValueError, TypeError):
+            raise ValueError('Use one sold title | price per line, e.g. Boggi Loro Piana blazer | 85.') from None
+        if not title or len(title) > 300 or not math.isfinite(price) or not 0 < price <= 100000:
+            raise ValueError('Each comparison needs a title and a positive GBP sold price.')
+        key = (title.casefold(), price)
+        if key in seen: continue
+        seen.add(key)
+        item = {'title':title, 'price_gbp':price}
+        if not _relevant(item, listing):
+            rejected += 1
+            continue
+        # Size/colour are bonuses only; brand, type and premium evidence are hard requirements.
+        score = 10
+        for value in (listing.get('normalized_size'), listing.get('colour'), listing.get('fabric_line')):
+            if value and tokens(value) <= tokens(title): score += 1
+        item['match_score'] = score
+        matched.append(item)
+    # All accepted rows share mandatory garment/premium evidence. Rank exact
+    # size/colour/line matches first, but retain other sizes/colours in the sample.
+    closest = sorted(matched, key=lambda item: item['match_score'], reverse=True)[:20]
+    prices = [item['price_gbp'] for item in closest]
+    sufficient = len(prices) >= 3
+    return {'source':'seller_entered_sold_comparisons', 'sample_count':len(prices),
+            'matched_count':len(matched), 'excluded_count':rejected,
+            'mean_sold_gbp':round(statistics.mean(prices),2) if sufficient else None,
+            'median_sold_gbp':round(statistics.median(prices),2) if sufficient else None,
+            'low_sold_gbp':min(prices) if sufficient else None,
+            'high_sold_gbp':max(prices) if sufficient else None,
+            'examples':closest, 'input_text':text, 'query':_build_query(listing),
+            'recorded_at':datetime.now(timezone.utc).isoformat(),
+            'note':'Seller-entered sold prices, not automatically fetched or independently verified. Review condition and composition; prices exclude postage. At least three closest matches are required. Listing price is unchanged.'}

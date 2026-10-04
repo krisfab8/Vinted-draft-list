@@ -43,9 +43,9 @@ def test_cache_prefix_preserves_every_instruction_and_keeps_hints_images_outside
 
 def test_relevance_and_query_use_visible_model_size_material():
     listing={'brand':'Sweaty Betty','item_type':'cropped leggings','normalized_size':'S','model_name':'Power','model_confidence':'high'}
-    assert e._build_query(listing)=='Sweaty Betty cropped leggings Power S'
+    assert e._build_query(listing)=='Sweaty Betty cropped leggings Power'
     assert e._relevant({'title':'Sweaty Betty Power Capri Leggings S'},listing)
-    assert not e._relevant({'title':'Sweaty Betty Power Capri Leggings XL'},listing)
+    assert e._relevant({'title':'Sweaty Betty Power Capri Leggings XL'},listing)
     assert not e._relevant({'title':'Nike Power Capri Leggings S'},listing)
     listing['model_confidence']='low'
     assert 'Power' not in e._build_query(listing)

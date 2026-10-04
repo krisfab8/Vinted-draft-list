@@ -65,11 +65,14 @@ def recheck(path):
         copy_quality.apply(listing, listing)
         condition.apply_condition(listing)
         condition.inject_condition_line(listing)
-    mill = listing.get('fabric_mill')
-    if mill and listing.get('title') == original.get('title') and mill.lower() not in listing['title'].lower():
-        from app.listing_writer import _is_premium_mill
-        if _is_premium_mill(mill):
-            listing['title'] = (listing['title'] + ' — ' + mill + ' cloth')[:120]
+    if listing.get('title') == original.get('title'):
+        from app.services.premium_features import ensure_title
+        ensure_title(listing)
+    from app.services.ebay_comps import search_links, EbayQueryError
+    try:
+        listing['ebay_links'] = search_links(listing)
+    except EbayQueryError:
+        pass
     current_price = listing.get('price_gbp')
     manual_price = current_price != original.get('price_gbp')
     if not manual_price and listing.get('ai_price_gbp') is not None:

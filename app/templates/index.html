@@ -2262,6 +2262,13 @@
         <p>${esc(market.note)} Checked ${esc(market.fetched_at)}${d.ebay_comps_cache_hit ? " · cached" : ""}.</p>
         ${market.examples.map(item=>`<p>${safeEbayLink(item.url,item.title)} · £${esc(item.price_gbp)}${item.shipping_gbp == null ? " · postage unknown" : ` + £${esc(item.shipping_gbp)} postage`}</p>`).join("")}` : ""}
       ${links.active ? `<p>${safeEbayLink(links.active,'Active listings')} · ${safeEbayLink(links.sold,'Sold listings')} · ${safeEbayLink(links.research,'Product Research')}</p><p>Search: ${esc(links.query)}</p>` : ""}
+      <details style="margin:12px 0">
+        <summary>Average matching sold prices</summary>
+        <p>Paste used-condition sold titles and actual prices from your research, one per line: title | price. Postage excluded. These are seller-entered comparisons; no automatic sold lookup.</p>
+        <textarea id="ebay-sold-comparisons" rows="4" maxlength="20000" aria-label="Sold titles and GBP prices" placeholder="Boggi Loro Piana Merino Wool Full Canvas blazer | 85" style="width:100%">${esc(d.ebay_sold_comparisons?.input_text || "")}</textarea>
+        <button class="btn-secondary" onclick="saveSoldComparisons('${esc(d.folder)}')">Calculate matching average</button>
+        ${d.ebay_sold_comparisons ? `<p>${esc(d.ebay_sold_comparisons.sample_count)} closest matches${d.ebay_sold_comparisons.mean_sold_gbp == null ? " · need at least 3 for an average" : ` · Average £${esc(d.ebay_sold_comparisons.mean_sold_gbp)} · Median £${esc(d.ebay_sold_comparisons.median_sold_gbp)}`}.</p><p>${esc(d.ebay_sold_comparisons.note)}</p>${d.ebay_sold_comparisons.examples.map(item => `<p>${esc(item.title)} · £${esc(item.price_gbp)}</p>`).join("")}` : ""}
+      </details>
       <p>Use the same exact item filters and record a sold period. Counts entered below are seller-supplied research.</p>
       <label>Active count <input id="ebay-active" type="number" min="0" step="1" value="${research ? esc(research.active_count) : ""}"></label>
       <label>Sold count <input id="ebay-sold" type="number" min="0" step="1" value="${research ? esc(research.sold_count) : ""}"></label>
@@ -2294,6 +2301,19 @@
       const response = await fetch('/api/listing/'+encodeURIComponent(folder)+'/fetch-ebay-comps',{method:'POST'});
       const data = await readUploadResponse(response);
       if (!response.ok) throw new Error(data.error || 'Comparison failed.');
+      await refreshEbayListing(folder);
+    } catch(error) { status.textContent = error.message; }
+  }
+
+  async function saveSoldComparisons(folder) {
+    const status = document.getElementById('ebay-status');
+    status.textContent = 'Matching saved sale examples…';
+    try {
+      const response = await fetch('/api/listing/'+encodeURIComponent(folder)+'/sold-comparisons', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({text:document.getElementById('ebay-sold-comparisons').value})});
+      const data = await readUploadResponse(response);
+      if (!response.ok) throw new Error(data.error || 'Could not save comparisons.');
       await refreshEbayListing(folder);
     } catch(error) { status.textContent = error.message; }
   }
