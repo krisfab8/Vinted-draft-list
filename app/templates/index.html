@@ -1817,7 +1817,7 @@
   const _editFolder = new URLSearchParams(location.search).get("edit");
   const _fromDrafts = !!_editFolder;
   if (_editFolder) {
-    fetch(`/listing/${encodeURIComponent(_editFolder)}`)
+    (window.DraftArchive ? window.DraftArchive.ready : Promise.resolve()).then(() => fetch(`/listing/${encodeURIComponent(_editFolder)}`))
       .then(r => r.json())
       .then(data => { if (data && data.folder) showResult(data); })
       .catch(() => {});
@@ -2107,11 +2107,46 @@
     });
   }
 
+  function feedbackHtml(d) {
+    _feedbackLoaded = null;
+    if (!d.folder) return "";
+    const issues = {brand:"Brand",fabric:"Fabric maker / line",size:"Size",material:"Material",price:"Price",copy:"Description",other:"Other"};
+    return `<details style="margin:16px 0" ontoggle="if(this.open)loadFeedback('${esc(d.folder)}')">
+      <summary>✎ Feedback</summary>
+      <p style="font-size:13px">What needs improving? Saving feedback does not rerun AI or change the listing.</p>
+      ${Object.entries(issues).map(([key,label]) => `<label style="display:inline-block;margin:6px 12px 6px 0"><input type="checkbox" name="feedback-issue" value="${key}"> ${label}</label>`).join('')}
+      <textarea id="feedback-notes" maxlength="2000" placeholder="Correction or what went wrong" aria-label="Feedback notes" style="width:100%;min-height:80px;margin:10px 0"></textarea>
+      <button class="btn-desc-save" onclick="saveFeedback('${esc(d.folder)}')">Save feedback</button>
+      <div id="feedback-status" role="status"></div>
+    </details>`;
+  }
+  let _feedbackLoaded = null;
+  async function loadFeedback(folder) {
+    if (_feedbackLoaded === folder) return;
+    try {
+      const response = await fetch(`/listing/${folder}/feedback`);
+      if (!response.ok) throw new Error();
+      const data = await response.json();
+      document.getElementById('feedback-notes').value = data.notes || '';
+      document.querySelectorAll('[name="feedback-issue"]').forEach(input => input.checked = (data.issues || []).includes(input.value));
+      _feedbackLoaded = folder;
+    } catch (_) { document.getElementById('feedback-status').textContent = 'Could not load feedback. Try again.'; }
+  }
+  async function saveFeedback(folder) {
+    const status = document.getElementById('feedback-status');
+    status.textContent = 'Saving…';
+    try {
+      const response = await fetch(`/listing/${folder}/feedback`, {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({issues:Array.from(document.querySelectorAll('[name="feedback-issue"]:checked'), input => input.value),notes:document.getElementById('feedback-notes').value})});
+      if (!response.ok) throw new Error();
+      status.textContent = 'Feedback saved';
+    } catch (_) { status.textContent = 'Could not save feedback. Try again.'; }
+  }
+
   function measurementHtml(d) {
     if (!d.folder) return "";
     const labels = {measure_pit_to_pit:"Pit-to-pit (flat width)",measure_length:"Back length",measure_sleeve:"Sleeve length"};
-    return `<div style="padding:16px;border:1px solid #b9ded8;border-radius:16px;margin:16px 0">
-      <strong>Confirm measurements</strong>
+    return `<details style="padding:16px;border:1px solid #b9ded8;border-radius:16px;margin:16px 0">
+      <summary>Measurements · optional</summary>
       <p style="font-size:13px">Optional. Check ruler reference points, then confirm in cm. Tagged size stays unchanged. A ruler photo needs its start and end visible.</p>
       ${Object.entries(labels).map(([role,label]) => {
         const saved = (d.measurements || []).find(m => m.role===role);
@@ -2125,7 +2160,7 @@
       }).join("")}
       <button class="btn-desc-save" onclick="confirmMeasurements('${esc(d.folder)}')">Confirm measurements</button>
       <div id="measurement-status" role="status"></div>
-    </div>`;
+    </details>`;
   }
 
   async function confirmMeasurements(folder) {
@@ -2230,7 +2265,7 @@
     const callHtml = (d.model_calls || []).length ? `<details style="font-size:12px;margin:10px 0"><summary>Model calls and estimated cost</summary>
       ${(d.model_calls || []).map(call => `<div>${esc(call.stage)} · ${esc(call.model)} · ${call.cost_gbp == null ? "unknown cost" : (call.cost_gbp * 100).toFixed(3) + "p"}</div>`).join("")}
     </details>` : "";
-    const backupHtml = `<p><a href="/api/private/backup">Download a backup of listings and photos</a></p>`;
+    const backupHtml = `<details style="margin:16px 0"><summary>Saved drafts &amp; backup</summary><p style="font-size:13px">Device backups belong to this browser. Clearing site data can remove them. Download a copy for safekeeping or transfer to another device.</p><a href="/api/private/backup">Download listings and photos</a></details>`;
     const chips = [];
     if (d.premium)   chips.push(`<span class="chip chip-gold">★ Premium</span>`);
     if (d.gender)    chips.push(`<span class="chip chip-default">${esc(d.gender)}</span>`);
@@ -2333,10 +2368,11 @@
             <button class="btn-desc-cancel" onclick="cancelDesc()">Cancel</button>
           </div>
         </div>
+        ${feedbackHtml(d)}
         ${measurementHtml(d)}
         ${ebayMarketHtml(d)}
         ${backupHtml}
-        ${d.photos_missing ? `<p style="color:var(--red)">This recovered listing has no saved photos. The free host cleared them; re-upload the originals before drafting.</p>` : ""}
+        ${d.photos_missing ? `<p style="color:var(--red)">Some original garment photos are missing. The recovered listing and any available label photos are saved; add the missing photos before drafting.</p>` : ""}
         ${costHtml}
         ${callHtml}
         ${errHtml}

@@ -163,6 +163,9 @@ def create_listing():
         )
 
         # Save listing JSON next to the photos
+        from app.services import review_evidence
+        review_evidence.capture(item_path, listing, extract_log=extract_log, write_log=write_log,
+                                pipeline_latency_ms=round((time.perf_counter() - _t0) * 1000))
         out_path = item_path / "listing.json"
         out_path.write_text(json.dumps(listing, indent=2))
 
@@ -714,6 +717,21 @@ def get_listing(folder):
     return jsonify(listing), 200
 
 
+@app.route("/listing/<folder>/feedback", methods=["GET", "POST"])
+def listing_feedback(folder):
+    from app.services import review_evidence
+    path = ITEMS_DIR / Path(folder).name
+    if not (path / "listing.json").is_file():
+        return jsonify(error="Listing not found"), 404
+    if request.method == "GET":
+        return jsonify(review_evidence.read(path))
+    try:
+        result = review_evidence.save(path, request.get_json(silent=True))
+    except ValueError as error:
+        return jsonify(error=str(error)), 422
+    return jsonify(result)
+
+
 @app.post("/listing/<folder>/measurements")
 def confirm_measurements(folder):
     from app.services import measurements
@@ -815,6 +833,8 @@ def patch_listing(folder):
             title = listing.get("title", "")
             if old_size and old_size in title:
                 listing["title"] = title.replace(old_size, new_size, 1)
+        from app.services import review_evidence
+        review_evidence.capture(listing_path.parent, old_listing)
         listing_path.write_text(json.dumps(listing, indent=2))
         listing["folder"] = safe_folder  # always include so frontend can re-render
     except Exception:
@@ -1094,8 +1114,11 @@ def export_private_backup():
     if not app.config.get("HOSTED_TEST"):
         return jsonify(error="Private hosted backup only"), 503
     from app.services import item_backup
+    selected = request.args.get("folder")
+    if selected and item_backup.FOLDER.fullmatch(selected) and not (ITEMS_DIR / selected / "listing.json").is_file():
+        return jsonify(error="Listing not found"), 404
     try:
-        data=item_backup.export(ITEMS_DIR)
+        data=item_backup.export(ITEMS_DIR, request.args.get("folder"))
     except (ValueError,OSError):
         return jsonify(error="Could not export backup."),422
     return app.response_class(data,mimetype="application/zip",headers={

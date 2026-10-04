@@ -352,6 +352,10 @@
     </a>
   </nav>
 
+  {% if config.get('HOSTED_TEST') %}
+  <div id="draft-backup-status" role="status" style="font-size:12px;text-align:center;color:#666;padding:8px 16px 84px"></div>
+  <script src="{{ url_for('static', filename='draft_archive.js') }}"></script>
+  {% endif %}
   {% block scripts %}{% endblock %}
   <script>
     (async () => {

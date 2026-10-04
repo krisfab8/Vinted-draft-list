@@ -33,7 +33,7 @@ def restore(data, items_dir):
             if len(parts)!=3 or parts[0]!='items' or not FOLDER.fullmatch(parts[1]):
                 raise ValueError('Invalid backup path.')
             name=parts[2]
-            if name not in ('listing.json','photo_roles.json') and not PHOTO.fullmatch(name):
+            if name not in ('listing.json','photo_roles.json','analysis.json','feedback.json') and not PHOTO.fullmatch(name):
                 raise ValueError('Unsupported backup file.')
             content=archive.read(info)
             if PHOTO.fullmatch(name):
@@ -79,21 +79,27 @@ def restore(data, items_dir):
     return list(groups)
 
 
-def export(items_dir):
+def export(items_dir, selected_folder=None):
     output=io.BytesIO()
     total=0
     with zipfile.ZipFile(output,'w',zipfile.ZIP_DEFLATED) as archive:
-        for folder in Path(items_dir).iterdir():
+        if selected_folder is not None and not FOLDER.fullmatch(selected_folder):
+            raise ValueError("Invalid item folder.")
+        folders = [Path(items_dir)/selected_folder] if selected_folder else Path(items_dir).iterdir()
+        for folder in folders:
             if not folder.is_dir() or not FOLDER.fullmatch(folder.name) or not (folder/'listing.json').is_file():
                 continue
             for file in folder.iterdir():
                 if file.is_symlink() or not file.is_file():
                     continue
-                if file.name not in ('listing.json','photo_roles.json') and not PHOTO.fullmatch(file.name):
+                if file.name not in ('listing.json','photo_roles.json','analysis.json','feedback.json') and not PHOTO.fullmatch(file.name):
                     continue
                 total+=file.stat().st_size
                 if total>100*1024*1024:
                     raise ValueError('Backup too large; export fewer items.')
                 archive.write(file,'items/'+folder.name+'/'+file.name)
-        archive.writestr('model_calls.json',json.dumps(model_usage.read_events()))
+        events = model_usage.read_events()
+        if selected_folder:
+            events = [event for event in events if event.get('item') == selected_folder]
+        archive.writestr('model_calls.json',json.dumps(events))
     return output.getvalue()

@@ -710,7 +710,7 @@ function openSheet(idx) {
     ${item.description ? `<div class="sheet-desc">${esc(item.description)}</div>` : ""}
     ${item.category ? `<div class="sheet-category">📂 ${esc(item.category).replace(/ &gt; /g, ' › ')}</div>` : ""}
     ${draftBtn}
-    ${item.folder ? `<a class="btn-sheet-edit" href="/review/${esc(item.folder)}">Review &amp; correct ✏</a>` : ""}
+    ${item.folder ? `<a class="btn-sheet-edit" href="/?edit=${esc(item.folder)}" aria-label="Edit listing">✎ Edit</a>` : ""}
   `;
 
   document.getElementById("sheetOverlay").classList.add("open");
