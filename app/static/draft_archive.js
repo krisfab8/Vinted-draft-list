@@ -68,13 +68,27 @@
   // Return successful edits immediately; back up in the background. In-app
   // navigation waits for the queue so switching to Drafts cannot interrupt saves.
   window.fetch = async (...args) => {
-    const response = await nativeFetch(...args);
     const url = new URL(typeof args[0] === 'string' ? args[0] : args[0].url, location.origin);
     const method = String(args[1]?.method || args[0]?.method || 'GET').toUpperCase();
+    const deleting = url.origin === location.origin && method === 'DELETE'
+      && url.pathname.match(/^\/listing\/(upload_[a-f0-9]{8})$/);
+    if (deleting) {
+      // Record deletion before touching the server. If local storage fails,
+      // leave the server item intact instead of later resurrecting an old copy.
+      try {
+        await pending;
+        await transaction('readwrite', store => store.put({folder:deleting[1],deleted:true,savedAt:Date.now()}));
+      } catch (error) {
+        notice('Could not update device backup — listing was not deleted');
+        throw error;
+      }
+    }
+    const response = await nativeFetch(...args);
+    if (deleting && !response.ok) queue(() => save(deleting[1]));
     if (response.ok && url.origin === location.origin && method !== 'GET') {
       const match = url.pathname.match(/^(?:\/listing\/|\/api\/listing\/|\/reprice\/|\/regen\/)(upload_[a-f0-9]{8})(?:\/[^/]+)?$/);
       if (match) {
-        if (method === 'DELETE') queue(() => transaction('readwrite', store => store.put({folder:match[1],deleted:true,savedAt:Date.now()})));
+        if (method === 'DELETE') notice('Listing deleted');
         else queue(() => save(match[1]));
       } else if (url.pathname === '/upload') {
         const result = await response.clone().json();

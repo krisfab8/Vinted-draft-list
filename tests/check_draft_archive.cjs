@@ -43,6 +43,9 @@ function setup(serverItems, cached, options={}) {
   assert(!run.calls.some(([url])=>url.includes('reprice')||url.includes('regen')));
   const quota=setup([existing],[],{failWrite:true});await quota.ctx.window.DraftArchive.ready;
   assert(quota.notice.textContent.includes('unavailable'));assert(!quota.state.has(existing));
+  await assert.rejects(quota.ctx.window.fetch('/listing/'+existing,{method:'DELETE'}),/Quota/);
+  assert(quota.server.has(existing));assert(quota.notice.textContent.includes('not deleted'));
+  assert(!quota.calls.some(([,method])=>method==='DELETE'));
   const failure=setup([existing],[],{failBackup:true});await failure.ctx.window.DraftArchive.ready;
   assert(failure.notice.textContent.includes('unavailable'));assert(!failure.state.has(existing));
   console.log('Archive recovery, server-edit precedence, delete tombstones and failure visibility passed');
