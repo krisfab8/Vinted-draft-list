@@ -12,6 +12,9 @@ def build_prompt(hints):
     categories = list(dict.fromkeys(line.split('->', 1)[1].strip()
                      for line in (PROMPTS_DIR / 'category_rules.md').read_text().splitlines()
                      if '->' in line and not line.startswith('#')))
+    prices = '\n'.join(' '.join(line.split()) for line in
+                         (PROMPTS_DIR / 'pricing_rules.md').read_text().splitlines()
+                         if line.startswith('|') and '£' in line)
     return '''Read the clothing photos and return one compact JSON object, no markdown.
 Seller hints override extraction. Use visible evidence only; unknown text stays null.
 Read the brand label letter by letter. Manufacturer = brand; model/fit/collection =
@@ -42,9 +45,13 @@ tag_keywords (visible label terms only), tag_keywords_confidence (high/low),
 confidence (0 to 1), low_confidence_fields (array), category, price_gbp.
 Use null for unknown optional text and [] for empty arrays. Missing brand/material
 evidence must be low confidence, never default high. Be concise; no repeated prose.
-price_gbp is a tentative nonnegative GBP asking price, not a researched sale value.
+Category and price are proposals, not transcribed label facts. For price_gbp,
+use the reference bands below and general resale knowledge to propose a numeric
+GBP asking price; do not return null merely because price is not printed on a
+label. Middle of the appropriate band for good condition; adjust for visible
+condition/brand. This is an unverified suggestion, never a researched sale value.
 Choose category from these permitted paths; mark category uncertain if ambiguous:
-''' + json.dumps(categories, separators=(',', ':')) + '\nSeller hints: ' + json.dumps(hints)
+''' + json.dumps(categories, separators=(',', ':')) + '\nReference asking-price guidance (not live sales):\n' + prices + '\nSeller hints: ' + json.dumps(hints)
 
 
 def assemble(item, hints):

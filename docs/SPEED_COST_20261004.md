@@ -31,7 +31,7 @@ unchanged cost attribution, authoritative hints, unclear copy filtering, size
 conversion and invalid required fields. This is not a paid OCR benchmark.
 
 Example Barbour prompt characters: old extraction 18,935 plus old compact writer
-9,992; new single-pass prompt 4,654 (seller hints vary). These are character
+9,992; new single-pass prompt 5,791 (seller hints vary). These are character
 counts, not token/cost measurements. The shortened prompt may need adjustment
 after real garment testing, especially difficult labels and unusual categories.
 
@@ -51,3 +51,11 @@ selection/preparation/upload interval; pre-preparation shifts work earlier.
 Do not call a synthetic label test a real clothing accuracy comparison.
 
 Deployment and live checks are recorded separately once observed.
+
+First live deployment: `90b557b`, Render `dep-db1046gjo6nc73a2dnbg` live.
+Authenticated provider status and updated upload page verified. Two synthetic
+checks returned missing-price validation errors (not successes). Initial AI
+calls: 2,357 input / 406 and 387 output tokens, ~0.347p and ~0.339p; no
+second writer response. These are failed synthetic runs, not cost per successful
+listing. Follow-up clarified price proposal versus transcribed facts and
+restored compact reference price bands; paired real-garment benchmark pending.
