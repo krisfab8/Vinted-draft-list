@@ -58,7 +58,8 @@ ENABLE_EBAY_COMPS = os.getenv("ENABLE_EBAY_COMPS", "1") == "1"
 # Rollback switch: 0 restores the previous full writer prompt.
 ENABLE_COMPACT_WRITER = os.getenv("ENABLE_COMPACT_WRITER", "1") == "1"
 
-ENABLE_PROMPT_CACHE = os.getenv("ENABLE_PROMPT_CACHE", "1") == "1"
+# Isolated test runs paid cache-write surcharges without hits. Enable for batches.
+ENABLE_PROMPT_CACHE = os.getenv("ENABLE_PROMPT_CACHE", "0") == "1"
 
 # Opt-in single-call pipeline. Hosted test enables it; 0 restores two stages.
 ENABLE_SINGLE_PASS = os.getenv("ENABLE_SINGLE_PASS", "0") == "1"

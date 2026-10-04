@@ -615,6 +615,32 @@ def _compute_stats(listings: list[dict], cost_history: list[dict]) -> dict:
     count = len(legacy_rows) + len(run_ids)
     avg_cost = total_spend_gbp / count if count else 0
     unpriced_calls = sum(e.get("cost_gbp") is None for e in events)
+    def tokens(value):
+        try:
+            return max(0, int(value or 0))
+        except (TypeError, ValueError):
+            return 0
+    # Anthropic input_tokens excludes both cache writes and cache reads.
+    total_input = sum(tokens(r.get("input_tokens")) for r in legacy_rows)
+    total_input += sum(tokens(e.get("input_tokens")) + tokens(e.get("cache_creation_input_tokens"))
+                       + tokens(e.get("cache_read_input_tokens")) for e in events)
+    total_output = sum(tokens(r.get("output_tokens")) for r in legacy_rows)
+    total_output += sum(tokens(e.get("output_tokens")) for e in events)
+    cache_writes = sum(tokens(e.get("cache_creation_input_tokens")) for e in events)
+    cache_reads = sum(tokens(e.get("cache_read_input_tokens")) for e in events)
+    labels = {l.get("folder"): l.get("brand") for l in listings}
+    recent = {}
+    for event in events:
+        key = event.get("run_id") or event["id"]
+        row = recent.setdefault(key, {"folder": event.get("item"), "brand": labels.get(event.get("item")),
+                                     "timestamp": event.get("timestamp") or "", "input_tokens": 0,
+                                     "output_tokens": 0, "cost_gbp": 0, "cost_complete": True})
+        row["input_tokens"] += tokens(event.get("input_tokens")) + tokens(event.get("cache_creation_input_tokens")) + tokens(event.get("cache_read_input_tokens"))
+        row["output_tokens"] += tokens(event.get("output_tokens"))
+        row["cost_gbp"] += event.get("cost_gbp") or 0
+        row["cost_complete"] &= event.get("cost_gbp") is not None
+    recent_rows = list(recent.values()) + [dict(r, cost_complete=True) for r in legacy_rows]
+    recent_rows.sort(key=lambda r: r.get("timestamp") or "", reverse=True)
     total_value = sum(float(l.get("price_gbp", 0)) for l in listings)
 
     # ROI: items where we know the buy price
@@ -634,6 +660,11 @@ def _compute_stats(listings: list[dict], cost_history: list[dict]) -> dict:
         "total_spend_gbp": round(total_spend_gbp, 5),
         "unpriced_calls": unpriced_calls,
         "avg_cost_gbp": round(avg_cost, 4),
+        "total_input_tokens": total_input,
+        "total_output_tokens": total_output,
+        "cache_write_tokens": cache_writes,
+        "cache_read_tokens": cache_reads,
+        "recent_usage": recent_rows[:12],
         "total_value_gbp": round(total_value, 2),
         "potential_profit_gbp": round(potential_profit, 2),
         "profit_item_count": len(profit_items),

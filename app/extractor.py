@@ -533,9 +533,10 @@ def _load_photos(folder: Path) -> tuple[list[dict], dict[str, dict]]:
 def _extract_claude(photos: list[dict], model: str, prompt: str, *, strict: bool = False) -> tuple[dict, dict]:
     client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY, max_retries=0, timeout=30)
     from app.config import ENABLE_PROMPT_CACHE
-    if ENABLE_PROMPT_CACHE and prompt.endswith(_EXTRACT_PROMPT):
-        content = [{"type": "text", "text": _EXTRACT_PROMPT,
-                    "cache_control": {"type": "ephemeral"}}]
+    if prompt.endswith(_EXTRACT_PROMPT):
+        content = [{"type": "text", "text": _EXTRACT_PROMPT}]
+        if ENABLE_PROMPT_CACHE:
+            content[0]["cache_control"] = {"type": "ephemeral"}
         hints_text = prompt[:-len(_EXTRACT_PROMPT)].strip()
         if hints_text:
             content.append({"type": "text", "text": hints_text})

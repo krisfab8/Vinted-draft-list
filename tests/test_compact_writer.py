@@ -33,7 +33,7 @@ def test_real_writer_postprocessing_with_compact_and_rollback(monkeypatch):
         monkeypatch.setattr(config,'ENABLE_COMPACT_WRITER',enabled)
         result,usage=w.write(ITEM,hints={'size':'2XL'})
         assert result['normalized_size']=='2XL' and result['price_gbp']==68
-        assert usage['_write_log']['prompt_version']==('compact-v1' if enabled else 'legacy')
+        assert usage['_write_log']['prompt_version']==('compact-v2-delta' if enabled else 'legacy')
     assert len(calls[0]['messages'][0]['content'])<len(calls[1]['messages'][0]['content'])
 
 
@@ -73,6 +73,26 @@ def test_required_price_is_not_silently_invented():
     from app.validate_listing import validate
     listing=dict(ITEM,title='Jacket',description='Jacket.',price_gbp=None,category='Men > Jackets')
     assert any(error.startswith('price_gbp: ') for error in validate(listing))
+
+
+def test_delta_writer_preserves_labels_and_rejects_missing_price(monkeypatch):
+    import pytest
+    monkeypatch.setattr(config, 'ENABLE_COMPACT_WRITER', True)
+    item = dict(ITEM, fabric_mill='Loro Piana', fabric_line='Zelander Dream',
+                price_gbp=99, tag_keywords=['Full Canvas'], tag_keywords_confidence='high')
+    proposed = dict(title='Avia Trix jacket', description='Leather jacket.', price_gbp=45,
+                    category='Men > Jackets', style=None, premium=False,
+                    brand='Invented', materials=['Polyester'], normalized_size='S')
+    monkeypatch.setattr(w.anthropic, 'Anthropic', lambda **kw:NS(messages=NS(create=lambda **kw:
+        NS(content=[NS(text=json.dumps(proposed))],usage=NS(input_tokens=100,output_tokens=50),stop_reason='end_turn'))))
+    result, _ = w.write(item)
+    assert result['brand'] == ITEM['brand'] and result['normalized_size'] == '2XL'
+    assert result['materials'] == ['100% Leather'] and result['fabric_line'] == 'Zelander Dream'
+    assert 'Loro Piana cloth' in result['title'] and 'Full Canvas' in result['title']
+    assert result['price_gbp'] == 45
+    proposed.pop('price_gbp')
+    with pytest.raises(ValueError):
+        w.write(item)
 
 
 def test_optional_nulls_and_gender_formatting_follow_schema():

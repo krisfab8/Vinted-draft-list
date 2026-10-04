@@ -99,6 +99,24 @@ def test_old_cost_csv_migrates_without_losing_history(tmp_path,monkeypatch):
     assert rows[1]['timestamp']=='old' and rows[1]['cost_gbp']=='0.02'
 
 
+def test_stats_include_cache_tokens_without_duplicate_csv_and_four_decimal_costs():
+    from app import web
+    with m.run('item') as context:
+        event=m.record('claude-haiku-4-5-20251001','extract',usage=NS(
+            input_tokens=100,output_tokens=20,cache_creation_input_tokens=1000,cache_read_input_tokens=2000))
+    rows=[dict(run_id=context['run_id'], input_tokens=100, output_tokens=20,
+               cost_gbp=event['cost_gbp']), dict(timestamp='2020-01-01', folder='old',
+                                              input_tokens='50',output_tokens='10',cost_gbp=.001)]
+    stats=web._compute_stats([],rows)
+    assert stats['total_input_tokens']==3150 and stats['total_output_tokens']==30
+    assert stats['cache_write_tokens']==1000 and stats['cache_read_tokens']==2000
+    assert stats['recent_usage'][0]['input_tokens']==3100
+    with web.app.test_request_context():
+        rendered=web.render_template('stats.html',stats=stats,cost_history=rows,draft_count=0,active_tab='stats')
+    assert '£0.0013' in rendered and '3,150' in rendered
+    assert '£0.0023' in rendered and '&lt;1p' not in rendered
+
+
 def test_seller_profit_matches_item_proceeds():
     from app.web import _compute_stats
     from app.services.pricing import _apply_profitability

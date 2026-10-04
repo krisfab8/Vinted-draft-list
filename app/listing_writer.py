@@ -1001,6 +1001,18 @@ def write(item: dict, hints: dict | None = None) -> tuple[dict, dict]:
                 f"Original error: {exc}"
             ) from exc
 
+    if ENABLE_COMPACT_WRITER:
+        # The writer owns copy/proposals, never transcribed label evidence.
+        # Avoid asking the model to echo all extraction fields on every run.
+        from copy import deepcopy
+        proposals = {k: listing[k] for k in ("title", "description", "price_gbp", "category", "style", "premium") if k in listing}
+        listing = {k: deepcopy(v) for k, v in item.items() if not k.startswith('_')}
+        # A regenerated price must be an explicit model proposal, not an old price.
+        listing.pop("price_gbp", None)
+        listing.update(proposals)
+        listing.setdefault("tagged_size", None)
+        listing.setdefault("normalized_size", None)
+        listing.setdefault("pricing_sensitive_material", False)
     listing = finalize_listing(listing, item, hints)
 
     _category_slice_level = _get_category_slice_level(
@@ -1014,7 +1026,7 @@ def write(item: dict, hints: dict | None = None) -> tuple[dict, dict]:
             "category_slice_level": _category_slice_level,
             "price_memory_match_level": listing["price_memory_match"],
             "write_latency_ms": round((time.perf_counter() - _t_write_start) * 1000),
-            "prompt_version": "compact-v1" if ENABLE_COMPACT_WRITER else "legacy",
+            "prompt_version": "compact-v2-delta" if ENABLE_COMPACT_WRITER else "legacy",
             "prompt_chars": len(prompt),
         },
     }

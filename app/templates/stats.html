@@ -20,7 +20,7 @@
   }
 
   .stat-num {
-    font-size: 26px;
+    font-size: clamp(16px, 4vw, 26px);
     font-weight: 900;
     letter-spacing: -1px;
     line-height: 1;
@@ -234,31 +234,31 @@
   </div>
   <div class="stat-card">
     <div class="stat-num">
-      {% set s = stats.total_spend_gbp %}
-      {% if s == 0 %}0p
-      {% elif s < 0.01 %}&lt;1p
-      {% elif s < 1.0 %}{{ (s * 100)|round|int }}p
-      {% else %}£{{ "%.2f"|format(s) }}
-      {% endif %}
+      £{{ "%.4f"|format(stats.total_spend_gbp) }}
     </div>
     <div class="stat-label-text">Estimated AI spend</div>
   </div>
   <div class="stat-card">
     <div class="stat-num muted">
-      {% set a = stats.avg_cost_gbp %}
-      {% if a == 0 %}—
-      {% elif a < 0.01 %}&lt;1p
-      {% elif a < 0.1 %}~{{ (a * 100)|round|int }}p
-      {% else %}£{{ "%.2f"|format(a) }}
-      {% endif %}
+      £{{ "%.4f"|format(stats.avg_cost_gbp) }}
     </div>
-    <div class="stat-label-text">Avg / item</div>
+    <div class="stat-label-text">Avg / analysis run</div>
   </div>
 </div>
 
 <!-- ROI hero -->
 <p style="font-size:13px;color:#667">AI totals are estimates; provider billing is authoritative. Historical estimates may omit calls.
 {% if stats.unpriced_calls %}{{ stats.unpriced_calls }} call(s) have unknown cost.{% endif %}</p>
+
+<div class="section-block">
+  <div class="section-block-header">AI tokens</div>
+  <div class="val-row"><div class="val-row-label">Input tokens</div><div class="val-row-value">{{ "{:,}".format(stats.total_input_tokens) }}</div></div>
+  <div class="val-row"><div class="val-row-label">Output tokens</div><div class="val-row-value">{{ "{:,}".format(stats.total_output_tokens) }}</div></div>
+  <details style="padding:12px;font-size:13px;color:#667"><summary>Input includes cached tokens</summary>
+    {{ "{:,}".format(stats.cache_write_tokens) }} cache-write / {{ "{:,}".format(stats.cache_read_tokens) }} cache-read tokens.
+    Cached tokens have different prices. Older records may have incomplete usage.
+  </details>
+</div>
 
 {% if stats.profit_item_count > 0 %}
 <div class="roi-hero">
@@ -284,12 +284,7 @@
   <div class="val-row">
     <div class="val-row-label">Total Estimated AI spend</div>
     <div class="val-row-value muted">
-      {% set s = stats.total_spend_gbp %}
-      {% if s == 0 %}0p
-      {% elif s < 0.01 %}&lt;1p
-      {% elif s < 0.1 %}{{ (s * 100)|round|int }}p
-      {% else %}£{{ "%.4f"|format(s) }}
-      {% endif %}
+      £{{ "%.4f"|format(stats.total_spend_gbp) }}
     </div>
   </div>
 </div>
@@ -314,19 +309,15 @@
 <!-- Cost history -->
 <div class="section-block">
   <div class="section-block-header">Recent AI costs</div>
-  {% if cost_history %}
-    {% for row in cost_history[:12] %}
+  {% if stats.recent_usage %}
+    {% for row in stats.recent_usage %}
     <div class="cost-row">
       <div class="cost-row-info">
         <div class="cost-row-brand">{{ row.brand or row.folder }}</div>
         <div class="cost-row-tokens">{{ row.timestamp[:10] }} · {{ row.input_tokens }} in / {{ row.output_tokens }} out tokens</div>
       </div>
       <div class="cost-row-amount">
-        {% set c = row.cost_gbp|float %}
-        {% if c < 0.01 %}&lt;1p
-        {% elif c < 0.1 %}~{{ (c * 100)|round|int }}p
-        {% else %}£{{ "%.4f"|format(c) }}
-        {% endif %}
+        £{{ "%.4f"|format(row.cost_gbp|float) }}{% if not row.cost_complete %}+ unknown{% endif %}
       </div>
     </div>
     {% endfor %}
