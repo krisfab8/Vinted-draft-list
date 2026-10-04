@@ -1133,6 +1133,10 @@ def finalize_listing(listing: dict, item: dict, hints: dict | None = None) -> di
             listing["confidence"] = item["confidence"]
         else:
             listing.pop("confidence", None)
+    # Keep the printed tag separate from its UK conversion. Seller size hints
+    # remain authoritative; generated copy cannot replace an extracted tag.
+    if item.get('tagged_size') and not (hints and hints.get('size')):
+        listing['tagged_size'] = item['tagged_size']
     normalize_generated_listing(listing)
     validate_or_raise(listing)
 

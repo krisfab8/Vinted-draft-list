@@ -76,3 +76,17 @@ def test_overconfident_unknown_mill_triggers_one_bounded_reread(tmp_path,monkeyp
     assert create.call_count==2 and item['fabric_mill']=='Loro Piana'
     assert item['_extract_log']['rereads_count']==1
     assert usage['input_tokens']==200 and len(usage['calls'])==2
+
+
+def test_writer_preserves_printed_tag_and_removes_generated_condition_assurances():
+    from app.listing_writer import finalize_listing
+    from app.services import copy_quality
+    evidence={'brand':'Boggi','item_type':'Blazer','tagged_size':'54','normalized_size':'44R',
+              'materials':['100% Wool'],'material_confidence':'high','brand_confidence':'high','condition_summary':'Good condition','low_confidence_fields':[]}
+    generated=dict(evidence,title='Boggi blazer 44R',description='Excellent Boggi blazer. Immaculate condition.\n• Size: 54 (EU)\n- Size: 44R',price_gbp=85,category='Men > Suits > Blazers')
+    result=finalize_listing(generated,evidence,{})
+    assert result['tagged_size']=='54' and result['normalized_size']=='44R'
+    assert 'Immaculate' not in result['description'] and not result['description'].startswith('Excellent Boggi')
+    assert result['description'].count('UK equivalent 44R')==1
+    before=result['description'];copy_quality.apply(result,evidence)
+    assert result['description']==before

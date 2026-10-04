@@ -45,7 +45,9 @@ def recheck(path):
     from app.validate_listing import validate_or_raise
     listing = json.loads((path / 'listing.json').read_text())
     capture(path, listing)
-    original = json.loads((path / 'analysis.json').read_text())['listing']
+    analysis = json.loads((path / 'analysis.json').read_text())
+    original = analysis['listing']
+    generated_copy = listing.get('description') == original.get('description') and any(key in analysis for key in ('extract_log', 'recorded_run_log'))
     before_mill, before_line = listing.get('fabric_mill'), listing.get('fabric_line')
     fabric_mill.verify_mill(listing)
     description = listing.get('description') or ''
@@ -58,6 +60,11 @@ def recheck(path):
     import re
     description = re.sub(r'^Keywords:.*$', 'Keywords: '+', '.join(listing.get('tag_keywords') or [])+'.', description, flags=re.M)
     listing['description'] = description
+    if generated_copy:
+        from app.services import copy_quality, condition
+        copy_quality.apply(listing, listing)
+        condition.apply_condition(listing)
+        condition.inject_condition_line(listing)
     mill = listing.get('fabric_mill')
     if mill and listing.get('title') == original.get('title') and mill.lower() not in listing['title'].lower():
         from app.listing_writer import _is_premium_mill

@@ -34,13 +34,25 @@ def apply(listing, item):
     summary = re.sub(r';?\s*no (?:holes|tears|stains)[^.;]*(?:[.;]|$)', '', summary, flags=re.I)
     listing['condition_summary'] = summary.strip(' ;')
     desc = listing.get('description') or ''
+    # Strong condition assurances are not established by a few photos.
+    desc = re.sub(r'\b(?:Immaculate|Pristine|Mint) condition[.!]?\s*', '', desc, flags=re.I)
+    brand = listing.get('brand')
+    if brand:
+        desc = re.sub(r'^(?:Excellent|Immaculate|Pristine)\s+(?='+re.escape(str(brand))+r'\b)', '', desc, flags=re.I)
     additions = []
     size = listing.get('normalized_size') or listing.get('tagged_size')
-    if size and not re.search(r'\bsize\s*:?[ \t]*'+re.escape(str(size))+r'(?![a-z0-9])',desc,re.I):
+    tagged = listing.get('tagged_size')
+    if tagged and size and str(tagged) != str(size):
+        # Distinguish printed label and conversion in one generated size line.
+        variants = re.escape(str(tagged))+'(?:\\s*\\(EU\\))?|'+re.escape(str(size))
+        desc = re.sub(r'(?mi)^[ \t]*[-•]?[ \t]*Size:[ \t]*(?:'+variants+r')[.!]?[ \t]*$', '', desc)
+        size_line = f'- Size: {tagged} (label); UK equivalent {size}'
+        if size_line not in desc:
+            additions.append(size_line)
+    elif size and not re.search(r'\bsize\s*:?[ \t]*'+re.escape(str(size))+r'(?![a-z0-9])',desc,re.I):
         additions.append('- Size: '+str(size))
     materials = listing.get('materials') or []
     if item.get('material_confidence') == 'high' and materials and not all(str(value).lower() in desc.lower() for value in materials):
         additions.append('- Material: '+', '.join(materials))
-    if additions:
-        listing['description'] = desc.rstrip()+'\n\n'+'\n'.join(additions)
+    listing['description'] = desc.rstrip() + ('\n\n'+'\n'.join(additions) if additions else '')
     return listing
