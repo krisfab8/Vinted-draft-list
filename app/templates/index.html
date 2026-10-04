@@ -1430,7 +1430,7 @@
     hint.classList.toggle("visible", selectedForSwap !== null);
 
     photos.forEach((file, i) => {
-      const url = URL.createObjectURL(file);
+      const url = URL.createObjectURL(preparedPreviewPhotos.get(file) || file);
       photoUrls.push(url);
       const role = photoRoles.get(file) || "extra";
       const label = ROLE_LABELS[role];
@@ -1532,11 +1532,20 @@
   // Resize before transfer, sequentially to bound memory use on phones. The server
   // already saves at 2048px: this keeps the same resolution for labels and rulers.
   const preparedPhotos = new WeakMap();
+  const preparedPreviewPhotos = new WeakMap();
   let photoPreparationQueue = Promise.resolve();
 
   function queuePhotoPreparation(file) {
     if (!preparedPhotos.has(file)) {
-      const promise = photoPreparationQueue.then(() => prepareUploadPhoto(file));
+      const promise = photoPreparationQueue.then(() => prepareUploadPhoto(file)).then(prepared => {
+        preparedPreviewPhotos.set(file, prepared);
+        if (photos.includes(file)) renderGrid();
+        return prepared;
+      }).catch(error => {
+        // Retrying a transient read/conversion error must not reuse a rejected promise.
+        preparedPhotos.delete(file);
+        throw error;
+      });
       preparedPhotos.set(file, promise);
       // Catch immediately to avoid unhandled rejections while the seller edits.
       photoPreparationQueue = promise.catch(() => {});
@@ -1547,6 +1556,33 @@
   function uploadDimensions(width, height) {
     const scale = Math.min(1, 2048 / Math.max(width, height));
     return [Math.max(1, Math.round(width * scale)), Math.max(1, Math.round(height * scale))];
+  }
+
+  async function preparePhotoOnServer(file) {
+    const form = new FormData();
+    form.append("photo", file);
+    let response;
+    try {
+      response = await fetch("/prepare-photo", {method:"POST", body:form});
+    } catch (error) {
+      throw new Error("Photo conversion was interrupted. Check your connection and try again.");
+    }
+    if (!response.ok) {
+      let message = "This photo could not be opened. Replace it with a JPG or a new camera photo.";
+      if (response.status === 401) message = "Please sign in again, then retry the photo.";
+      else if (response.status === 413) message = "This photo is too large. Choose a smaller copy.";
+      else if ((response.headers.get("content-type") || "").includes("application/json")) {
+        const data = await response.json();
+        if (typeof data.error === "string") message = data.error;
+      }
+      throw new Error(message);
+    }
+    if (!(response.headers.get("content-type") || "").startsWith("image/jpeg")) {
+      throw new Error("Photo conversion did not finish. Please try again.");
+    }
+    const blob = await response.blob();
+    if (!blob.size) throw new Error("The photo is empty. Select it again.");
+    return new File([blob], file.name.replace(/\.[^.]+$/, "") + ".jpg", {type:"image/jpeg"});
   }
 
   async function prepareUploadPhoto(file) {
@@ -1570,6 +1606,10 @@
       // Small originals do not need another lossy encode if they already fit.
       if (file.type === "image/jpeg" && img.naturalWidth <= 2048 && img.naturalHeight <= 2048 && file.size <= blob.size) return file;
       return new File([blob], file.name.replace(/\.[^.]+$/, "") + ".jpg", {type: "image/jpeg"});
+    } catch (error) {
+      // Some phone browsers cannot decode a valid camera/cloud HEIC or JPEG.
+      // Try the original bytes server-side; this endpoint makes no AI calls.
+      return await preparePhotoOnServer(file);
     } finally {
       URL.revokeObjectURL(url);
     }
@@ -1625,7 +1665,12 @@
       const uploadPhotos = [...photos];
       for (let i = 0; i < uploadPhotos.length; i++) {
         updateProgress(`Preparing photo ${i + 1} of ${uploadPhotos.length}…`);
-        form.append("photos", await queuePhotoPreparation(uploadPhotos[i]));
+        try {
+          form.append("photos", await queuePhotoPreparation(uploadPhotos[i]));
+        } catch (error) {
+          const label = ROLE_LABELS[roles[i]] || "Photo";
+          throw new Error(`Photo ${i + 1} (${label}): ${error.message}`);
+        }
       }
       form.append("photo_roles", JSON.stringify(roles));
       form.append("prepared_photos", "1");

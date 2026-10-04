@@ -57,6 +57,7 @@ comparison remain required. No twenty-item labeled photo set is available.
 | IMG-03 | P1 | Preserve OCR originals and crop review | todo | Lossless/original source retained; crop edits; retry can use uncropped source |
 | IMG-04 | P1 | Analyze supplied damage/back evidence | todo | Explicit cost policy; checked-photo provenance; flaws visible only there reach review |
 | IMG-06 | P1 | Read explicitly labeled ruler measurement photos | in_progress | IMG-01–02 + COST-01; start/end/unit/source evidence, unknown for ambiguity, seller confirmation, tagged size retained; real labeled ruler evaluation |
+| IMG-08 | P0 | Browser photo decode fallback and actionable errors | implemented_local | Server-only conversion of JPEG/PNG/WebP/HEIC; no AI call; corrupt/large images rejected; retry clears failed cache; father’s original photo unavailable |
 | IMG-05 | P1 | Validate actual upload bytes | todo | Corrupt/oversized/decompression-risk images rejected without broken folders; useful errors |
 
 ## Costs and pricing

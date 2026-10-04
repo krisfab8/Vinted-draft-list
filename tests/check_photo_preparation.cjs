@@ -1,7 +1,7 @@
 const fs=require('fs'),vm=require('vm'),assert=require('assert');
 const source=fs.readFileSync('app/templates/index.html','utf8');
 let calls=[];
-const ctx={WeakMap,Promise,prepareUploadPhoto:async f=>{
+const ctx={WeakMap,Promise,photos:[],renderGrid(){},prepareUploadPhoto:async f=>{
   calls.push(f); await Promise.resolve(); return {prepared:f};
 }};
 vm.createContext(ctx);
@@ -19,6 +19,12 @@ vm.runInContext(source.slice(source.indexOf('  const preparedPhotos'),source.ind
   ctx.prepareUploadPhoto=async f=>f;
   const next={};
   assert.strictEqual(await ctx.queuePhotoPreparation(next),next);
+  ctx.prepareUploadPhoto=async f=>f;
+  const retry={};
+  ctx.prepareUploadPhoto=async()=>{throw Error("temporary")};
+  await assert.rejects(ctx.queuePhotoPreparation(retry),/temporary/);
+  ctx.prepareUploadPhoto=async f=>f;
+  assert.strictEqual(await ctx.queuePhotoPreparation(retry),retry);
   assert(source.includes('incoming.forEach(file => queuePhotoPreparation(file))'));
   assert(source.includes('await queuePhotoPreparation(uploadPhotos[i])'));
   console.log('Photo pre-preparation, reuse and failure recovery checks passed');

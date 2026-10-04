@@ -320,6 +320,21 @@ def _resize_photo(path: Path, *, prepared: bool = False) -> Path:
         return path  # Pillow unavailable or corrupt file — keep original
 
 
+@app.post("/prepare-photo")
+def prepare_photo():
+    """Fallback conversion only; no saved listing or billable AI work."""
+    from flask import Response
+    from app.services.photo_prepare import normalize, MAX_BYTES, PhotoPreparationError
+    photo = request.files.get("photo")
+    if photo is None:
+        return jsonify(error="Select a photo first."), 400
+    try:
+        image = normalize(photo.stream.read(MAX_BYTES + 1))
+    except PhotoPreparationError as error:
+        return jsonify(error=str(error)), 422
+    return Response(image, mimetype="image/jpeg", headers={"Cache-Control": "no-store"})
+
+
 @app.get("/")
 def index():
     profile = profile_svc.load()
