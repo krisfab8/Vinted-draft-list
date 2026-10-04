@@ -1170,6 +1170,8 @@ def finalize_listing(listing: dict, item: dict, hints: dict | None = None) -> di
     copy_quality.apply(listing, item)
     from app.services import premium_features
     premium_features.ensure_title(listing, item)
+    from app.services import description_layout
+    description_layout.apply(listing)
     _cond_svc.apply_condition(listing)
     _cond_svc.inject_condition_line(listing)
 

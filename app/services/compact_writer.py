@@ -32,14 +32,16 @@ def build_prompt(item, hints, categories):
 Seller-confirmed hints override extracted data. Missing facts stay null; never invent labels,
 materials, origin, damage, model names or ruler measurements. Keep tagged and normalized size.
 No chest-size inference from ruler readings. Measurements are handled separately by the app.
-Title: brand, relevant model/sub-brand, item type, gender, size, colour; aim <=70 characters.
+Title: brand, relevant model/sub-brand, colour, gender, UK size, premium cloth/fibre, item type; aim <=70 characters.
 Shoes: Brand + Model + Colour + Type + UK Size. No W/L for shoes.
 Trousers: preserve visible W/L; activewear keeps letter size, optional W suffix.
 Tailoring: preserve tagged EU/UK evidence; the app handles conversion. Do not convert twice.
 Use specific garment type: collared short-placket polo is a polo, not a jumper.
 Retain fabric mill/line and clearly read tag keywords. Do not put uncertain keywords in title.
 Rank premium natural fibres first; keep every distinct composition entry, including lining.
-Description: concise opening and size/material/origin/model bullets where known.
+Description: one short opening, then dash bullets in order: Size, Made in, Fabric mill,
+Fabric line, Fit, Model, Material. Omit unknown facts. Keep UK and EU/tagged sizes together
+on the first Size line where supported, e.g. '- Size: UK 44R / EU 54 (label)'.
 Do not put condition or flaws in description: the app adds one condition line.
 Keep visible flaws in flaws_note and condition_summary. Never infer storage/history.
 Preserve the supplied condition grade; never improve it. Include known size and exact

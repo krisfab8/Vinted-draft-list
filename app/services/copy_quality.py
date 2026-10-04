@@ -46,7 +46,8 @@ def apply(listing, item):
         # Distinguish printed label and conversion in one generated size line.
         variants = re.escape(str(tagged))+'(?:\\s*\\(EU\\))?|'+re.escape(str(size))
         desc = re.sub(r'(?mi)^[ \t]*[-•]?[ \t]*Size:[ \t]*(?:'+variants+r')[.!]?[ \t]*$', '', desc)
-        size_line = f'- Size: {tagged} (label); UK equivalent {size}'
+        from app.services.description_layout import size_text
+        size_line = '- Size: ' + size_text(listing)
         if size_line not in desc:
             additions.append(size_line)
     elif size and not re.search(r'\bsize\s*:?[ \t]*'+re.escape(str(size))+r'(?![a-z0-9])',desc,re.I):

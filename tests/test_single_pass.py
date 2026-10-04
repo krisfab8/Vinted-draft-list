@@ -59,7 +59,7 @@ def test_size_conversion_before_copy(kind, size, expected):
     item.update(item_type=kind, tagged_size=size, normalized_size=size)
     result, _ = single_pass.assemble(item, {})
     assert result['normalized_size'] == expected
-    assert expected in result['title'] and f'Size: {size} (label); UK equivalent {expected}' in result['description']
+    assert expected in result['title'] and f'Size: UK {expected} / EU {size} (label)' in result['description']
     assert result['tagged_size']==size
 
 
