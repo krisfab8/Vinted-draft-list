@@ -80,7 +80,6 @@ def recheck(path):
         pricing.apply_pricing(listing)
     listing['evidence_check_version'] = 'fabric-price-v1'
     validate_or_raise(listing)
-    temporary = path / 'listing.json.tmp'
-    temporary.write_text(json.dumps(listing, indent=2))
-    temporary.replace(path / 'listing.json')
+    from app.services import listing_state
+    listing_state.write(path / 'listing.json', listing)
     return listing

@@ -309,6 +309,17 @@ def _apply_pricing_inner(listing: dict, pricing_mode: str = "balanced") -> dict:
 # Standard UK Vinted selling has no commission; buyer protection is a buyer charge.
 
 
+def refresh_profitability(listing: dict) -> None:
+    """Recalculate informational profit after an edit; never retain stale figures."""
+    for field in ('estimated_profit_gbp', 'profit_multiple', 'pricing_flags', 'profit_warning'):
+        listing.pop(field, None)
+    price, buy = listing.get('price_gbp'), listing.get('buy_price_gbp')
+    if price is not None and buy == 0:
+        listing.update(estimated_profit_gbp=round(price, 2), pricing_flags=[], profit_warning=False)
+    else:
+        _apply_profitability(listing, price)
+
+
 def _apply_profitability(listing: dict, final_price: float | None) -> None:
     """Add estimated_profit_gbp, profit_multiple, pricing_flags, profit_warning.
 

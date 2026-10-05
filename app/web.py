@@ -23,7 +23,7 @@ from flask import Flask, g, jsonify, render_template, request, send_from_directo
 from app.config import ITEMS_DIR, ROOT
 from app import extractor, listing_writer, run_logger
 from app.services import pipeline as pipeline_svc
-from app.services import item_store
+from app.services import item_store, listing_state, listing_edits
 from app.services import listing_tracker
 from app.services.category_validator import resolve_category_key as _resolve_category_key
 from app.services import alias_memory as _alias_memory
@@ -44,6 +44,49 @@ app = Flask(__name__)
 app.config["MAX_CONTENT_LENGTH"] = 50 * 1024 * 1024  # 50 MB max upload
 from app.sales_api import sales as sales_blueprint
 app.register_blueprint(sales_blueprint)
+
+@app.before_request
+def serialize_item_requests():
+    folder = (request.view_args or {}).get('folder')
+    if folder is None and request.path in {'/create-listing', '/create-draft', '/edit-draft'}:
+        body = request.get_json(silent=True)
+        folder = body.get('folder') if isinstance(body, dict) else None
+    if folder is None or (request.method in {'GET', 'HEAD'} and not request.path.startswith(('/listing/', '/review/'))):
+        return
+    try:
+        lock = listing_state.locked(ITEMS_DIR, folder)
+        path = lock.__enter__()
+    except ValueError:
+        return jsonify(error='Invalid item folder.'), 400
+    g.item_lock, g.item_path = lock, path
+    expected = request.headers.get('If-Match')
+    if request.method not in {'GET', 'HEAD', 'OPTIONS'} and expected and expected.strip('"') != listing_state.revision(path):
+        return jsonify(error='This item changed in another tab. Reload it before saving; your changes have not been applied.', code='EDIT_CONFLICT'), 409
+
+
+@app.after_request
+def item_revision_headers(response):
+    path = getattr(g, 'item_path', None)
+    if path is None and response.is_json and response.status_code < 400 and request.path == '/upload':
+        body = response.get_json(silent=True)
+        if isinstance(body, dict) and body.get('folder'):
+            path = listing_state.item_path(ITEMS_DIR, body['folder'])
+    if path is not None and response.status_code < 400:
+        revision = listing_state.revision(path)
+        if revision:
+            response.headers['X-Item-Revision'] = revision
+        response.headers['Cache-Control'] = 'no-store'
+    elif request.path in {'/drafts', '/api/listings', '/api/sales'}:
+        response.headers['Cache-Control'] = 'no-store'
+    return response
+
+
+@app.teardown_request
+def release_item_request(error):
+    lock = g.pop('item_lock', None)
+    if lock is not None:
+        lock.__exit__(None, None, None)
+
 
 try:
     item_store.init_db()
@@ -169,7 +212,7 @@ def create_listing():
         review_evidence.capture(item_path, listing, extract_log=extract_log, write_log=write_log,
                                 pipeline_latency_ms=round((time.perf_counter() - _t0) * 1000))
         out_path = item_path / "listing.json"
-        out_path.write_text(json.dumps(listing, indent=2))
+        listing_state.write(out_path, listing)
 
         listing["folder"] = folder
         _log_cost(folder, extract_usage, write_usage, listing)
@@ -235,7 +278,7 @@ def create_draft_endpoint():
         # Clear any previous draft error and persist draft_url
         listing.pop("draft_error", None)
         listing["draft_url"] = draft_url
-        listing_path.write_text(json.dumps(listing, indent=2))
+        listing_state.write(listing_path, listing)
         item_store.set_status(folder, "drafted")
         listing_tracker.record_draft_snapshot(folder, listing)
     except draft_creator.VintedAuthError as e:
@@ -246,7 +289,7 @@ def create_draft_endpoint():
         try:
             listing = json.loads(listing_path.read_text())
             listing["draft_error"] = err_msg
-            listing_path.write_text(json.dumps(listing, indent=2))
+            listing_state.write(listing_path, listing)
         except Exception:
             pass
         item_store.set_status(folder, "error", last_error=err_msg)
@@ -482,7 +525,7 @@ def upload_listing():
         review_evidence.capture(item_path, listing, extract_log=extract_log, write_log=write_log,
                                 pipeline_latency_ms=round((time.perf_counter() - _t0) * 1000))
         out_path = item_path / "listing.json"
-        out_path.write_text(json.dumps(listing, indent=2))
+        listing_state.write(out_path, listing)
 
         listing["folder"] = folder_name
         _log_cost(folder_name, extract_usage, write_usage, listing)
@@ -571,6 +614,8 @@ def _get_all_listings() -> list[dict]:
     listings = []
     if not ITEMS_DIR.exists():
         return listings
+    from app.services import sales_history
+    outcomes = {row['folder']: row for row in sales_history.read_all()}
     dirs = sorted(ITEMS_DIR.iterdir(), key=lambda p: p.stat().st_mtime, reverse=True)
     for item_dir in dirs:
         if not item_dir.is_dir() or item_dir.name.startswith("_"):
@@ -581,6 +626,8 @@ def _get_all_listings() -> list[dict]:
         try:
             listing = json.loads(listing_path.read_text())
             listing["folder"] = item_dir.name
+            listing['outcome'] = outcomes.get(item_dir.name)
+            listing['inventory_status'] = (listing['outcome'] or {}).get('status', 'draft')
             for ext in [".jpg", ".jpeg", ".png", ".webp"]:
                 if (item_dir / f"front{ext}").exists():
                     listing["thumbnail_url"] = f"/items/{item_dir.name}/front{ext}"
@@ -690,7 +737,11 @@ def _draft_error_summary(exc: Exception) -> str:
 def _sync_item_status(folder: str, listing: dict) -> None:
     """Derive and write item status to DB. Swallows all errors."""
     try:
+        from app.services import sales_history
+        outcome = sales_history.get(folder)
         status, review_needed = item_store.derive_status(listing)
+        if outcome and outcome['status'] == 'sold':
+            status, review_needed = 'sold', False
         item_store.set_status(folder, status, review_needed=review_needed)
     except Exception:
         pass
@@ -806,15 +857,7 @@ def confirm_measurements(folder):
         validate_or_raise(listing)
     except (ValueError, TypeError):
         return jsonify(error="Enter valid measurements in cm (0.5–250); each dimension once."), 422
-    # Atomic replacement: interrupted writes leave the previous listing intact.
-    import tempfile, os
-    with tempfile.NamedTemporaryFile(mode="w", dir=path.parent, delete=False) as f:
-        temporary = Path(f.name)
-        json.dump(listing, f, indent=2)
-    try:
-        os.replace(temporary, path)
-    finally:
-        temporary.unlink(missing_ok=True)
+    listing_state.write(path, listing)
     _sync_item_status(safe_folder, listing)
     listing["folder"] = safe_folder
     return jsonify(listing)
@@ -829,7 +872,8 @@ def patch_listing(folder):
     if not listing_path.exists():
         return jsonify({"error": "listing not found"}), 404
     try:
-        updates = request.get_json(force=True, silent=True) or {}
+        updates = request.get_json(force=True, silent=True)
+        listing_edits.validate_updates(updates)
         if any(k in updates for k in ("measurements", "measurement_proposals")):
             return jsonify(error="Use the measurement confirmation form."), 422
         listing = json.loads(listing_path.read_text())
@@ -854,7 +898,7 @@ def patch_listing(folder):
         old_listing = dict(listing)
         # Capture old size before applying updates (needed for title patch below)
         old_size = listing.get("normalized_size") or listing.get("tagged_size") or ""
-        listing.update(updates)
+        listing = listing_edits.apply(listing, updates)
 
         # ── Alias memory capture ──────────────────────────────────────────────
         # Brand: save alias + mark confirmed when low-confidence brand is corrected
@@ -888,12 +932,19 @@ def patch_listing(folder):
         if "normalized_size" in updates:
             new_size = updates["normalized_size"]
             title = listing.get("title", "")
-            if old_size and old_size in title:
-                listing["title"] = title.replace(old_size, new_size, 1)
+            if old_size and old_size in title and 'title' not in (old_listing.get('manual_fields') or []):
+                listing["title"] = title.replace(old_size, new_size or '', 1)
         from app.services import review_evidence
         review_evidence.capture(listing_path.parent, old_listing)
-        listing_path.write_text(json.dumps(listing, indent=2))
+        from app.validate_listing import validate_or_raise
+        validate_or_raise(listing)
+        from app.services.pricing import refresh_profitability
+        refresh_profitability(listing)
+        listing_state.write(listing_path, listing)
+        _sync_item_status(safe_folder, listing)
         listing["folder"] = safe_folder  # always include so frontend can re-render
+    except ValueError as error:
+        return jsonify(error=str(error)), 422
     except Exception:
         return jsonify({"error": traceback.format_exc()}), 500
     return jsonify(listing), 200
@@ -901,8 +952,7 @@ def patch_listing(folder):
 
 @app.post("/reprice/<folder>")
 def reprice_listing(folder):
-    """POST /reprice/<folder> — re-run listing_writer on the saved listing.json to recalculate price.
-    Used when the user corrects the brand and wants pricing updated."""
+    """Propose a price from saved facts/history without AI or copy changes."""
     safe_folder = Path(folder).name
     item_path = ITEMS_DIR / safe_folder
     listing_path = item_path / "listing.json"
@@ -910,16 +960,21 @@ def reprice_listing(folder):
         return jsonify({"error": "listing not found"}), 404
 
     existing = json.loads(listing_path.read_text())
-    hints = pipeline_svc.build_hints_from_listing(existing)
-    try:
-        new_listing, _ = listing_writer.write(existing, hints=hints or None)
-    except Exception:
-        return jsonify({"error": traceback.format_exc()}), 500
-
-    pipeline_svc.preserve_user_fields(existing, new_listing)
-    new_listing["folder"] = safe_folder
-    listing_path.write_text(json.dumps(new_listing, indent=2))
-    return jsonify(new_listing), 200
+    from copy import deepcopy
+    from app.services import pricing
+    proposal = deepcopy(existing)
+    proposal['folder'] = safe_folder
+    proposal['price_gbp'] = existing.get('ai_price_gbp', existing.get('price_gbp'))
+    pricing.apply_pricing(proposal, pricing_mode=profile_svc.load().get('pricing_mode', 'balanced'))
+    existing['price_proposal'] = {
+        'price_gbp': proposal.get('price_gbp'), 'evidence': proposal.get('price_evidence'),
+        'adjustments': proposal.get('price_adjustments'),
+        'suggested_at': datetime.now().isoformat(timespec='seconds'),
+    }
+    existing['sales_history'] = proposal.get('sales_history')
+    listing_state.write(listing_path, existing)
+    existing['folder'] = safe_folder
+    return jsonify(existing), 200
 
 
 @app.post("/regen/<folder>")
@@ -933,21 +988,59 @@ def regen_listing(folder):
     if not listing_path.exists():
         return jsonify({"error": "listing not found"}), 404
 
-    body = request.get_json(force=True, silent=True) or {}
-    updates = body.get("updates", {})
-
-    existing = json.loads(listing_path.read_text())
-    existing.update(updates)
-    hints = pipeline_svc.build_hints_from_listing(existing, updates)
-
+    body = request.get_json(silent=True)
     try:
-        new_listing, _ = listing_writer.write(existing, hints=hints or None)
+        if not isinstance(body, dict):
+            raise ValueError('Enter listing updates.')
+        updates = listing_edits.validate_updates(body.get('updates', {}))
+        existing = json.loads(listing_path.read_text())
+        # Migrate older manual edits by comparing saved facts with first-run evidence.
+        analysis_path = item_path / 'analysis.json'
+        if analysis_path.exists():
+            original = json.loads(analysis_path.read_text()).get('listing', {})
+            manual = set(existing.get('manual_fields') or [])
+            manual.update(key for key in listing_edits.FIELDS if key in original and existing.get(key) != original.get(key))
+            existing['manual_fields'] = sorted(manual)
+        candidate = listing_edits.apply(existing, updates)
+        if body.get('regenerate_copy') is True:
+            candidate['manual_fields'] = [key for key in candidate.get('manual_fields', []) if key not in {'title', 'description'}]
+        from app.validate_listing import validate_or_raise
+        validate_or_raise(candidate)
+        from app.services import review_evidence, model_usage
+        with model_usage.run(item_path):
+            new_listing, usage = listing_writer.write(candidate, hints=pipeline_svc.build_hints_from_listing(candidate, updates) or None)
+        pipeline_svc.preserve_user_fields(candidate, new_listing, updates)
+        from app.services import pricing
+        chosen_price = candidate.get('price_gbp')
+        new_listing['folder'] = safe_folder
+        pricing.apply_pricing(new_listing, pricing_mode=profile_svc.load().get('pricing_mode', 'balanced'))
+        new_listing['price_proposal'] = {
+            'price_gbp': new_listing.get('price_gbp'), 'evidence': new_listing.get('price_evidence'),
+            'adjustments': new_listing.get('price_adjustments'),
+            'suggested_at': datetime.now().isoformat(timespec='seconds'),
+        }
+        calls = candidate.get('model_calls', []) + usage.get('calls', [])
+        new_listing['model_calls'] = calls
+        new_listing['cost_gbp'] = round((candidate.get('cost_gbp') or 0) + _calc_cost_usd(usage) * _USD_TO_GBP, 5)
+        new_listing['cost_complete'] = candidate.get('cost_complete', True) and usage.get('cost_complete', True)
+        new_listing['cost_status'] = 'estimated' if new_listing['cost_complete'] else 'incomplete'
+        previous_tokens = candidate.get('cost_tokens') or {}
+        new_listing['cost_tokens'] = {'input': previous_tokens.get('input', 0) + usage.get('input_tokens', 0),
+                                     'output': previous_tokens.get('output', 0) + usage.get('output_tokens', 0)}
+        new_listing['price_gbp'] = chosen_price
+        new_listing['price_evidence'] = candidate.get('price_evidence', {})
+        pricing.refresh_profitability(new_listing)
+        from app.validate_listing import normalize_generated_listing, validate_or_raise
+        normalize_generated_listing(new_listing)
+        validate_or_raise(new_listing)
+        review_evidence.capture(item_path, existing)
+        new_listing['folder'] = safe_folder
+        listing_state.write(listing_path, new_listing)
+        _sync_item_status(safe_folder, new_listing)
+    except ValueError as error:
+        return jsonify(error=str(error)), 422
     except Exception:
-        return jsonify({"error": traceback.format_exc()}), 500
-
-    pipeline_svc.preserve_user_fields(existing, new_listing, updates)
-    new_listing["folder"] = safe_folder
-    listing_path.write_text(json.dumps(new_listing, indent=2))
+        return jsonify(error='Could not regenerate this listing; your saved edits are unchanged.'), 500
     return jsonify(new_listing), 200
 
 
@@ -1088,6 +1181,7 @@ def review_listing_page(folder):
         listing=listing,
         photos=photos,
         folder=safe_folder,
+        item_revision=listing_state.revision(item_path),
         error_categories=run_logger.ERROR_CATEGORIES,
         draft_count=_draft_count(),
         active_tab="drafts",
@@ -1110,7 +1204,7 @@ def set_error_tags(folder):
         listing = json.loads(listing_path.read_text())
         old_tags = listing.get("error_tags", [])
         listing["error_tags"] = tags
-        listing_path.write_text(json.dumps(listing, indent=2))
+        listing_state.write(listing_path, listing)
         if old_tags != tags:
             try:
                 run_logger.write_correction({
@@ -1153,7 +1247,7 @@ def fetch_ebay_comps(folder):
     try:
         listing = json.loads(listing_path.read_text())
         ebay_comps.enrich(listing)
-        listing_path.write_text(json.dumps(listing, indent=2))
+        listing_state.write(listing_path, listing)
         # Return just the comp summary fields so the UI can update without reload
         summary = {k: listing[k] for k in (
             "ebay_suggested_range", "ebay_vinted_range",
@@ -1214,7 +1308,7 @@ def save_ebay_research(folder):
     from app.services.ebay_comps import search_links
     metrics["query"] = search_links(listing)["query"]
     listing["ebay_research"] = metrics
-    path.write_text(json.dumps(listing, indent=2))
+    listing_state.write(path, listing)
     return jsonify(metrics)
 
 
@@ -1233,9 +1327,7 @@ def save_sold_comparisons(folder):
     except ValueError as error:
         return jsonify(error=str(error)), 422
     listing['ebay_sold_comparisons'] = summary
-    temporary = path.with_suffix('.json.tmp')
-    temporary.write_text(json.dumps(listing, indent=2))
-    temporary.replace(path)
+    listing_state.write(path, listing)
     return jsonify(summary)
 
 

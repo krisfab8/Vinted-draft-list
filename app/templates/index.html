@@ -1868,11 +1868,15 @@
   // ── Generic meta-field save (PATCH only, no regen) ────────────────────
   async function saveMetaField(el, field, folder) {
     const val = (typeof el === "string" ? el : el.value).trim() || null;
-    await fetch(`/listing/${folder}`, {
+    const response = await fetch(`/listing/${folder}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ [field]: val }),
     });
+    if (!response.ok) {
+      const data = await response.json();
+      alert(data.error || 'Could not save this detail.');
+    }
   }
 
   // ── W/L draft state — persists across re-renders of the same listing ───
@@ -2253,8 +2257,9 @@
     const note = d.ebay_comps_skipped === "no credentials"
       ? "Automatic comparisons need eBay developer credentials in hosting settings. Research links work now."
       : d.ebay_comps_skipped ? `Comparisons unavailable: ${d.ebay_comps_skipped}.` : "Fetch matched active asking prices, without another AI call.";
+    const state = market ? (d.ebay_comps_skipped ? 'Previous result · refresh failed' : 'Checked · asking prices') : d.ebay_comps_skipped ? 'Unavailable · retry' : 'Not checked';
     return `<details style="margin:18px 0;padding:16px;border:1px solid var(--gray-3);border-radius:16px">
-      <summary>eBay price and demand research</summary>
+      <summary>eBay price and demand · ${esc(state)}</summary>
       <p>${esc(note)}</p>
       <button class="btn-secondary" onclick="fetchEbayMarket('${esc(d.folder)}')">Check eBay asking prices</button>
       <div id="ebay-status" role="status"></div>
@@ -2296,13 +2301,16 @@
 
   async function fetchEbayMarket(folder) {
     const status = document.getElementById('ebay-status');
-    status.textContent = 'Checking matched eBay prices…';
+    const button = status.previousElementSibling;
+    if (button) button.disabled = true;
+    status.textContent = 'Checking matched eBay asking prices…';
     try {
       const response = await fetch('/api/listing/'+encodeURIComponent(folder)+'/fetch-ebay-comps',{method:'POST'});
       const data = await readUploadResponse(response);
       if (!response.ok) throw new Error(data.error || 'Comparison failed.');
       await refreshEbayListing(folder);
     } catch(error) { status.textContent = error.message; }
+    finally { if (button) button.disabled = false; }
   }
 
   async function saveSoldComparisons(folder) {
@@ -2395,16 +2403,28 @@
       </div>
       <div class="result-body">
         <div class="result-price-block">
-          <div class="result-price-label">Suggested list price</div>
+          <div class="result-price-label">Current list price</div>
           <div style="display:flex;align-items:baseline;gap:12px">
             <div class="result-price">£${d.price_gbp || "?"}</div>
-            ${d.folder ? `<button class="btn-reprice" onclick="reprice('${esc(d.folder)}')">Reprice ↻</button>` : ""}
+            ${d.folder ? `<button class="btn-reprice" onclick="reprice('${esc(d.folder)}')">Check price ↻</button>` : ""}
           </div>
         </div>
         ${d.price_evidence ? `<div style="font-size:13px;color:var(--text-2);margin-bottom:14px">
           ${esc(d.price_evidence.note)}
           ${d.price_evidence.range_gbp ? ` Reference range: £${esc(d.price_evidence.range_gbp[0])}–£${esc(d.price_evidence.range_gbp[1])}.` : ""}
         </div>` : ""}
+        ${d.price_proposal ? `<div style="padding:12px;margin:12px 0;border:1px solid var(--gray-3);border-radius:12px">
+          <strong>Price suggestion: £${esc(d.price_proposal.price_gbp)}</strong>
+          <p>${esc(d.price_proposal.evidence?.note || 'Suggestion from saved item details.')}</p>
+          <button class="btn-secondary" onclick="acceptPrice('${esc(d.folder)}', ${Number(d.price_proposal.price_gbp)})">Use this price</button>
+          <small>Your current price stays unchanged until you accept.</small>
+        </div>` : ''}
+        ${d.sales_history ? `<details style="margin:12px 0"><summary>Your confirmed matching sales · ${esc(d.sales_history.sample_count)}</summary>
+          <p>${d.sales_history.median_gbp == null ? 'At least 3 recent matches needed for a suggested price.' : `Median £${esc(d.sales_history.median_gbp)} · Range £${esc(d.sales_history.range_gbp[0])}–£${esc(d.sales_history.range_gbp[1])}`}</p>
+          <p>${d.sales_history.median_days_to_sell == null ? 'Time to sell not recorded for these matches.' : `Median time to sell: ${esc(d.sales_history.median_days_to_sell)} days (${esc(d.sales_history.days_known_count)} dated sales).`}</p>
+          ${(d.sales_history.examples || []).slice(0,5).map(item => `<p>${esc(item.title)} · £${esc(item.sold_price_gbp)} · ${esc(item.sold_date)}</p>`).join('')}
+          <small>${esc(d.sales_history.note || '')}</small>
+        </details>` : ''}
         <div class="result-title-wrap">
           <textarea class="result-title" id="resultTitle" rows="2"
             onblur="saveMetaField(this,'title','${esc(d.folder)}')"
@@ -2722,6 +2742,8 @@
         </div>
         <div class="review-body">
           ${fieldHtml}
+          <p style="font-size:12px">Your edited facts and wording are kept when updating. Price changes require acceptance.</p>
+          <label style="font-size:13px"><input type="checkbox" id="regenerate-copy"> Replace my edited title and description</label>
           <button class="btn-save-review" onclick="saveReview('${esc(d.folder)}')">Update Listing</button>
           <div id="reviewStatus" style="text-align:center;font-size:13px;margin-top:10px;display:none"></div>
         </div>
@@ -2756,7 +2778,7 @@
       const resp = await fetch(`/regen/${folder}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ updates }),
+        body: JSON.stringify({ updates, regenerate_copy: document.getElementById("regenerate-copy")?.checked === true }),
       });
       const data = await resp.json();
       if (resp.ok) {
@@ -2777,10 +2799,18 @@
     }
   }
 
+  async function acceptPrice(folder, price) {
+    const response = await fetch('/listing/'+encodeURIComponent(folder), {
+      method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify({price_gbp:price})});
+    const data = await response.json();
+    if (!response.ok) { alert(data.error || 'Could not save the price.'); return; }
+    showResult(data);
+  }
+
   async function reprice(folder) {
     const btn = document.querySelector(".btn-reprice");
     if (!btn) return;
-    btn.textContent = "Repricing…";
+    btn.textContent = "Checking…";
     btn.disabled = true;
     try {
       const resp = await fetch(`/reprice/${folder}`, { method: "POST" });
@@ -2788,12 +2818,12 @@
       if (resp.ok) {
         showResult(data);
       } else {
-        btn.textContent = "Reprice ↻";
+        btn.textContent = "Check price ↻";
         btn.disabled = false;
         alert("Reprice failed: " + (data.error || "unknown error"));
       }
     } catch (err) {
-      btn.textContent = "Reprice ↻";
+      btn.textContent = "Check price ↻";
       btn.disabled = false;
       alert("Network error: " + err.message);
     }

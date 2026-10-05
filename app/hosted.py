@@ -79,7 +79,7 @@ def create_app():
             return jsonify(error="Vinted browser operations require the local app", code="LOCAL_BROWSER_REQUIRED"), 503
         if request.path == "/auth/status":
             return jsonify(logged_in="missing", method="local_only", expires_at=None)
-        if request.path in _GENERATION_ROUTES or request.path.startswith(("/regen/", "/reprice/")):
+        if request.path in _GENERATION_ROUTES or request.path.startswith("/regen/"):
             stages = [("LISTING_PROVIDER", provider_status(config.LISTING_PROVIDER))]
             if request.path in _GENERATION_ROUTES:
                 stages.append(("VISION_PROVIDER", provider_status(config.VISION_PROVIDER)))

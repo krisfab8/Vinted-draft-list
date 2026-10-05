@@ -539,6 +539,14 @@
   {% endif %}
 </div>
 
+<div style="display:flex;gap:10px;flex-wrap:wrap;margin:16px 0">
+  <input id="inventory-search" type="search" placeholder="Search brand, title or size" aria-label="Search inventory" oninput="filterInventory()" style="flex:1;min-width:180px;padding:10px;border:1px solid var(--gray-3);border-radius:12px">
+  <select id="inventory-status" aria-label="Filter inventory by status" onchange="filterInventory()" style="padding:10px;border:1px solid var(--gray-3);border-radius:12px">
+    <option value="all">All items</option><option value="draft">Drafts</option><option value="listed">Live / unsold</option>
+    <option value="sold">Sold</option><option value="withdrawn">Withdrawn</option><option value="returned">Returned</option>
+  </select>
+</div>
+<p id="inventory-filter-count" role="status" style="font-size:13px"></p>
 {% if not listings %}
   <div class="empty-state">
     <div class="empty-icon">👕</div>
@@ -549,7 +557,7 @@
 {% else %}
   <div class="drafts-grid">
     {% for item in listings %}
-    <div class="draft-card" id="card-{{ item.folder }}" onclick="openSheet({{ loop.index0 }})">
+    <div class="draft-card" id="card-{{ item.folder }}" data-status="{{ item.inventory_status }}" data-search="{{ ((item.brand or '') ~ ' ' ~ (item.title or '') ~ ' ' ~ (item.normalized_size or ''))|lower }}" onclick="openSheet({{ loop.index0 }})">
       <button class="btn-delete-draft" onclick="deleteDraft(event, '{{ item.folder }}', this)" title="Delete">✕</button>
       <div class="draft-thumb">
         {% if item.draft_error and not item.draft_url %}
@@ -567,6 +575,7 @@
       </div>
       <div class="draft-info">
         <div class="draft-brand">{{ item.brand or "Unknown" }}</div>
+        <div class="inventory-chip" style="font-size:12px;color:var(--brand);margin:6px 0">{{ 'Live / unsold' if item.inventory_status == 'listed' else item.inventory_status|capitalize }}</div>
         <div class="draft-title-text">{{ item.title }}</div>
         <div class="draft-footer">
           <div class="draft-date-text">{{ item.listed_date or "" }}</div>
@@ -626,6 +635,19 @@ function showToast(msg) {
   t.textContent = msg;
   t.style.opacity = "1";
   setTimeout(() => { t.style.opacity = "0"; }, 2500);
+}
+
+function filterInventory() {
+  const query = document.getElementById('inventory-search').value.trim().toLowerCase();
+  const status = document.getElementById('inventory-status').value;
+  let visible = 0;
+  document.querySelectorAll('.draft-card').forEach(card => {
+    const show = (status === 'all' || card.dataset.status === status) && card.dataset.search.includes(query);
+    card.hidden = !show;
+    card.style.display = show ? '' : 'none';
+    if (show) visible++;
+  });
+  document.getElementById('inventory-filter-count').textContent = visible+' matching item'+(visible===1?'':'s');
 }
 
 let currentFolder = null;
@@ -742,6 +764,8 @@ function renderSheet(idx) {
     </details>
     ${item.sales_history?.sample_count ? `<details style="margin-top:16px"><summary>Your matching sales · ${esc(item.sales_history.sample_count)}</summary>
       <p>${item.sales_history.median_gbp == null ? 'At least 3 recent matching sales needed for a price.' : `Median accepted price £${esc(item.sales_history.median_gbp)} · Average £${esc(item.sales_history.mean_gbp)}`}</p>
+      <p>${item.sales_history.median_days_to_sell == null ? 'Time to sell not yet known.' : `Median time to sell: ${esc(item.sales_history.median_days_to_sell)} days (${esc(item.sales_history.days_known_count)} dated sales).`}</p>
+      ${(item.sales_history.examples || []).slice(0,5).map(sale=>`<p>${esc(sale.title)} · £${esc(sale.sold_price_gbp)} · ${esc(sale.sold_date)}</p>`).join('')}
       <small>${esc(item.sales_history.note)}</small></details>` : ''}
   `;
 
@@ -768,7 +792,17 @@ async function saveOutcome(event, folder) {
     const result = await response.json();
     if (!response.ok) throw new Error(result.error || 'Could not save');
     const index = LISTINGS.findIndex(item=>item.folder===folder);
-    if (index>=0) LISTINGS[index].outcome=result.outcome;
+    if (index>=0) {
+      LISTINGS[index].outcome=result.outcome;
+      LISTINGS[index].inventory_status=result.outcome.status;
+      const card = document.getElementById('card-'+folder);
+      if (card) {
+        card.dataset.status=result.outcome.status;
+        card.querySelector('.inventory-chip').textContent=result.outcome.status==='listed'?'Live / unsold':result.outcome.status;
+      }
+      await openSheet(index);
+      filterInventory();
+    }
     showToast('Saved. No AI charge.');
   } catch (error) { showToast(error.message); }
   finally { button.disabled = false; }

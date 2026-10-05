@@ -18,7 +18,7 @@ STATUSES = {'listed', 'sold', 'withdrawn', 'returned'}
 FACTS = ('title', 'brand', 'brand_confidence', 'item_type', 'category', 'gender', 'materials', 'material_confidence',
          'fabric_mill', 'fabric_line', 'tag_keywords', 'tag_keywords_confidence', 'cut', 'pattern',
          'tagged_size', 'normalized_size', 'colour', 'condition_summary', 'flaws_note',
-         'low_confidence_fields', 'model_name', 'sub_brand', 'made_in')
+         'low_confidence_fields', 'model_name', 'sub_brand', 'made_in', 'measurements')
 
 
 def today():
@@ -33,10 +33,13 @@ def connection():
     columns = {row[1] for row in db.execute('PRAGMA table_info(outcomes)')}
     for column in ('match_key','status','platform','sold_date'):
         if column not in columns: db.execute(f'ALTER TABLE outcomes ADD COLUMN {column} TEXT')
-    for folder, payload in db.execute('SELECT folder,payload FROM outcomes WHERE match_key IS NULL').fetchall():
+    signature_version = db.execute('PRAGMA user_version').fetchone()[0]
+    query = 'SELECT folder,payload FROM outcomes' if signature_version < 2 else 'SELECT folder,payload FROM outcomes WHERE match_key IS NULL'
+    for folder, payload in db.execute(query).fetchall():
         row = json.loads(payload)
         db.execute('UPDATE outcomes SET match_key=?,status=?,platform=?,sold_date=? WHERE folder=?',
                    (match_key(row['item']),row['status'],row['platform'],row.get('sold_date'),folder))
+    db.execute('PRAGMA user_version=2')
     db.execute('CREATE INDEX IF NOT EXISTS sale_matches ON outcomes(match_key,platform,status,sold_date)')
     db.commit()
     return db
@@ -77,12 +80,12 @@ def record(folder, listing, body):
     status, platform = body.get('status'), body.get('platform')
     if status not in STATUSES or platform not in PLATFORMS: raise ValueError('Choose a status and platform.')
     existing = get(folder) or {}
-    published = day(body.get('published_date'), 'published date', status == 'listed')
+    published = day(body.get('published_date', existing.get('published_date')), 'published date', status == 'listed')
     sold = day(body.get('sold_date'), 'sale date', status == 'sold') if status == 'sold' else None
     if sold and published and sold < published: raise ValueError('Sale date cannot be before publication.')
     price = money(body.get('sold_price_gbp'), 'Sold price', True) if status == 'sold' else None
-    buy = money(body.get('buy_price_gbp'), 'Purchase cost')
-    costs = money(body.get('selling_cost_gbp'), 'Selling costs')
+    buy = money(body.get('buy_price_gbp', existing.get('buy_price_gbp', listing.get('buy_price_gbp'))), 'Purchase cost')
+    costs = money(body.get('selling_cost_gbp', existing.get('selling_cost_gbp')), 'Selling costs')
     now = datetime.now(timezone.utc).isoformat()
     snapshot = {key: listing[key] for key in FACTS if listing.get(key) is not None}
     row = {'folder': folder, 'seller_scope': 'private_operator', 'source': 'seller_confirmed',
@@ -125,6 +128,9 @@ def restore(rows):
         for key, value in item.items():
             if key in ('materials','tag_keywords','low_confidence_fields'):
                 if not isinstance(value, list) or len(value)>100 or any(not isinstance(v,str) or len(v)>1000 for v in value): raise ValueError('Invalid item facts.')
+            elif key == 'measurements':
+                from app.services.measurements import confirmed
+                confirmed(value)
             elif key in FACTS and (not isinstance(value,str) or len(value)>2000): raise ValueError('Invalid item facts.')
         published = day(row.get('published_date'), 'published date', row['status'] == 'listed')
         sold = day(row.get('sold_date'), 'sale date', row['status'] == 'sold')
@@ -171,17 +177,20 @@ def signature(item):
         garment_tokens = tokens(item.get('item_type'))
         if {'corduroy','cords'} & garment_tokens: kind = 'corduroy trousers'
         elif {'chinos','chino'} & garment_tokens: kind = 'chinos'
-    shell = [norm(re.sub(r'\d+(?:\.\d+)?\s*%', '', str(m))) for m in item.get('materials') or [] if 'lining' not in str(m).lower()]
+    # Percentages distinguish a wool-rich blend from one with a little wool.
+    shell = [re.sub(r'\s+', ' ', str(m).strip().lower()) for m in item.get('materials') or [] if 'lining' not in str(m).lower()]
     return (norm(item.get('brand')), kind, norm(item.get('gender')), canonical_level(item.get('condition_summary')) if item.get('condition_summary') else 'unknown',
             norm(item.get('fabric_mill')), norm(item.get('fabric_line')), tuple(sorted(shell)),
             tuple(sorted(norm(v) for v in confirmed_terms(item))), norm(item.get('model_name')),
-            norm(item.get('sub_brand')), norm(item.get('cut')), norm(item.get('pattern')))
+            norm(item.get('sub_brand')), norm(item.get('cut')), norm(item.get('pattern')),
+            norm(item.get('flaws_note')))
 
 
 def comparisons(item, platform='Vinted', rows=None):
     target = signature(item)
     matches = []
-    if not target[0] or not target[1] or item.get('brand_confidence') == 'low' or 'brand' in (item.get('low_confidence_fields') or []):
+    uncertain = set(item.get('low_confidence_fields') or [])
+    if not target[0] or not target[1] or item.get('brand_confidence') == 'low' or item.get('material_confidence') == 'low' or uncertain & {'brand', 'materials', 'fabric_mill', 'fabric_line', 'model_name'}:
         return {'sample_count': 0, 'platform': platform, 'median_gbp': None, 'mean_gbp': None, 'range_gbp': None, 'examples': []}
     cutoff = (today() - timedelta(days=365)).isoformat()
     if rows is None:
@@ -192,14 +201,19 @@ def comparisons(item, platform='Vinted', rows=None):
     for row in rows:
         if row['folder'] == item.get('folder') or row['status'] != 'sold' or row['platform'] != platform: continue
         if not row.get('sold_date') or row['sold_date'] < cutoff or signature(row['item']) != target: continue
+        evidence = row['item']
+        if evidence.get('brand_confidence') == 'low' or evidence.get('material_confidence') == 'low' or set(evidence.get('low_confidence_fields') or []) & {'brand','materials','fabric_mill','fabric_line','model_name'}: continue
         matches.append(row)
     prices = [r['sold_price_gbp'] for r in matches]
+    matches.sort(key=lambda row: row['sold_date'], reverse=True)
+    days = [row['days_to_sell'] for row in matches if row.get('days_to_sell') is not None]
     return {'source': 'your_confirmed_sales', 'sample_count': len(prices), 'platform': platform,
             'median_gbp': round(median(prices), 2) if len(prices) >= 3 else None,
             'mean_gbp': round(mean(prices), 2) if len(prices) >= 3 else None,
             'range_gbp': [min(prices), max(prices)] if len(prices) >= 3 else None,
-            'examples': [{'folder':r['folder'], 'title':r['item'].get('title'), 'sold_price_gbp':r['sold_price_gbp'], 'sold_date':r['sold_date']} for r in matches],
-            'note': 'Recent confirmed sales on the same platform, matching brand, garment, condition and cloth details; size and colour may vary. At least 3 needed for a price. Accepted prices exclude postage.'}
+            'median_days_to_sell': median(days) if days else None, 'days_known_count': len(days),
+            'examples': [{'folder':r['folder'], 'title':r['item'].get('title'), 'sold_price_gbp':r['sold_price_gbp'], 'sold_date':r['sold_date'], 'days_to_sell':r.get('days_to_sell')} for r in matches[:20]],
+            'note': 'Recent confirmed sales on the same platform, matching brand, garment, condition, flaws and cloth composition; size and colour may vary. At least 3 needed for a price. Accepted prices exclude postage.'}
 
 
 def match_key(item):

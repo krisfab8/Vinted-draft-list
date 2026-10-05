@@ -115,7 +115,9 @@ def build_hints_from_listing(existing: dict, updates: dict | None = None) -> dic
 
 _META_FIELDS = (
     "draft_url", "draft_error", "cost_gbp", "cost_tokens", "measurement_proposals", "measurements",
-    "listed_date", "photos_folder", "error_tags",
+    "listed_date", "photos_folder", "error_tags", "buy_price_gbp", "brand_confirmed",
+    "manual_fields", "analysis_models", "model_calls", "cost_complete", "cost_status",
+    "price_history", "initial_asking_price_gbp",
 )
 
 
@@ -139,6 +141,9 @@ def preserve_user_fields(
     for field in _META_FIELDS:
         if field in existing:
             new_listing.setdefault(field, existing[field])
+    for field in ('buy_price_gbp', 'brand_confirmed', 'manual_fields', 'price_history', 'initial_asking_price_gbp'):
+        if field in existing:
+            new_listing[field] = existing[field]
 
     if existing.get("condition_summary") and not updates.get("condition_summary"):
         new_listing["condition_summary"] = existing["condition_summary"]
@@ -159,5 +164,23 @@ def preserve_user_fields(
     new_listing["measurements"] = measurements.confirmed(existing.get("measurements", []))
     new_listing["measurement_proposals"] = existing.get("measurement_proposals", [])
     measurements.apply_description(new_listing)
+
+    # Manual facts are authoritative, including explicit blank values. Retain
+    # ancillary evidence omitted by the writer rather than losing it on regen.
+    for field, value in existing.items():
+        if field.startswith('ebay_'):
+            new_listing.setdefault(field, value)
+    for field in set(existing.get('manual_fields') or []) | set(updates):
+        if field in updates:
+            new_listing[field] = updates[field]
+        elif field in existing:
+            new_listing[field] = existing[field]
+        else:
+            new_listing.pop(field, None)
+    from app.services import condition, description_layout
+    condition.apply_condition(new_listing)
+    if 'description' not in (existing.get('manual_fields') or []):
+        description_layout.apply(new_listing)
+        measurements.apply_description(new_listing)
 
     return new_listing
