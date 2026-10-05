@@ -876,6 +876,7 @@
 {% block scripts %}
 <script>
 const FOLDER = {{ folder | tojson }};
+window.ItemState?.remember(FOLDER, {{ item_revision | tojson }});
 let _errorTags = {{ (listing.error_tags or []) | tojson }};
 
 function showToast(msg, duration = 2000) {

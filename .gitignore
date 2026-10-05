@@ -64,3 +64,4 @@ vinted-logo-capture.png
 data/model_calls.jsonl
 
 data/ebay_comps_cache.json
+items/_locks/
