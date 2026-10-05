@@ -236,6 +236,23 @@ def metrics(rows=None):
             'cohort_note':'Listings first published 30–120 days ago; percentage sold within their first 30 days. Includes tracked unsold/withdrawn items. Missing publication dates are excluded. This is your recorded inventory, not market-wide demand.'}
 
 
+def monthly_summary(rows=None, month=None):
+    """Gross resale profit; unknown purchase costs never become invented zeroes."""
+    month = month or today().strftime('%Y-%m')
+    if not re.fullmatch(r'\d{4}-(0[1-9]|1[0-2])', month) or month.startswith('0000'):
+        raise ValueError('Choose a valid month.')
+    rows = read_all() if rows is None else rows
+    sold = [row for row in rows if row['status'] == 'sold' and (row.get('sold_date') or '').startswith(month+'-')]
+    known = [row for row in sold if row.get('buy_price_gbp') is not None]
+    purchase = sum(row['buy_price_gbp'] for row in known)
+    gross = sum(row['sold_price_gbp'] - row['buy_price_gbp'] for row in known)
+    return {'month': month, 'sold_count': len(sold), 'known_cost_count': len(known),
+            'revenue_gbp': round(sum(row['sold_price_gbp'] for row in sold), 2),
+            'gross_profit_gbp': round(gross, 2) if known or not sold else None,
+            'average_profit_gbp': round(gross / len(known), 2) if known else None,
+            'return_on_cost_percent': round(100 * gross / purchase, 1) if purchase else None}
+
+
 def export_csv():
     out = io.StringIO(newline='')
     columns = ['folder','status','platform','published_date','sold_date','days_to_sell','asking_price_gbp',

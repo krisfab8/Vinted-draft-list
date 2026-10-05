@@ -132,3 +132,29 @@ def test_sold_page_uses_actual_prices_and_moves_items_from_drafts(tmp_path,monke
     assert 'card-upload_11111111' not in client.get('/drafts').get_data(as_text=True)
     assert web._draft_count()==0
     assert client.get('/stats').status_code==200
+
+
+def test_monthly_summary_profit_and_return_ignore_unknown_costs():
+    month=h.today().strftime('%Y-%m')
+    h.record('upload_11111111',ITEM,dict(status='sold',platform='Vinted',sold_price_gbp=50,buy_price_gbp=5))
+    h.record('upload_22222222',ITEM,dict(status='sold',platform='Vinted',sold_price_gbp=20,buy_price_gbp=None))
+    summary=h.monthly_summary(month=month)
+    assert summary['revenue_gbp']==70 and summary['sold_count']==2
+    assert summary['gross_profit_gbp']==45 and summary['average_profit_gbp']==45
+    assert summary['return_on_cost_percent']==900 and summary['known_cost_count']==1
+    h.record('upload_33333333',ITEM,dict(status='sold',platform='Vinted',sold_price_gbp=10,buy_price_gbp=0))
+    assert h.monthly_summary()['average_profit_gbp']==27.5
+    assert h.monthly_summary(month='2000-01')['sold_count']==0
+    with pytest.raises(ValueError):h.monthly_summary(month='2026-99')
+
+
+def test_monthly_summary_unknown_zero_and_loss_are_distinct():
+    h.record('upload_11111111',ITEM,dict(status='sold',platform='Vinted',sold_price_gbp=10,buy_price_gbp=None))
+    assert h.monthly_summary()['gross_profit_gbp'] is None
+    assert h.monthly_summary()['return_on_cost_percent'] is None
+    h.record('upload_11111111',ITEM,dict(status='sold',platform='Vinted',sold_price_gbp=10,buy_price_gbp=0))
+    assert h.monthly_summary()['gross_profit_gbp']==10
+    assert h.monthly_summary()['return_on_cost_percent'] is None
+    h.record('upload_11111111',ITEM,dict(status='sold',platform='Vinted',sold_price_gbp=10,buy_price_gbp=20))
+    assert h.monthly_summary()['gross_profit_gbp']==-10
+    assert h.monthly_summary()['return_on_cost_percent']==-50

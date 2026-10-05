@@ -550,10 +550,17 @@ def drafts_page():
 
 @app.get("/sold")
 def sold_page():
+    from app.services import sales_history
+    rows = sales_history.read_all()
+    try:
+        summary = sales_history.monthly_summary(rows, request.args.get('month'))
+    except ValueError:
+        return jsonify(error="Choose a valid month."), 422
     listings = _get_all_listings()
-    sold = sorted((item for item in listings if item['inventory_status'] == 'sold'),
+    sold = sorted((item for item in listings if item['inventory_status'] == 'sold'
+                   and (item['outcome'].get('sold_date') or '').startswith(summary['month']+'-')),
                   key=lambda item: item['outcome'].get('sold_date') or '', reverse=True)
-    return render_template("drafts.html", listings=sold, sold_mode=True,
+    return render_template("drafts.html", listings=sold, sold_mode=True, sale_summary=summary,
                            draft_count=sum(item['inventory_status'] != 'sold' for item in listings),
                            active_tab="sold")
 
