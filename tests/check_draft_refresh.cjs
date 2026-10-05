@@ -22,5 +22,17 @@ context.showToast=message=>messages.push(message);
  assert.deepEqual(rendered,['new size lines','latest second']);
  const failure=context.openSheet(0);pending.shift()({ok:false});await failure;
  assert.equal(rendered.length,2);assert(messages[0].includes('latest draft'));
- console.log('Fresh draft loading, no stale fallback and racing sheet requests passed');
+ // Deleting a card must not shift indices embedded in the surviving cards.
+ context.confirm=()=>true;
+ let removed=false;
+ context.document.getElementById=()=>({remove(){removed=true;}});
+ context.document.querySelector=()=>null;
+ context.closeSheet=()=>{};
+ const deletion=context.deleteDraft({stopPropagation(){}},'upload_11111111',{textContent:'Delete listing',disabled:false});
+ pending.shift()({ok:true});await deletion;assert(removed);
+ const next=context.openSheet(1);
+ assert(calls.at(-1)[0].includes('upload_22222222'));
+ pending.shift()({ok:true,json:async()=>({folder:'upload_22222222',description:'correct surviving item'})});
+ await next;assert.equal(rendered.at(-1),'correct surviving item');
+ console.log('Fresh loading, racing requests and card identity after deletion passed');
 })().catch(error=>{console.error(error);process.exit(1)});

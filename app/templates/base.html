@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -290,12 +290,11 @@
     .chip-gold     { background: var(--gold-bg); color: var(--gold); }
   </style>
   {% block head %}{% endblock %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='stockroom.css') }}?v=1">
 </head>
 <body>
 {% if hosted_test %}
-<div style="padding:12px 16px;background:#142d3f;color:white;font-size:14px;text-align:center" role="status">
-  Private OCR test · {{ hosted_vision_model }} · Vinted drafting uses the local app.
-</div>
+<details class="private-test-note"><summary>Private preview</summary><p>{{ hosted_vision_model }} · Vinted drafting uses the local app.</p></details>
 {% endif %}
   <header>
     <a href="/" class="logo">
@@ -318,13 +317,7 @@
       <span>Vinted</span>
     </a>
     {% endblock %}
-  </header>
-
-  <main class="page">
-    {% block content %}{% endblock %}
-  </main>
-
-  <nav class="bottom-nav">
+  <nav class="bottom-nav" aria-label="Main navigation">
     <a href="/" class="nav-item{% if active_tab == 'upload' %} active{% endif %}">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
         <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
@@ -353,6 +346,13 @@
       <span>Sold</span>
     </a>
   </nav>
+  </header>
+
+  <main class="page page-{{ active_tab }}">
+    {% block content %}{% endblock %}
+  </main>
+
+
 
   <script src="{{ url_for('static', filename='item_state.js') }}?v=sold-1"></script>
   {% if config.get('HOSTED_TEST') %}

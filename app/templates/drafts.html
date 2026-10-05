@@ -548,14 +548,14 @@
 {% block content %}
 <!-- ── Vinted not-connected note ── -->
 <div class="auth-note" id="auth-note">
-  <span>⚠ Vinted not connected — draft creation disabled.</span>
+  <span>Connect Vinted to create drafts.</span>
   <a href="/connect">Connect →</a>
 </div>
 
 <div class="drafts-heading">
-  <div style="display:flex;align-items:center;gap:10px">
+  <div class="inventory-heading-title">
     <div class="page-title" style="margin-bottom:0">{{ 'Sold' if sold_mode else 'Drafts' }}</div>
-    <button type="button" onclick="location.reload()" aria-label="Refresh items" title="Refresh items" style="border:0;background:none;font-size:22px;cursor:pointer">↻</button>
+    <button type="button" onclick="location.reload()" aria-label="Refresh items" title="Refresh items" class="refresh-items">↻</button>
     <span id="review-count-badge" style="display:none;background:var(--gold-bg);color:#b86a00;border:1px solid rgba(184,106,0,0.2);font-size:11px;font-weight:700;padding:3px 10px;border-radius:var(--r-pill)"></span>
   </div>
   {% if listings %}
@@ -571,15 +571,15 @@
     <noscript><button type="submit">Show month</button></noscript>
   </form>
   <div class="sales-metrics">
-    <div class="sales-metric"><span>Total sales</span><strong>£{{ '%.2f'|format(sale_summary.revenue_gbp) }}</strong><small>{{ sale_summary.sold_count }} item{{ 's' if sale_summary.sold_count != 1 }} sold</small></div>
-    <div class="sales-metric"><span>Profit before fees</span><strong>{{ '£%.2f'|format(sale_summary.gross_profit_gbp) if sale_summary.gross_profit_gbp is not none else '—' }}</strong><small>Sales minus purchase costs</small></div>
-    <div class="sales-metric"><span>Average profit</span><strong>{{ '£%.2f'|format(sale_summary.average_profit_gbp) if sale_summary.average_profit_gbp is not none else '—' }}</strong><small>Per item with a known cost</small></div>
-    <div class="sales-metric"><span>Return on cost</span><strong>{{ '%.1f%%'|format(sale_summary.return_on_cost_percent) if sale_summary.return_on_cost_percent is not none else '—' }}</strong><small>Profit ÷ purchase costs</small></div>
+    <div class="sales-metric"><span>Sales this month</span><strong>£{{ '%.2f'|format(sale_summary.revenue_gbp) }}</strong><small>{{ sale_summary.sold_count }} item{{ 's' if sale_summary.sold_count != 1 }} sold</small></div>
+    <div class="sales-metric"><span>Profit before fees</span><strong>{{ '£%.2f'|format(sale_summary.gross_profit_gbp) if sale_summary.gross_profit_gbp is not none else '—' }}</strong></div>
+    <div class="sales-metric"><span>Average profit</span><strong>{{ '£%.2f'|format(sale_summary.average_profit_gbp) if sale_summary.average_profit_gbp is not none else '—' }}</strong></div>
+    <div class="sales-metric"><span>Return on cost</span><strong>{{ '%.1f%%'|format(sale_summary.return_on_cost_percent) if sale_summary.return_on_cost_percent is not none else '—' }}</strong></div>
   </div>
-  <p class="sale-note">Profit figures use {{ sale_summary.known_cost_count }} of {{ sale_summary.sold_count }} sales with known purchase costs, before fees and seller-paid postage.</p>
+  <details class="metric-explainer"><summary>{{ sale_summary.known_cost_count }} of {{ sale_summary.sold_count }} costs recorded · Details</summary><p>Profit uses sales with known purchase costs, before fees and seller-paid postage. Return on cost is profit divided by purchase costs.</p></details>
 </section>
 {% endif %}
-<div style="display:flex;gap:10px;flex-wrap:wrap;margin:16px 0">
+<div class="inventory-toolbar">
   <input id="inventory-search" type="search" placeholder="Search brand, title or size" aria-label="Search inventory" oninput="filterInventory()" style="flex:1;min-width:180px;padding:10px;border:1px solid var(--gray-3);border-radius:12px">
   <select {% if sold_mode %}hidden{% endif %} id="inventory-status" aria-label="Filter inventory by status" onchange="filterInventory()" style="padding:10px;border:1px solid var(--gray-3);border-radius:12px">
     <option value="all">All items</option><option value="draft">Drafts</option><option value="listed">Live / unsold</option>
@@ -597,8 +597,7 @@
 {% else %}
   <div class="drafts-grid">
     {% for item in listings %}
-    <div class="draft-card" id="card-{{ item.folder }}" data-status="{{ item.inventory_status }}" data-search="{{ ((item.brand or '') ~ ' ' ~ (item.title or '') ~ ' ' ~ (item.normalized_size or ''))|lower }}" onclick="openSheet({{ loop.index0 }})">
-      {% if not sold_mode %}<button class="btn-delete-draft" onclick="deleteDraft(event, '{{ item.folder }}', this)" title="Delete">✕</button>{% endif %}
+    <div class="draft-card" id="card-{{ item.folder }}" data-status="{{ item.inventory_status }}" data-search="{{ ((item.brand or '') ~ ' ' ~ (item.title or '') ~ ' ' ~ (item.normalized_size or ''))|lower }}" role="button" tabindex="0" aria-label="View {{ item.title or 'listing' }}" onclick="openSheet({{ loop.index0 }})" onkeydown="if(event.target===this &amp;&amp; (event.key==='Enter' || event.key===' ')){event.preventDefault();openSheet({{ loop.index0 }});}">
       <div class="draft-thumb">
         {% if item.inventory_status == 'sold' %}<div class="sold-tag">SOLD</div>{% endif %}
         {% if item.inventory_status != 'sold' and item.draft_error and not item.draft_url %}
@@ -616,7 +615,7 @@
       </div>
       <div class="draft-info">
         <div class="draft-brand">{{ item.brand or "Unknown" }}</div>
-        <div class="inventory-chip" style="font-size:12px;color:var(--brand);margin:6px 0">{{ 'Live / unsold' if item.inventory_status == 'listed' else item.inventory_status|capitalize }}</div>
+        {% if not sold_mode %}<div class="inventory-chip">{{ 'Live' if item.inventory_status == 'listed' else item.inventory_status|capitalize }}</div>{% endif %}
         <div class="draft-title-text">{{ item.title }}</div>
         {% if sold_mode and item.outcome.buy_price_gbp is not none %}<div class="sale-note" style="margin-top:6px">Bought for £{{ item.outcome.buy_price_gbp }}{% if item.outcome.profit_gbp is not none %} · Profit £{{ item.outcome.profit_gbp }}{% endif %}</div>{% endif %}
         <div class="draft-footer">
@@ -633,14 +632,14 @@
 
 <!-- Bottom sheet -->
 <div class="sheet-overlay" id="sheetOverlay" onclick="closeIfBackdrop(event)">
-  <div class="sheet" id="sheet">
+  <div class="sheet" id="sheet" role="dialog" aria-modal="true" aria-labelledby="sheetTitle">
     <div class="sheet-handle"></div>
     <div class="sheet-header">
       <div style="flex:1;min-width:0">
         <div class="sheet-price-num" id="sheetPrice"></div>
         <div class="sheet-title-str" id="sheetTitle"></div>
       </div>
-      <button class="sheet-close" onclick="closeSheet()">✕</button>
+      <button class="sheet-close" aria-label="Close listing" onclick="closeSheet()">✕</button>
     </div>
     <div class="sheet-body" id="sheetBody"></div>
   </div>
@@ -822,6 +821,7 @@ function renderSheet(idx) {
     ${item.category ? `<div class="sheet-category">📂 ${esc(item.category).replace(/ &gt; /g, ' › ')}</div>` : ""}
     ${item.outcome?.status === 'sold' ? '' : draftBtn}
     ${item.folder && item.outcome?.status !== 'sold' ? `<a class="btn-sheet-edit" href="/?edit=${esc(item.folder)}" aria-label="Edit listing">✎ Edit</a>` : ""}
+    ${item.folder && item.outcome?.status !== 'sold' ? `<button type="button" class="delete-listing" onclick="deleteDraft(event,'${esc(item.folder)}',this)">Delete listing</button>` : ''}
     ${item.sales_history?.sample_count ? `<details style="margin-top:16px"><summary>Your matching sales · ${esc(item.sales_history.sample_count)}</summary>
       <p>${item.sales_history.median_gbp == null ? 'At least 3 recent matching sales needed for a price.' : `Median accepted price £${esc(item.sales_history.median_gbp)} · Average £${esc(item.sales_history.mean_gbp)}`}</p>
       <p>${item.sales_history.median_days_to_sell == null ? 'Time to sell not yet known.' : `Median time to sell: ${esc(item.sales_history.median_days_to_sell)} days (${esc(item.sales_history.days_known_count)} dated sales).`}</p>
@@ -831,13 +831,28 @@ function renderSheet(idx) {
 
   document.getElementById("sheetOverlay").classList.add("open");
   document.body.style.overflow = "hidden";
+  document.querySelector(".sheet-close").focus();
 }
 
 function closeSheet() {
+  const returnCard = currentFolder ? document.getElementById(`card-${currentFolder}`) : null;
   currentFolder = null;
   document.getElementById("sheetOverlay").classList.remove("open");
   document.body.style.overflow = "";
+  returnCard?.focus();
 }
+
+document.addEventListener('keydown', event => {
+  const overlay = document.getElementById('sheetOverlay');
+  if (!overlay.classList.contains('open')) return;
+  if (event.key === 'Escape') { event.preventDefault(); closeSheet(); }
+  if (event.key === 'Tab') {
+    const controls = [...overlay.querySelectorAll('button:not([disabled]),a[href],input:not([type="hidden"]),select,summary')].filter(el => el.getClientRects().length);
+    const first = controls[0], last = controls[controls.length - 1];
+    if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }
+    else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
+  }
+});
 
 async function saveOutcome(event, folder) {
   event.preventDefault();
@@ -868,29 +883,31 @@ function closeIfBackdrop(e) {
 async function deleteDraft(e, folder, btn) {
   e.stopPropagation(); // don't open the sheet
   if (!confirm("Delete this listing and all its photos? This cannot be undone.")) return;
-  btn.textContent = "…";
+  const originalLabel = btn.textContent;
+  btn.textContent = "Deleting…";
   btn.disabled = true;
   try {
     const resp = await fetch(`/listing/${encodeURIComponent(folder)}`, { method: "DELETE" });
     if (resp.ok) {
       const card = document.getElementById(`card-${folder}`);
       if (card) card.remove();
+      closeSheet();
       // Remove from cached LISTINGS array
       const idx = LISTINGS.findIndex(l => l.folder === folder);
-      if (idx !== -1) LISTINGS.splice(idx, 1);
+      if (idx !== -1) LISTINGS[idx]._deleted = true;
       // Update the count badge
       const badge = document.querySelector(".drafts-count-badge");
       if (badge) {
-        const n = LISTINGS.length;
+        const n = LISTINGS.filter(item => !item._deleted).length;
         badge.textContent = `${n} item${n !== 1 ? "s" : ""}`;
       }
     } else {
-      btn.textContent = "✕";
+      btn.textContent = originalLabel;
       btn.disabled = false;
       alert("Delete failed.");
     }
   } catch {
-    btn.textContent = "✕";
+    btn.textContent = originalLabel;
     btn.disabled = false;
   }
 }

@@ -1318,13 +1318,13 @@
 
 {% block content %}
 <!-- Page heading -->
-<div style="margin-bottom:24px">
+<div class="listing-heading">
   {% if is_reseller %}
   <div class="page-title">Add to inventory</div>
-  <div style="font-size:13px;font-weight:400;color:var(--d-muted);margin-top:4px;letter-spacing:0.1px">Upload photos · AI listing in seconds</div>
+  <div style="font-size:13px;font-weight:400;color:var(--d-muted);margin-top:4px;letter-spacing:0.1px">Photos first. Details handled.</div>
   {% else %}
-  <div class="page-title">New Listing</div>
-  <div style="font-size:13px;font-weight:400;color:var(--d-muted);margin-top:4px;letter-spacing:0.1px">Upload photos · AI listing in seconds</div>
+  <div class="page-title">New listing</div>
+  <div style="font-size:13px;font-weight:400;color:var(--d-muted);margin-top:4px;letter-spacing:0.1px">Photos first. Details handled.</div>
   {% endif %}
 </div>
 
@@ -1353,6 +1353,8 @@
   </div>
 </div>
 
+<div class="upload-details">
+<div class="section-title details-title">Listing details</div>
 <!-- ── Buy price ── -->
 <div class="form-section">
   <div class="field">
@@ -1401,13 +1403,14 @@
 
 <!-- ── Submit ── -->
 <button class="btn-submit" id="submitBtn" onclick="createListing()">
-  <span class="btn-label">Create Listing</span>
+  <span class="btn-label">Create listing <span aria-hidden="true">↗</span></span>
   <span class="btn-loading-inner">
     <span class="btn-spinner-ring"></span>
     <span class="btn-step-text" id="btnStepText">Analysing photos</span>
   </span>
 </button>
 
+</div>
 <!-- Loading step dots — visible inside card during processing -->
 <div class="loading-state" id="loadingState" style="padding:16px 0 4px">
   <div class="loading-steps-bar">
@@ -1529,7 +1532,7 @@
         ? "Add photos"
         : (SLOT_LABELS[photos.length] || `Extra ${photos.length - 4}`);
       btn.innerHTML = `
-        <div class="add-more-icon">${photos.length === 0 ? "📷" : "+"}</div>
+        <div class="add-more-icon">${photos.length === 0 ? `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M4 6h4l2-3h4l2 3h4v14H4z"/><circle cx="12" cy="12" r="4"/></svg>` : "+"}</div>
         <div class="add-more-label">${nextLabel}</div>
       `;
       btn.onclick = () => {
