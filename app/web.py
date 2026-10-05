@@ -76,7 +76,7 @@ def item_revision_headers(response):
         if revision:
             response.headers['X-Item-Revision'] = revision
         response.headers['Cache-Control'] = 'no-store'
-    elif request.path in {'/drafts', '/api/listings', '/api/sales'}:
+    elif request.path in {'/drafts', '/sold', '/api/listings', '/api/sales'}:
         response.headers['Cache-Control'] = 'no-store'
     return response
 
@@ -544,8 +544,18 @@ def upload_listing():
 
 @app.get("/drafts")
 def drafts_page():
-    listings = _get_all_listings()
+    listings = [item for item in _get_all_listings() if item['inventory_status'] != 'sold']
     return render_template("drafts.html", listings=listings, draft_count=len(listings), active_tab="drafts")
+
+
+@app.get("/sold")
+def sold_page():
+    listings = _get_all_listings()
+    sold = sorted((item for item in listings if item['inventory_status'] == 'sold'),
+                  key=lambda item: item['outcome'].get('sold_date') or '', reverse=True)
+    return render_template("drafts.html", listings=sold, sold_mode=True,
+                           draft_count=sum(item['inventory_status'] != 'sold' for item in listings),
+                           active_tab="sold")
 
 
 @app.get("/connect")
@@ -602,11 +612,13 @@ def serve_item_photo(folder, filename):
 # ── Helpers ────────────────────────────────────────────────────────────────
 
 def _draft_count() -> int:
+    from app.services import sales_history
+    sold = {row['folder'] for row in sales_history.read_all() if row['status'] == 'sold'}
     if not ITEMS_DIR.exists():
         return 0
     return sum(
         1 for d in ITEMS_DIR.iterdir()
-        if d.is_dir() and not d.name.startswith("_") and (d / "listing.json").exists()
+        if d.is_dir() and not d.name.startswith("_") and d.name not in sold and (d / "listing.json").exists()
     )
 
 

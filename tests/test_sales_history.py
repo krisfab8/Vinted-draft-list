@@ -98,3 +98,37 @@ def test_legacy_backup_recovers_printed_tag_and_layout(tmp_path):
     item_backup.restore(out.getvalue(),tmp_path/'items')
     restored=json.loads((tmp_path/'items/upload_11111111/listing.json').read_text())
     assert restored['tagged_size']=='54' and '- Size: UK 44R / EU 54' in restored['description']
+
+
+def test_quick_sale_defaults_today_preserves_publication_and_edit_date():
+    published=(h.today()-timedelta(days=15)).isoformat()
+    h.record('upload_11111111',ITEM,dict(status='listed',platform='Vinted',published_date=published,buy_price_gbp=9))
+    sale=h.record('upload_11111111',ITEM,dict(status='sold',platform='Vinted',sold_price_gbp=50))
+    assert sale['sold_date']==h.today().isoformat()
+    assert sale['published_date']==published and sale['days_to_sell']==15
+    assert sale['buy_price_gbp']==9 and sale['selling_cost_gbp'] is None
+    earlier=(h.today()-timedelta(days=2)).isoformat()
+    h.record('upload_11111111',ITEM,dict(status='sold',platform='Vinted',sold_price_gbp=50,sold_date=earlier))
+    assert h.record('upload_11111111',ITEM,dict(status='sold',platform='Vinted',sold_price_gbp=55))['sold_date']==earlier
+
+
+def test_quick_sale_does_not_invent_publication_from_draft_creation():
+    row=h.record('upload_11111111',dict(ITEM,listed_date='2026-09-01'),dict(status='sold',platform='Vinted',sold_price_gbp=50))
+    assert row['published_date'] is None and row['days_to_sell'] is None
+
+
+def test_sold_page_uses_actual_prices_and_moves_items_from_drafts(tmp_path,monkeypatch):
+    from app import web
+    monkeypatch.setattr(web,'ITEMS_DIR',tmp_path)
+    folder=tmp_path/'upload_11111111';folder.mkdir()
+    (folder/'listing.json').write_text(json.dumps(dict(ITEM,listed_date='2026-09-02')))
+    h.record(folder.name,ITEM,dict(status='sold',platform='Vinted',sold_price_gbp=47.5,buy_price_gbp=8))
+    client=web.app.test_client()
+    page=client.get('/sold')
+    assert page.status_code==200 and page.headers['Cache-Control']=='no-store'
+    html=page.get_data(as_text=True)
+    assert 'class="sold-tag">SOLD' in html and '£47.5' in html and 'Bought for £8' in html
+    assert 'href="/sold"' in html and 'btn-delete-draft" onclick' not in html
+    assert 'card-upload_11111111' not in client.get('/drafts').get_data(as_text=True)
+    assert web._draft_count()==0
+    assert client.get('/stats').status_code==200

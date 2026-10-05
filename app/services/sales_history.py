@@ -81,7 +81,7 @@ def record(folder, listing, body):
     if status not in STATUSES or platform not in PLATFORMS: raise ValueError('Choose a status and platform.')
     existing = get(folder) or {}
     published = day(body.get('published_date', existing.get('published_date')), 'published date', status == 'listed')
-    sold = day(body.get('sold_date'), 'sale date', status == 'sold') if status == 'sold' else None
+    sold = day(body.get('sold_date', existing.get('sold_date') or today().isoformat()), 'sale date', True) if status == 'sold' else None
     if sold and published and sold < published: raise ValueError('Sale date cannot be before publication.')
     price = money(body.get('sold_price_gbp'), 'Sold price', True) if status == 'sold' else None
     buy = money(body.get('buy_price_gbp', existing.get('buy_price_gbp', listing.get('buy_price_gbp'))), 'Purchase cost')

@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Drafts — Vinted Lister{% endblock %}
+{% block title %}{{ 'Sold' if sold_mode else 'Drafts' }} — Vinted Lister{% endblock %}
 
 {% block head %}
 <style>
@@ -518,6 +518,21 @@
   }
   .sheet-conflict-btn.yes { background: var(--brand); color: #fff; }
   .sheet-conflict-btn.no  { background: var(--gray-1); color: var(--gray-9); }
+
+  .sold-tag {position:absolute;top:12px;left:12px;z-index:2;background:#dc3545;color:white;font-size:11px;font-weight:800;letter-spacing:.8px;padding:6px 11px;border-radius:var(--r-pill)}
+  .sale-panel {margin-top:20px;padding:18px;background:var(--gray-1);border-radius:var(--r-lg, 18px)}
+  .sale-panel h3 {font-size:18px;margin:0 0 14px}
+  .sale-form {display:grid;gap:14px}
+  .sale-form[hidden] {display:none}
+  .sale-form label {display:grid;gap:7px;font-size:13px;font-weight:600}
+  .sale-form input,.sale-form select {box-sizing:border-box;width:100%;min-height:46px;border:1px solid var(--gray-3);border-radius:12px;padding:11px 12px;background:white;color:var(--black);font:inherit;font-size:16px}
+  .sale-form details {font-size:13px;color:var(--gray-5)}
+  .sale-form details summary {cursor:pointer;padding:5px 0}
+  .sale-form details .sale-extra {display:grid;gap:14px;margin-top:14px}
+  .btn-sold {width:100%;border:0;border-radius:var(--r-pill);padding:15px;background:#dc3545;color:white;font:inherit;font-weight:700;cursor:pointer}
+  .sale-note {font-size:12px;color:var(--gray-5);line-height:1.5;margin:0}
+  .sold-summary {display:flex;gap:18px;flex-wrap:wrap;margin:12px 0 18px;padding:16px;background:white;border-radius:16px;font-size:14px}
+
 </style>
 {% endblock %}
 
@@ -530,8 +545,8 @@
 
 <div class="drafts-heading">
   <div style="display:flex;align-items:center;gap:10px">
-    <div class="page-title" style="margin-bottom:0">Drafts</div>
-    <button type="button" onclick="location.href='/drafts?refresh='+Date.now()" aria-label="Refresh drafts" title="Refresh drafts" style="border:0;background:none;font-size:22px;cursor:pointer">↻</button>
+    <div class="page-title" style="margin-bottom:0">{{ 'Sold' if sold_mode else 'Drafts' }}</div>
+    <button type="button" onclick="location.href=location.pathname+'?refresh='+Date.now()" aria-label="Refresh drafts" title="Refresh drafts" style="border:0;background:none;font-size:22px;cursor:pointer">↻</button>
     <span id="review-count-badge" style="display:none;background:var(--gold-bg);color:#b86a00;border:1px solid rgba(184,106,0,0.2);font-size:11px;font-weight:700;padding:3px 10px;border-radius:var(--r-pill)"></span>
   </div>
   {% if listings %}
@@ -539,27 +554,31 @@
   {% endif %}
 </div>
 
+{% if sold_mode %}
+<div class="sold-summary"><span><strong>{{ listings|length }}</strong> sold</span><span>Sales <strong>£{{ '%.2f'|format(listings|sum(attribute='outcome.sold_price_gbp')) }}</strong></span></div>
+{% endif %}
 <div style="display:flex;gap:10px;flex-wrap:wrap;margin:16px 0">
   <input id="inventory-search" type="search" placeholder="Search brand, title or size" aria-label="Search inventory" oninput="filterInventory()" style="flex:1;min-width:180px;padding:10px;border:1px solid var(--gray-3);border-radius:12px">
-  <select id="inventory-status" aria-label="Filter inventory by status" onchange="filterInventory()" style="padding:10px;border:1px solid var(--gray-3);border-radius:12px">
+  <select {% if sold_mode %}hidden{% endif %} id="inventory-status" aria-label="Filter inventory by status" onchange="filterInventory()" style="padding:10px;border:1px solid var(--gray-3);border-radius:12px">
     <option value="all">All items</option><option value="draft">Drafts</option><option value="listed">Live / unsold</option>
-    <option value="sold">Sold</option><option value="withdrawn">Withdrawn</option><option value="returned">Returned</option>
+    <option value="withdrawn">Withdrawn</option><option value="returned">Returned</option>
   </select>
 </div>
 <p id="inventory-filter-count" role="status" style="font-size:13px"></p>
 {% if not listings %}
   <div class="empty-state">
     <div class="empty-icon">👕</div>
-    <div class="empty-title">No listings yet</div>
-    <div class="empty-sub">Upload your first item photos and get an AI-generated Vinted listing in seconds.</div>
-    <a href="/" class="btn-create">Create listing →</a>
+    <div class="empty-title">{{ 'No sold items yet' if sold_mode else 'No listings yet' }}</div>
+    <div class="empty-sub">{{ 'Open a draft and tap Sold to record your first sale.' if sold_mode else 'Upload your first item photos and get an AI-generated Vinted listing in seconds.' }}</div>
+    <a href="{{ '/drafts' if sold_mode else '/' }}" class="btn-create">{{ 'View drafts →' if sold_mode else 'Create listing →' }}</a>
   </div>
 {% else %}
   <div class="drafts-grid">
     {% for item in listings %}
     <div class="draft-card" id="card-{{ item.folder }}" data-status="{{ item.inventory_status }}" data-search="{{ ((item.brand or '') ~ ' ' ~ (item.title or '') ~ ' ' ~ (item.normalized_size or ''))|lower }}" onclick="openSheet({{ loop.index0 }})">
-      <button class="btn-delete-draft" onclick="deleteDraft(event, '{{ item.folder }}', this)" title="Delete">✕</button>
+      {% if not sold_mode %}<button class="btn-delete-draft" onclick="deleteDraft(event, '{{ item.folder }}', this)" title="Delete">✕</button>{% endif %}
       <div class="draft-thumb">
+        {% if item.inventory_status == 'sold' %}<div class="sold-tag">SOLD</div>{% endif %}
         {% if item.draft_error and not item.draft_url %}
           <div class="status-dot error" title="Draft creation failed — open to review"></div>
         {% elif item.warnings %}
@@ -570,15 +589,16 @@
         {% else %}
           <div class="draft-thumb-placeholder">👕</div>
         {% endif %}
-        <div class="draft-price-badge">£{{ item.price_gbp }}</div>
-        {% if item.premium %}<div class="draft-premium-tag">★ Premium</div>{% endif %}
+        <div class="draft-price-badge">£{{ item.outcome.sold_price_gbp if item.inventory_status == 'sold' else item.price_gbp }}</div>
+        {% if item.premium and item.inventory_status != 'sold' %}<div class="draft-premium-tag">★ Premium</div>{% endif %}
       </div>
       <div class="draft-info">
         <div class="draft-brand">{{ item.brand or "Unknown" }}</div>
         <div class="inventory-chip" style="font-size:12px;color:var(--brand);margin:6px 0">{{ 'Live / unsold' if item.inventory_status == 'listed' else item.inventory_status|capitalize }}</div>
         <div class="draft-title-text">{{ item.title }}</div>
+        {% if sold_mode and item.outcome.buy_price_gbp is not none %}<div class="sale-note" style="margin-top:6px">Bought for £{{ item.outcome.buy_price_gbp }}{% if item.outcome.profit_gbp is not none %} · Profit £{{ item.outcome.profit_gbp }}{% endif %}</div>{% endif %}
         <div class="draft-footer">
-          <div class="draft-date-text">{{ item.listed_date or "" }}</div>
+          <div class="draft-date-text">{% set card_date = (item.outcome.sold_date if sold_mode else item.listed_date) or '' %}{{ card_date[5:7] ~ '/' ~ card_date[:4] if card_date else '' }}</div>
           {% if item.normalized_size or item.tagged_size %}
             <div class="draft-size-pill">{{ item.normalized_size or item.tagged_size }}</div>
           {% endif %}
@@ -652,6 +672,11 @@ function filterInventory() {
 
 let currentFolder = null;
 
+function monthYear(iso) {
+  if (!iso) return '';
+  return new Date(iso.slice(0,10)+'T12:00:00').toLocaleDateString('en-GB',{month:'short',year:'numeric'});
+}
+
 function relDate(iso) {
   if (!iso) return "";
   const d    = new Date(iso);
@@ -689,7 +714,7 @@ function renderSheet(idx) {
   if (!item) return;
   currentFolder = item.folder || null;
 
-  document.getElementById("sheetPrice").textContent = `£${item.price_gbp || "?"}`;
+  document.getElementById("sheetPrice").textContent = `£${item.outcome?.status === 'sold' ? item.outcome.sold_price_gbp : item.price_gbp || "?"}`;
   document.getElementById("sheetTitle").textContent = item.title || "";
 
   const mats = (item.materials || [])
@@ -749,19 +774,32 @@ function renderSheet(idx) {
     ${item.category ? `<div class="sheet-category">📂 ${esc(item.category).replace(/ &gt; /g, ' › ')}</div>` : ""}
     ${draftBtn}
     ${item.folder ? `<a class="btn-sheet-edit" href="/?edit=${esc(item.folder)}" aria-label="Edit listing">✎ Edit</a>` : ""}
-    <details style="margin-top:16px"><summary style="cursor:pointer">${item.outcome ? 'Sale / listing record · '+esc(item.outcome.status) : 'Record listing or sale'}</summary>
-      <form onsubmit="saveOutcome(event, '${esc(item.folder)}')" style="display:grid;gap:10px;margin-top:12px">
-        <label>Status <select name="status" aria-label="Item status">${['sold','listed','withdrawn','returned'].map(s=>`<option value="${s}" ${item.outcome?.status===s?'selected':''}>${s==='listed'?'Live / unsold':s[0].toUpperCase()+s.slice(1)}</option>`).join('')}</select></label>
-        <label>Platform <select name="platform">${['Vinted','eBay','Depop','Other'].map(p=>`<option ${item.outcome?.platform===p?'selected':''}>${p}</option>`).join('')}</select></label>
-        <label>Actual sold price (£, postage excluded) <input name="sold_price_gbp" type="number" min="0.01" step="0.01" value="${esc(item.outcome?.sold_price_gbp ?? '')}"></label>
-        <label>Sale date <input name="sold_date" type="date" value="${esc(item.outcome?.sold_date || '')}"></label>
-        <label>First published date <input name="published_date" type="date" value="${esc(item.outcome?.published_date || '')}"></label>
-        <label>Purchase cost (£, optional) <input name="buy_price_gbp" type="number" min="0" step="0.01" value="${esc(item.outcome?.buy_price_gbp ?? item.buy_price_gbp ?? '')}"></label>
-        <label>Selling costs (£, optional; fees / seller-paid postage) <input name="selling_cost_gbp" type="number" min="0" step="0.01" value="${esc(item.outcome?.selling_cost_gbp ?? '')}"></label>
-        <small>Record live unsold items too, so sell-through has a complete denominator. Enter 0 for a known zero cost; leave unknown costs blank.</small>
-        <button type="submit" class="btn-sheet-edit">Save record</button>
+    <section class="sale-panel">
+      <h3>${item.outcome?.status === 'sold' ? 'Sold · £'+esc(item.outcome.sold_price_gbp) : 'Sold this item?'}</h3>
+      <button type="button" class="btn-sold" onclick="this.hidden=true;this.nextElementSibling.hidden=false">${item.outcome?.status === 'sold' ? 'Edit sale' : 'Sold'}</button>
+      <form class="sale-form" hidden onsubmit="saveOutcome(event, '${esc(item.folder)}')">
+        <input type="hidden" name="status" value="sold">
+        <label>Sold for (£, excluding postage)<input required name="sold_price_gbp" type="number" inputmode="decimal" min="0.01" max="100000" step="0.01" value="${esc(item.outcome?.sold_price_gbp ?? '')}" placeholder="e.g. 45"></label>
+        <label>Purchase cost (£, optional)<input name="buy_price_gbp" type="number" inputmode="decimal" min="0" max="100000" step="0.01" value="${esc(item.outcome?.buy_price_gbp ?? item.buy_price_gbp ?? '')}" placeholder="Leave blank if unknown"></label>
+        <p class="sale-note">${item.outcome?.sold_date ? 'Recorded '+monthYear(item.outcome.sold_date)+'.' : 'Sale date is saved as today.'} ${item.outcome?.published_date ? 'Your publication date is already saved.' : 'Add the date it went live below if known.'}</p>
+        <details><summary>More details · dates, platform &amp; costs</summary><div class="sale-extra">
+          <label>Platform<select name="platform">${['Vinted','eBay','Depop','Other'].map(p=>`<option ${item.outcome?.platform===p?'selected':''}>${p}</option>`).join('')}</select></label>
+          <label>Sale date<input name="sold_date" type="date" value="${esc(item.outcome?.sold_date || '')}"></label>
+          <label>First published date (if known)<input name="published_date" type="date" value="${esc(item.outcome?.published_date || '')}"></label>
+          <label>Selling costs (£, optional)<input name="selling_cost_gbp" type="number" inputmode="decimal" min="0" max="100000" step="0.01" value="${esc(item.outcome?.selling_cost_gbp ?? '')}" placeholder="Fees or seller-paid postage"></label>
+          <p class="sale-note">Use 0 for a known zero cost. Leave unknown amounts blank.</p>
+        </div></details>
+        <button type="submit" class="btn-sold">${item.outcome?.status === 'sold' ? 'Save sale' : 'Confirm sold'}</button>
       </form>
-    </details>
+      <details style="margin-top:14px"><summary style="font-size:13px;cursor:pointer">Manage listing status</summary>
+        <form class="sale-form" onsubmit="saveOutcome(event, '${esc(item.folder)}')" style="margin-top:14px">
+          <input type="hidden" name="platform" value="${esc(item.outcome?.platform || 'Vinted')}">
+          <label>Status<select name="status">${['listed','withdrawn','returned'].map(status=>`<option value="${status}" ${item.outcome?.status===status?'selected':''}>${status==='listed'?'Live / unsold':status[0].toUpperCase()+status.slice(1)}</option>`).join('')}</select></label>
+          <label>First published date<input name="published_date" type="date" value="${esc(item.outcome?.published_date || '')}"></label>
+          <button type="submit" class="btn-sheet-edit">Save status</button>
+        </form>
+      </details>
+    </section>
     ${item.sales_history?.sample_count ? `<details style="margin-top:16px"><summary>Your matching sales · ${esc(item.sales_history.sample_count)}</summary>
       <p>${item.sales_history.median_gbp == null ? 'At least 3 recent matching sales needed for a price.' : `Median accepted price £${esc(item.sales_history.median_gbp)} · Average £${esc(item.sales_history.mean_gbp)}`}</p>
       <p>${item.sales_history.median_days_to_sell == null ? 'Time to sell not yet known.' : `Median time to sell: ${esc(item.sales_history.median_days_to_sell)} days (${esc(item.sales_history.days_known_count)} dated sales).`}</p>
@@ -784,26 +822,19 @@ async function saveOutcome(event, folder) {
   const form = event.target;
   const values = new FormData(form);
   const body = Object.fromEntries(values);
-  for (const key of ['sold_price_gbp','buy_price_gbp','selling_cost_gbp']) body[key] = body[key] === '' ? null : Number(body[key]);
+  for (const key of ['sold_price_gbp','buy_price_gbp','selling_cost_gbp']) {
+    if (key in body) body[key] = body[key] === '' ? null : Number(body[key]);
+  }
+  if (!body.sold_date) delete body.sold_date;
+  if (!body.published_date) delete body.published_date;
   const button = form.querySelector('button[type="submit"]');
   button.disabled = true;
   try {
     const response = await fetch('/listing/'+encodeURIComponent(folder)+'/outcome', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
     const result = await response.json();
     if (!response.ok) throw new Error(result.error || 'Could not save');
-    const index = LISTINGS.findIndex(item=>item.folder===folder);
-    if (index>=0) {
-      LISTINGS[index].outcome=result.outcome;
-      LISTINGS[index].inventory_status=result.outcome.status;
-      const card = document.getElementById('card-'+folder);
-      if (card) {
-        card.dataset.status=result.outcome.status;
-        card.querySelector('.inventory-chip').textContent=result.outcome.status==='listed'?'Live / unsold':result.outcome.status;
-      }
-      await openSheet(index);
-      filterInventory();
-    }
-    showToast('Saved. No AI charge.');
+    await window.DraftArchive?.flush();
+    location.reload();
   } catch (error) { showToast(error.message); }
   finally { button.disabled = false; }
 }
@@ -924,7 +955,7 @@ async function loadReviewCount() {
 
 document.addEventListener("DOMContentLoaded", () => {
   checkAuthOnLoad();
-  loadReviewCount();
+  if (location.pathname !== '/sold') loadReviewCount();
 });
 </script>
 {% endblock %}

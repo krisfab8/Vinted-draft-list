@@ -74,7 +74,7 @@
       for (const item of listings) await save(item.folder);
       await saveSales();
       if (saved.length || listings.length) notice('Backed up on this device');
-      if (restored && location.pathname === '/drafts') location.reload();
+      if (restored && ['/drafts','/sold'].includes(location.pathname)) location.reload();
     } catch (_) {
       notice('Device backup unavailable — download a backup to keep your drafts');
     }
@@ -115,12 +115,12 @@
     const anchor = event.target.closest('a[href]');
     if (!anchor || anchor.target || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
     const url = new URL(anchor.href, location.origin);
-    if (url.origin !== location.origin || !['/', '/drafts', '/stats'].includes(url.pathname)) return;
+    if (url.origin !== location.origin || !['/', '/drafts', '/sold', '/stats'].includes(url.pathname)) return;
     event.preventDefault();
     pending.then(() => { location.href = anchor.href; });
   });
   window.addEventListener('pageshow', event => {
-    if (event.persisted && location.pathname === '/drafts') location.reload();
+    if (event.persisted && ['/drafts','/sold'].includes(location.pathname)) location.reload();
   });
   window.DraftArchive = {ready: queue(recover), flush: () => pending, save: folder => queue(() => save(folder))};
 })();
