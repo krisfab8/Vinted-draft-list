@@ -857,6 +857,7 @@ function renderSheet(idx) {
     ${item.description ? `<div class="sheet-desc">${esc(item.description)}</div>` : ""}
     ${item.category ? `<div class="sheet-category">📂 ${esc(item.category).replace(/ &gt; /g, ' › ')}</div>` : ""}
     ${item.outcome?.status === 'sold' ? '' : draftBtn}
+    ${item.folder ? `<button type="button" class="btn-sheet-edit" onclick="reanalyzeSavedPhotos('${esc(item.folder)}',this)">Analyse photos again</button><p style="font-size:12px;color:var(--muted)">New AI analysis · original kept</p>` : ''}
     ${item.folder && item.outcome?.status !== 'sold' ? `<a class="btn-sheet-edit" href="/?edit=${esc(item.folder)}" aria-label="Edit listing">✎ Edit</a>` : ""}
     ${item.folder && item.outcome?.status !== 'sold' ? `<button type="button" class="delete-listing" onclick="deleteDraft(event,'${esc(item.folder)}',this)">Delete listing</button>` : ''}
     ${item.sales_history?.sample_count ? `<details style="margin-top:16px"><summary>Your matching sales · ${esc(item.sales_history.sample_count)}</summary>
@@ -915,6 +916,18 @@ async function saveOutcome(event, folder) {
 
 function closeIfBackdrop(e) {
   if (e.target === document.getElementById("sheetOverlay")) closeSheet();
+}
+
+async function reanalyzeSavedPhotos(folder, btn) {
+  if (btn.disabled) return;
+  btn.disabled = true; btn.textContent = 'Reading saved photos…';
+  try {
+    const resp = await fetch('/reanalyze/'+encodeURIComponent(folder), {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({request_id:crypto.randomUUID()})});
+    const result = await resp.json();
+    if (!resp.ok) throw new Error(result.error || 'Analysis failed');
+    await window.DraftArchive?.save(result.folder);
+    location.href = '/review/'+encodeURIComponent(result.folder);
+  } catch (error) { showToast(error.message); btn.disabled=false; btn.textContent='Analyse photos again'; }
 }
 
 async function deleteDraft(e, folder, btn) {

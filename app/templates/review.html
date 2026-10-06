@@ -820,6 +820,19 @@
 </div>
 {% endif %}
 
+{% if listing.reanalysis_source %}
+<div class="review-section">
+  <h2>Fresh photo analysis</h2>
+  <p>Saved photos, with no previous size or material corrections supplied.</p>
+  <a href="/review/{{ listing.reanalysis_source }}">Open original listing →</a>
+  <div style="overflow-x:auto"><table style="width:100%;margin-top:16px;text-align:left;font-size:13px">
+    <thead><tr><th>Detail</th><th>Previous listing</th><th>Fresh read</th></tr></thead>
+    <tbody>{% for label, previous in listing.reanalysis_baseline.items() %}
+      <tr><th>{{ label }}</th><td>{{ previous }}</td><td>{% if label == 'Brand' %}{{ listing.brand or '—' }}{% elif label == 'Size' %}{{ listing.normalized_size or listing.tagged_size or '—' }}{% elif label == 'Material' %}{{ (listing.materials or [])|join(', ') or '—' }}{% else %}{% for marking in listing.garment_text or [] %}{% if marking.confidence == 'high' %}{{ marking.text }} {% endif %}{% endfor %}{% endif %}</td></tr>
+    {% endfor %}</tbody>
+  </table></div>
+</div>
+{% endif %}
 <!-- ── Photos ── -->
 {% if photos %}
 <div class="review-section">
