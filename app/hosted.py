@@ -3,6 +3,7 @@
 Not a multi-user beta. Browser automation is deliberately unavailable here.
 """
 import hmac
+import json
 import os
 import re
 from urllib.parse import urlsplit
@@ -37,12 +38,29 @@ def provider_status(provider):
             "issue": None if key else "missing_key"}
 
 
+def _start_cloud_store():
+    """Restore drafts from Backblaze B2 when configured; never block startup on it."""
+    from app import web
+    from app.services import cloud_store
+
+    def status_after_restore(folder):
+        listing = json.loads((web.ITEMS_DIR / folder / "listing.json").read_text())
+        web._sync_item_status(folder, listing)
+
+    try:
+        return cloud_store.from_environment(web.ITEMS_DIR, on_restored=status_after_restore)
+    except Exception as error:
+        cloud_store.log.error("Cloud storage failed to start (%s)", type(error).__name__)
+        return None
+
+
 def create_app():
     username = os.getenv("APP_USERNAME", "kristian")
     password = os.getenv("APP_PASSWORD", "")
     if len(password) < 6:
         raise RuntimeError("Hosted test requires APP_PASSWORD of at least 6 characters")
     app.config["HOSTED_TEST"] = True
+    cloud = _start_cloud_store()
 
     @app.get("/api/provider-status")
     def api_provider_status():
@@ -51,7 +69,8 @@ def create_app():
                        vision=provider_status(config.VISION_PROVIDER),
                        listing=provider_status(config.LISTING_PROVIDER),
                        anthropic_key_configured=bool(config.ANTHROPIC_API_KEY),
-                       openai_key_configured=bool(config.OPENAI_API_KEY))
+                       openai_key_configured=bool(config.OPENAI_API_KEY),
+                       cloud_storage=cloud.status if cloud else {"enabled": False})
 
     @app.before_request
     def protect_test_app():
@@ -93,6 +112,8 @@ def create_app():
 
     @app.after_request
     def private_headers(response):
+        if cloud and request.method not in {"GET", "HEAD", "OPTIONS"} and response.status_code < 400:
+            cloud.request_sync()
         # Routes may catch their own exceptions and return raw SDK tracebacks.
         # Sanitize those responses too; the global error handler never sees them.
         if response.status_code >= 500 and response.status_code != 503:

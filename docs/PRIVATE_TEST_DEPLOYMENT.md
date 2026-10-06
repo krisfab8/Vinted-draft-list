@@ -28,6 +28,16 @@ Connect the Render integration so the service can be created and inspected from 
 
 Do not publish a public URL with this protection removed. No private user items or auth sessions are embedded in the image; migrate real existing items through a deliberate backup/restore step if needed.
 
+## Free-plan durable drafts (Backblaze B2)
+
+The free Render plan has no disk, so local files vanish on every spin-down or deploy. Set all four of `B2_KEY_ID`, `B2_APP_KEY`, `B2_BUCKET` (private bucket) and `B2_ENDPOINT` (e.g. `s3.eu-central-003.backblazeb2.com`) in Render Environment and `app/services/cloud_store.py` will:
+
+- store each item as `items/<folder>.zip` (the same ZIP as the phone backup) after every successful edit, plus a 60-second background check;
+- restore missing items into an empty server before the first request; local items are never overwritten;
+- delete a stored copy only after that item was seen locally and then deleted.
+
+Startup logs `Cloud storage: N stored drafts, M restored`; failures log `Cloud storage: ... failed` and the app keeps running. `/api/provider-status` reports `cloud_storage` counts and the last error. If only some variables are set, the log names the missing ones. Device backups remain as a second copy.
+
 ## Testing Haiku against Luna
 
 Use the same source photos and recorded ground truth. For the Haiku baseline, set `VISION_PROVIDER=claude-haiku`, `LISTING_PROVIDER=claude-haiku` and add `ANTHROPIC_API_KEY` in hosting settings. Redeploy, record the configuration/version and collect a separate run. For Luna, set both providers to `openai`. Mixed provider runs are valid experiments but must be labeled; they do not measure an all-Luna pipeline.
