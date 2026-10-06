@@ -647,9 +647,14 @@ def _get_all_listings() -> list[dict]:
             listing["folder"] = item_dir.name
             listing['outcome'] = outcomes.get(item_dir.name)
             listing['inventory_status'] = (listing['outcome'] or {}).get('status', 'draft')
-            for ext in [".jpg", ".jpeg", ".png", ".webp"]:
-                if (item_dir / f"front{ext}").exists():
-                    listing["thumbnail_url"] = f"/items/{item_dir.name}/front{ext}"
+            # A saved thumbnail URL may outlive its file after a restore.
+            listing.pop("thumbnail_url", None)
+            for role in ["front", "back", "brand"]:
+                for ext in [".jpg", ".jpeg", ".png", ".webp"]:
+                    if (item_dir / f"{role}{ext}").exists():
+                        listing["thumbnail_url"] = f"/items/{item_dir.name}/{role}{ext}"
+                        break
+                if listing.get("thumbnail_url"):
                     break
             # Lazy migration: write status to DB if this item has no record yet
             item_store.sync_from_listing(item_dir.name, listing)

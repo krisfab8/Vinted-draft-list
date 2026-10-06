@@ -158,3 +158,38 @@ def test_monthly_summary_unknown_zero_and_loss_are_distinct():
     h.record('upload_11111111',ITEM,dict(status='sold',platform='Vinted',sold_price_gbp=10,buy_price_gbp=20))
     assert h.monthly_summary()['gross_profit_gbp']==-10
     assert h.monthly_summary()['return_on_cost_percent']==-50
+
+
+def test_monthly_chart_uses_real_dates_and_known_costs_only(monkeypatch):
+    monkeypatch.setattr(h, 'today', lambda: date(2026, 10, 5))
+    rows = [dict(status='sold', sold_date='2026-10-02', sold_price_gbp=50, buy_price_gbp=5),
+            dict(status='sold', sold_date='2026-10-05', sold_price_gbp=20, buy_price_gbp=None),
+            dict(status='sold', sold_date='2026-09-30', sold_price_gbp=999, buy_price_gbp=0),
+            dict(status='returned', sold_date='2026-10-03', sold_price_gbp=999, buy_price_gbp=0)]
+    result = h.monthly_summary(rows, '2026-10')
+    assert result['sales_chart']['end_day'] == 5
+    assert result['sales_chart']['total_gbp'] == 70
+    assert result['profit_chart']['total_gbp'] == 45
+    assert result['daily'][1]['sales_gbp'] == 50
+    assert result['daily'][4]['profit_gbp'] == 0  # no known-cost profit on this day
+    assert result['profit_margin_percent'] == 90
+    assert result['purchase_cost_gbp'] == 5
+    assert result['known_revenue_gbp'] == 50
+    assert len(result['sales_chart']['points'].split()) == 6  # zero origin + five actual days
+
+
+def test_monthly_chart_loss_unknown_cost_and_empty_states(monkeypatch):
+    monkeypatch.setattr(h, 'today', lambda: date(2026, 10, 5))
+    row = dict(status='sold', sold_date='2026-10-02', sold_price_gbp=10, buy_price_gbp=20)
+    loss = h.monthly_summary([row], '2026-10')
+    assert loss['profit_margin_percent'] == -100
+    assert loss['profit_chart']['total_gbp'] == -10
+    for point in loss['profit_chart']['points'].split():
+        x, y = map(float, point.split(','))
+        assert 12 <= x <= 308 and 14 <= y <= 80
+    unknown = h.monthly_summary([{**row, 'buy_price_gbp': None}], '2026-10')
+    assert unknown['profit_chart'] is None and unknown['profit_margin_percent'] is None
+    assert all(day['profit_gbp'] is None for day in unknown['daily'])
+    empty = h.monthly_summary([], '2024-02')
+    assert len(empty['daily']) == 29
+    assert empty['sales_chart']['total_gbp'] == 0 and empty['profit_chart'] is None

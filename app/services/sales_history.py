@@ -1,5 +1,6 @@
 """Seller-confirmed lifecycle/outcome records. No model calls or buyer data."""
 import csv
+import calendar
 import hashlib
 import io
 import json
@@ -246,11 +247,45 @@ def monthly_summary(rows=None, month=None):
     known = [row for row in sold if row.get('buy_price_gbp') is not None]
     purchase = sum(row['buy_price_gbp'] for row in known)
     gross = sum(row['sold_price_gbp'] - row['buy_price_gbp'] for row in known)
+    known_revenue = sum(row['sold_price_gbp'] for row in known)
+    year, month_number = map(int, month.split('-'))
+    last_day = calendar.monthrange(year, month_number)[1]
+    # Stop at today in the current month; a flat future line would imply a forecast.
+    end_day = today().day if month == today().strftime('%Y-%m') else last_day
+    end_day = max([end_day, *[int(row['sold_date'][8:10]) for row in sold]])
+    daily = [{'day': day, 'sales_gbp': 0, 'profit_gbp': 0} for day in range(1, end_day + 1)]
+    for row in sold:
+        entry = daily[int(row['sold_date'][8:10]) - 1]
+        entry['sales_gbp'] += row['sold_price_gbp']
+        if row.get('buy_price_gbp') is not None:
+            entry['profit_gbp'] += row['sold_price_gbp'] - row['buy_price_gbp']
+    for entry in daily:
+        entry['sales_gbp'] = round(entry['sales_gbp'], 2)
+        entry['profit_gbp'] = round(entry['profit_gbp'], 2) if known else None
+
+    def chart(key):
+        values = [0]
+        for entry in daily:
+            values.append(round(values[-1] + (entry[key] or 0), 2))
+        low, high = min(0, min(values)), max(0, max(values))
+        span = high - low or 1
+        y = lambda value: 80 - 66 * (value - low) / span
+        points = ' '.join(f'{12 + 296 * i / end_day:.2f},{y(value):.2f}' for i, value in enumerate(values))
+        return {'points': points, 'area': f'12,{y(0):.2f} {points} 308,{y(0):.2f}',
+                'zero_y': round(y(0), 2), 'end_y': round(y(values[-1]), 2),
+                'low_gbp': low, 'high_gbp': high, 'month_label': calendar.month_abbr[month_number],
+                'end_day': end_day, 'total_gbp': values[-1]}
+
     return {'month': month, 'sold_count': len(sold), 'known_cost_count': len(known),
             'revenue_gbp': round(sum(row['sold_price_gbp'] for row in sold), 2),
             'gross_profit_gbp': round(gross, 2) if known or not sold else None,
             'average_profit_gbp': round(gross / len(known), 2) if known else None,
-            'return_on_cost_percent': round(100 * gross / purchase, 1) if purchase else None}
+            'return_on_cost_percent': round(100 * gross / purchase, 1) if purchase else None,
+            'purchase_cost_gbp': round(purchase, 2) if known else None,
+            'known_revenue_gbp': round(known_revenue, 2),
+            'profit_margin_percent': round(100 * gross / known_revenue, 1) if known_revenue else None,
+            'daily': daily, 'sales_chart': chart('sales_gbp'),
+            'profit_chart': chart('profit_gbp') if known else None}
 
 
 def export_csv():

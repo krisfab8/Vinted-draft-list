@@ -198,3 +198,157 @@ header { background: #fff; color: var(--black); padding: 16px 20px; border-botto
 @media (prefers-reduced-motion: reduce) {
   *,*::before,*::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
 }
+
+/* UI-06: resale studio — cobalt, coral and paper, with tactile controls. */
+:root {
+  --brand: #415bff;
+  --brand-dark: #2b42cc;
+  --brand-pale: #edf0ff;
+  --brand-glow: #415bff20;
+  --black: #242638;
+  --gray-9: #43465b;
+  --gray-7: #62667d;
+  --gray-5: #70758b;
+  --gray-2: #e5e8f2;
+  --gray-1: #f2f4fb;
+  --off-white: #f8f9fd;
+  --coral: #ff8966;
+  --coral-dark: #b84726;
+  --shadow-md: 0 10px 28px #2937680c;
+}
+body { background: radial-gradient(ellipse at 90% 8%,#fff1e970,transparent 35%),var(--off-white); }
+header { padding-top: 13px; padding-bottom: 13px; background: #ffffffed; }
+.logo-mark { width: 42px; height: 42px; background: none; border-radius: 0; }
+.logo-mark img { display: block; }
+.logo-name { font-weight: 800; font-size: 16px; }
+.private-test-note { background: #f0f2fb; color: var(--gray-7); }
+.page { padding-top: 22px; }
+.page-title { font-size: 31px; font-weight: 800; letter-spacing: -1.4px; }
+.listing-heading { margin-bottom: 22px; }
+.listing-heading > div + div { font-size: 13px !important; }
+.bottom-nav { box-shadow: 0 -3px 24px #26396908; border-color: #e5e8f2; }
+.nav-item.active { background: #edf0ff; color: #3048d8; }
+.nav-item.active svg { stroke-width: 2.2; }
+.upload-card { border: 1px solid #e3e7f3; border-radius: 24px; box-shadow: 0 12px 32px #30427609; }
+.photo-grid:has(.add-more-btn:only-child) .add-more-btn { height: 172px; position: relative; gap: 0; border: 1.5px dashed #b9c4ee; background: radial-gradient(ellipse at 65% 20%,#ffe9d7,transparent 65%),#eef2ff; }
+.add-more-btn:only-child .add-more-icon { background: none; border: none; width: 126px; height: 102px; }
+.add-more-icon img { width: 126px; height: 102px; object-fit: contain; }
+.add-more-label { font-size: 15px; color: #3048d8; }
+.add-more-btn:hover { background: #e9eeff; }
+.role-chip { border-color: #e3e7f3; font-weight: 500; }
+.role-chip:first-child { border-color: #c5cef8; background: #edf0ff; color: #3048d8; }
+.field input,.field select,.input-wrap input { background: #f6f7fc; }
+.hints-toggle { background: #fff; }
+.btn-submit { background: #415bff; box-shadow: 0 5px 0 #2b42cc; min-height: 50px; font-weight: 700; border-radius: 15px; margin-bottom: 5px; }
+.btn-submit:hover { background: #354fec; }
+.btn-submit:active { transform: translateY(3px); box-shadow: 0 2px 0 #2b42cc; }
+.btn-submit:disabled { background: #415bff; opacity: .55; }
+.drafts-heading { margin-bottom: 18px; }
+.drafts-count-badge { color: #5a6081; background: #f0f2ff; border: none; font-weight: 600; }
+.auth-note { font-size: 12px; background: #fff6e5; border-color: #f1dfba; padding: 9px 12px; }
+.inventory-toolbar { margin: 18px 0; }
+#inventory-search { box-shadow: 0 2px 0 #e9ecf4; }
+.draft-card { border: 1px solid #e5e8f2; box-shadow: 0 3px 0 #e9ecf3; border-radius: 20px; }
+.draft-card:hover { transform: translateY(-2px); box-shadow: 0 8px 20px #29376812; }
+.draft-card:active { transform: scale(.98); }
+.draft-price-badge { background: #fff; color: #252a46; box-shadow: 0 3px 12px #24263814; border-radius: 11px; font-weight: 750; }
+.draft-brand { color: #3d51b1; }
+.draft-premium-tag { background: #ffdf8e; color: #674817; border: none; }
+.draft-thumb { background: #eef1fc; }
+.draft-thumb-placeholder { opacity: 1; background: linear-gradient(145deg,#edf1ff,#fff3e8); }
+.draft-thumb-placeholder img { width: 120px; height: 100px; position: static; object-fit: contain; opacity: .8; }
+.sold-tag { box-shadow: 0 3px 0 #ac293b; padding: 5px 9px; }
+.sales-overview { padding: 0; margin: 0 0 18px; background: none; border: none; box-shadow: none; border-radius: 0; color: var(--black); }
+.sales-month { margin-bottom: 12px; }
+.sales-month label { color: var(--gray-7); font-size: 12px; }
+.sales-month input { width: 164px; color-scheme: light; min-height: 40px; background: white; color: var(--black); border: 1px solid var(--gray-2); border-radius: 11px; }
+.visual-sales-grid { display: grid; grid-template-columns: minmax(0,1fr); gap: 12px; }
+.sales-trend-card { background: linear-gradient(120deg,#415bff,#4c66f3); border-radius: 22px; color: #fff; padding: 16px 18px 12px; box-shadow: 0 5px 0 #334ad5; overflow: hidden; min-width: 0; }
+.trend-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.trend-label { font-size: 12px; color: #ffffffdf; }
+.chart-switch { display: flex; padding: 3px; gap: 2px; background: #2034ae55; border-radius: 100px; }
+.chart-switch button { background: transparent; border: none; padding: 6px 12px; min-height: 44px; border-radius: 100px; color: #fff; font: inherit; font-size: 11px; }
+.chart-switch button.selected { background: #fff; color: #344bcc; box-shadow: 0 2px 4px #00000014; font-weight: 600; }
+.chart-switch button:focus-visible { outline-color: #ffdf8e; }
+.trend-value { font-size: 34px; font-weight: 750; letter-spacing: -1.3px; margin-top: 0; font-variant-numeric: tabular-nums; }
+.trend-count { color: #ffffffce; font-size: 10px; }
+.trend-dot { padding: 0 3px; }
+.trend-chart { margin-top: 8px; }
+.trend-chart svg { display: block; width: 100%; height: 70px; overflow: visible; }
+.chart-axis { display: flex; justify-content: space-between; color: #ffffffb8; font-size: 10px; padding: 0 10px; margin-top: 0; }
+.chart-empty { min-height: 83px; display: flex; align-items: center; font-size: 12px; color: #ffffffcf; border-top: 1px dashed #ffffff30; }
+.profit-visual-card { background: #fff; border: 1px solid #e5e8f2; border-radius: 22px; padding: 16px; display: grid; grid-template-columns: 112px minmax(0,1fr); gap: 18px; align-items: center; box-shadow: 0 3px 0 #e9ecf3; }
+.profit-ring-wrap { width: 112px; }
+.profit-ring { width: 106px; height: 106px; border-radius: 50%; display: grid; place-items: center; background: conic-gradient(#415bff 0 var(--share),#ffb598 var(--share) 100%); transform: rotate(-90deg); }
+.profit-ring > div { width: 83px; height: 83px; border-radius: 50%; background: #fff; display: flex; flex-direction: column; align-items: center; justify-content: center; transform: rotate(90deg); }
+.profit-ring strong { color: #252a46; font-size: 25px; font-weight: 750; letter-spacing: -.9px; }
+.profit-ring span { font-size: 9px; color: var(--gray-7); }
+.profit-ring.unknown { background: #e9ecf4; }
+.profit-ring.loss { background: #ffb598; }
+.ring-legend { display: flex; justify-content: space-between; gap: 6px; margin-top: 9px; color: var(--gray-7); font-size: 9px; }
+.ring-legend span { display: flex; align-items: center; gap: 4px; white-space: nowrap; }
+.ring-legend i { width: 5px; height: 5px; border-radius: 50%; background: #415bff; }
+.ring-legend span + span i { background: #ffb598; }
+.profit-mini-metrics { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 10px 8px; min-width: 0; }
+.profit-mini-metrics > div:first-child { grid-column: 1 / -1; border-bottom: 1px solid #eef0f7; padding-bottom: 10px; }
+.profit-mini-metrics span { color: var(--gray-7); font-size: 10px; display: block; }
+.profit-mini-metrics small { font-size: 9px; color: var(--gray-7); }
+.profit-mini-metrics strong { display: block; font-size: 25px; font-weight: 700; letter-spacing: -.8px; overflow-wrap: anywhere; }
+.profit-secondary strong { font-size: 18px; margin-top: 3px; }
+.profit-secondary span { font-size: 9px; }
+.metric-explainer { font-size: 10px; color: var(--gray-7); margin-top: 10px; }
+.metric-explainer summary { min-height: 32px; padding: 8px 0 0; }
+.metric-explainer p { font-size: 12px; }
+.chart-data { border-collapse: collapse; width: 100%; font-size: 11px; margin-top: 14px; text-align: left; }
+.chart-data caption { text-align: left; font-weight: 600; margin-bottom: 8px; }
+.chart-data th,.chart-data td { padding: 6px 8px; border-bottom: 1px solid var(--gray-2); }
+.sale-panel { background: #f4f5ff; border-color: #e2e6fb; }
+.sale-panel h3 { color: #3448a8; }
+.sheet-meta-cell { background: #f3f5fc; }
+.sheet-desc { background: #f6f7fc; }
+.btn-sold { box-shadow: 0 3px 0 #ad293a; margin-bottom: 3px; }
+.sheet-price-num { color: #415bff; }
+@media (min-width: 640px) {
+  .visual-sales-grid { grid-template-columns: minmax(0,1.2fr) minmax(0,1fr); gap: 18px; }
+  .sales-trend-card { padding: 18px 22px 14px; }
+  .trend-chart svg { height: 92px; }
+  .profit-visual-card { grid-template-columns: 112px minmax(0,1fr); padding: 18px; gap: 12px; }
+  .photo-grid:has(.add-more-btn:only-child) .add-more-btn { height: 240px; }
+  .add-more-btn:only-child .add-more-icon { width: 155px; height: 126px; }
+  .add-more-btn:only-child .add-more-icon img { width: 155px; height: 126px; }
+}
+@media (min-width: 960px) {
+  .bottom-nav { box-shadow: none; }
+  .profit-visual-card { grid-template-columns: 130px minmax(0,1fr); gap: 28px; }
+  .profit-ring-wrap { width: 130px; }
+  .profit-ring { width: 124px; height: 124px; }
+  .profit-ring > div { width: 98px; height: 98px; }
+  .profit-ring strong { font-size: 30px; }
+  .ring-legend { font-size: 10px; }
+  .trend-value { font-size: 42px; }
+  .trend-chart svg { height: 110px; }
+  .profit-mini-metrics strong { font-size: 30px; }
+  .profit-secondary strong { font-size: 22px; }
+}
+@media (max-width: 359px) {
+  .profit-visual-card { padding: 13px; grid-template-columns: 98px minmax(0,1fr); gap: 12px; }
+  .profit-ring-wrap { width: 98px; }
+  .profit-ring { width: 94px; height: 94px; }
+  .profit-ring > div { width: 73px; height: 73px; }
+  .profit-ring strong { font-size: 23px; }
+  .profit-mini-metrics strong { font-size: 23px; }
+  .profit-secondary strong { font-size: 16px; }
+  .ring-legend { font-size: 8px; }
+}
+
+@media (max-width: 639px) {
+  .sales-trend-card { padding: 13px 16px 10px; }
+  .chart-switch button { min-height: 44px; padding: 5px 12px; }
+  .trend-value { line-height: 1.12; margin-top: 4px; }
+  .trend-chart svg { height: 74px; }
+  .profit-visual-card { padding: 13px 16px; }
+  .profit-ring { width: 96px; height: 96px; }
+  .profit-ring > div { width: 75px; height: 75px; }
+  .profit-ring strong { font-size: 23px; }
+  .chart-axis { padding-left: 40px; }
+}

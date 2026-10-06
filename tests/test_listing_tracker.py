@@ -384,3 +384,18 @@ class TestItemStoreSold:
     def test_sold_is_valid_status(self):
         from app.services.item_store import _STATUS_VALUES
         assert "sold" in _STATUS_VALUES
+
+
+def test_inventory_thumbnail_ignores_stale_url_and_uses_existing_label(tmp_path, monkeypatch):
+    from app import web
+    import json
+    item = tmp_path / 'upload_11111111'
+    item.mkdir()
+    (item / 'listing.json').write_text(json.dumps({'title': 'Test blazer', 'thumbnail_url': '/items/missing/front.jpg'}))
+    (item / 'brand.jpg').write_bytes(b'fixture')
+    monkeypatch.setattr(web, 'ITEMS_DIR', tmp_path)
+    result = web._get_all_listings()
+    assert len(result) == 1
+    assert result[0]['thumbnail_url'] == '/items/upload_11111111/brand.jpg'
+    (item / 'brand.jpg').unlink()
+    assert 'thumbnail_url' not in web._get_all_listings()[0]

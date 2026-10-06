@@ -566,17 +566,51 @@
 {% if sold_mode %}
 <section class="sales-overview" aria-label="Monthly sales summary">
   <form action="/sold" method="get" class="sales-month">
-    <label for="sales-month">Monthly sales</label>
+    <label for="sales-month">Your month</label>
     <input id="sales-month" name="month" type="month" value="{{ sale_summary.month }}" onchange="this.form.requestSubmit()" aria-label="Choose sales month">
     <noscript><button type="submit">Show month</button></noscript>
   </form>
-  <div class="sales-metrics">
-    <div class="sales-metric"><span>Sales this month</span><strong>£{{ '%.2f'|format(sale_summary.revenue_gbp) }}</strong><small>{{ sale_summary.sold_count }} item{{ 's' if sale_summary.sold_count != 1 }} sold</small></div>
-    <div class="sales-metric"><span>Profit before fees</span><strong>{{ '£%.2f'|format(sale_summary.gross_profit_gbp) if sale_summary.gross_profit_gbp is not none else '—' }}</strong></div>
-    <div class="sales-metric"><span>Average profit</span><strong>{{ '£%.2f'|format(sale_summary.average_profit_gbp) if sale_summary.average_profit_gbp is not none else '—' }}</strong></div>
-    <div class="sales-metric"><span>Return on cost</span><strong>{{ '%.1f%%'|format(sale_summary.return_on_cost_percent) if sale_summary.return_on_cost_percent is not none else '—' }}</strong></div>
+  <div class="visual-sales-grid">
+    <div class="sales-trend-card" data-sales="{{ sale_summary.revenue_gbp }}" data-profit="{{ sale_summary.gross_profit_gbp if sale_summary.gross_profit_gbp is not none else '' }}">
+      <div class="trend-top"><span class="trend-label" id="trend-label">Sales</span><div class="chart-switch" aria-label="Chart metric"><button type="button" class="selected" aria-pressed="true" onclick="switchSalesChart('sales',this)">Sales</button><button type="button" aria-pressed="false" onclick="switchSalesChart('profit',this)">Profit</button></div></div>
+      <div class="trend-value" id="trend-value">£{{ '%.2f'|format(sale_summary.revenue_gbp) }}</div>
+      <div class="trend-count">{{ sale_summary.sold_count }} sold <span class="trend-dot">·</span> cumulative this month</div>
+      {% for mode in ['sales', 'profit'] %}
+      {% set chart = sale_summary.sales_chart if mode == 'sales' else sale_summary.profit_chart %}
+      <div id="chart-{{ mode }}" class="trend-chart" {% if mode == 'profit' %}hidden{% endif %}>
+        {% if chart and (sale_summary.sold_count if mode == 'sales' else sale_summary.known_cost_count) %}
+        <svg viewBox="-36 0 356 94" preserveAspectRatio="none" role="img" aria-label="Cumulative {{ mode }} through day {{ chart.end_day }}: £{{ '%.2f'|format(chart.total_gbp) }}{{ ', before fees, for known purchase costs only' if mode == 'profit' }}">
+          <defs><linearGradient id="fill-{{ mode }}" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#fff" stop-opacity=".32"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></linearGradient></defs>
+          <text x="-32" y="17" fill="#ffffffd9" font-size="14">£{{ '%.0f'|format(chart.high_gbp) }}</text><text x="-32" y="83" fill="#ffffffd9" font-size="14">£{{ '%.0f'|format(chart.low_gbp) }}</text>
+          <path d="M12 14H308M12 47H308M12 80H308" stroke="#ffffff24" stroke-dasharray="3 5"/>
+          <polygon points="{{ chart.area }}" fill="url(#fill-{{ mode }})"/>
+          <line x1="12" x2="308" y1="{{ chart.zero_y }}" y2="{{ chart.zero_y }}" stroke="#ffffff35"/>
+          <circle cx="308" cy="{{ chart.end_y }}" r="3" fill="white"/>
+          <polyline vector-effect="non-scaling-stroke" points="{{ chart.points }}" fill="none" stroke="#fff" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>
+        </svg>
+        <div class="chart-axis"><span>1 {{ chart.month_label }}</span><span>{{ chart.end_day }} {{ chart.month_label }}</span></div>
+        {% else %}<div class="chart-empty">{{ 'Your first sale starts the story.' if mode == 'sales' else 'Add purchase costs to see profit.' }}</div>{% endif %}
+      </div>
+      {% endfor %}
+    </div>
+    <div class="profit-visual-card">
+      {% set margin = sale_summary.profit_margin_percent %}
+      <div class="profit-ring-wrap">
+        <div class="profit-ring {{ 'unknown' if margin is none else 'loss' if margin < 0 else '' }}" role="img" aria-label="{{ 'Profit margin unknown: purchase costs are missing' if margin is none else 'Loss before fees £%.2f'|format(-sale_summary.gross_profit_gbp) if margin < 0 else 'Profit %.1f%% and purchase costs %.1f%% of sales with known costs'|format(margin,100-margin) }}" style="--share:{{ [100,[0,margin or 0]|max]|min }}%">
+          <div><strong>{{ '—' if margin is none else '£%.0f'|format(-sale_summary.gross_profit_gbp) if margin < 0 else '%.0f%%'|format(margin) }}</strong><span>{{ 'No costs yet' if margin is none else 'Loss' if margin < 0 else 'Profit margin' }}</span></div>
+        </div>
+        <div class="ring-legend"><span><i></i>Profit</span><span><i></i>Buy cost</span></div>
+      </div>
+      <div class="profit-mini-metrics">
+        <div><span>Profit <small>before fees</small></span><strong>{{ '£%.2f'|format(sale_summary.gross_profit_gbp) if sale_summary.gross_profit_gbp is not none else '—' }}</strong></div>
+        <div class="profit-secondary"><span>Avg. profit</span><strong>{{ '£%.2f'|format(sale_summary.average_profit_gbp) if sale_summary.average_profit_gbp is not none else '—' }}</strong></div>
+        <div class="profit-secondary"><span>Return on cost</span><strong>{{ '%.0f%%'|format(sale_summary.return_on_cost_percent) if sale_summary.return_on_cost_percent is not none else '—' }}</strong></div>
+      </div>
+    </div>
   </div>
-  <details class="metric-explainer"><summary>{{ sale_summary.known_cost_count }} of {{ sale_summary.sold_count }} costs recorded · Details</summary><p>Profit uses sales with known purchase costs, before fees and seller-paid postage. Return on cost is profit divided by purchase costs.</p></details>
+  <details class="metric-explainer"><summary>{{ sale_summary.known_cost_count }}/{{ sale_summary.sold_count }} purchase costs recorded · Details</summary><p>Profit and the ring use sales with known purchase costs, before fees and seller-paid postage. Unknown costs are excluded. Return on cost is profit divided by purchase costs. The ring shows a loss separately when costs exceed sales.</p>
+    <table class="chart-data"><caption>Daily recorded sales</caption><thead><tr><th>Day</th><th>Sales</th><th>Profit before fees</th></tr></thead><tbody>{% for day in sale_summary.daily %}<tr><td>{{ day.day }}</td><td>£{{ '%.2f'|format(day.sales_gbp) }}</td><td>{{ '£%.2f'|format(day.profit_gbp) if day.profit_gbp is not none else '—' }}</td></tr>{% endfor %}</tbody></table>
+  </details>
 </section>
 {% endif %}
 <div class="inventory-toolbar">
@@ -606,9 +640,10 @@
           <div class="status-dot review" title="Needs review"></div>
         {% endif %}
         {% if item.thumbnail_url %}
-          <img src="{{ item.thumbnail_url }}" alt="{{ item.title }}" loading="lazy">
+          <img src="{{ item.thumbnail_url }}" alt="{{ item.title }}" loading="lazy" onerror="this.hidden=true;this.nextElementSibling.hidden=false">
+          <div class="draft-thumb-placeholder" hidden role="img" aria-label="Photo unavailable"><img src="/static/upload-art.svg" alt=""></div>
         {% else %}
-          <div class="draft-thumb-placeholder">👕</div>
+          <div class="draft-thumb-placeholder" role="img" aria-label="Photo unavailable"><img src="/static/upload-art.svg" alt=""></div>
         {% endif %}
         <div class="draft-price-badge">£{{ item.outcome.sold_price_gbp if item.inventory_status == 'sold' else item.price_gbp }}</div>
         {% if item.premium and item.inventory_status != 'sold' %}<div class="draft-premium-tag">★ Premium</div>{% endif %}
@@ -647,8 +682,10 @@
 {% endblock %}
 
 {% block scripts %}
+<script src="{{ url_for('static',filename='sales_charts.js') }}"></script>
 <script>
 const LISTINGS = {{ listings | tojson }};
+
 let _authOk = true;   // updated by checkAuthOnLoad(); gates draft buttons
 
 // ── Auth status ─────────────────────────────────────────────────────────────
