@@ -9,3 +9,5 @@ A separate garment_text evidence field survives both compact and legacy writers.
 903 Python tests and nine Node checks passed. Tests exercise the real writer service under both modes with mocked responses deliberately omitting the marking, repeatable description formatting, multiple/unfamiliar/Unicode words and uncertainty withholding. Dunbarney Golf Club is illustrative test wording from the user's tentative example, not a verified transcription of the original shirt. No paid photo reread or accuracy/cost measurement was performed. Small logo text still needs a sharp photo; this change cannot guarantee the model reads every marking.
 
 Existing listings are not automatically changed. Source deployment follows; actual source SHA/live status will be recorded separately. Authenticated live browser access remains blocked in this environment.
+
+Render confirmed source e49d6808adbb7eac4fd26389e68d788b66e1578c live on dep-db2agruq1p3s73ef2g8g at 07:52:20 UTC on 6 October, https://vinted-measurements-test.onrender.com. This verifies deployed source/status only; no paid-photo rerun or authenticated live UI verification occurred.
