@@ -1091,7 +1091,7 @@ def finalize_listing(listing: dict, item: dict, hints: dict | None = None) -> di
     if 'material_verification' in item:
         listing['material_verification'] = item['material_verification']
         listing['materials'] = list(item.get('materials') or [])
-        for field in ('material_reason', 'material_reading_candidate'):
+        for field in ('material_reason', 'material_reading_candidate', 'material_model_candidate', 'material_source'):
             if field in item:
                 listing[field] = item[field]
         if 'materials' in (item.get('low_confidence_fields') or []):

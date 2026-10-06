@@ -9,7 +9,7 @@ from PIL import Image
 from app.validate_listing import normalize_generated_listing, validate_or_raise
 from app.services import model_usage
 
-FOLDER = re.compile(r'upload_[a-f0-9]{8}')
+FOLDER = re.compile(r'upload_(?:[a-f0-9]{8}|retest_[a-f0-9]{32})')
 PHOTO = re.compile(r'(?:front|brand|model_size|material|back|extra_\d{2}|measure_(?:pit_to_pit|length|sleeve))\.(?:jpg|jpeg|png|webp)')
 
 
@@ -36,7 +36,7 @@ def restore(data, items_dir):
             if len(parts)!=3 or parts[0]!='items' or not FOLDER.fullmatch(parts[1]):
                 raise ValueError('Invalid backup path.')
             name=parts[2]
-            if name not in ('listing.json','photo_roles.json','analysis.json','feedback.json') and not PHOTO.fullmatch(name):
+            if name not in ('listing.json','photo_roles.json','analysis.json','feedback.json','reanalysis.json') and not PHOTO.fullmatch(name):
                 raise ValueError('Unsupported backup file.')
             content=archive.read(info)
             if PHOTO.fullmatch(name):
@@ -106,7 +106,7 @@ def export(items_dir, selected_folder=None):
             for file in folder.iterdir():
                 if file.is_symlink() or not file.is_file():
                     continue
-                if file.name not in ('listing.json','photo_roles.json','analysis.json','feedback.json') and not PHOTO.fullmatch(file.name):
+                if file.name not in ('listing.json','photo_roles.json','analysis.json','feedback.json','reanalysis.json') and not PHOTO.fullmatch(file.name):
                     continue
                 total+=file.stat().st_size
                 if total>100*1024*1024:

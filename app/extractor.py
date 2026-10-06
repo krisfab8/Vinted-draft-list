@@ -885,6 +885,32 @@ def _reread_material_photo(folder: Path, model: str, full_reread: bool = False) 
     return None
 
 
+def _reread_composition_crop(folder, model, full_reread=True):
+    """One material-only check: prepared label plus original for section/context safety."""
+    path = next((folder / ('material'+ext) for ext in ('.jpg','.jpeg','.png','.webp')
+                 if (folder / ('material'+ext)).is_file()), None)
+    if path is None:
+        return None
+    prepared, media_type, _ = _compress_with_autocrop(path, 1536)
+    original, original_type = _compress_image(path, 1536)
+    client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY, max_retries=0, timeout=30)
+    prompt = ('Read only the fibre composition printed on this material label. Image 1 is an automatic '
+        'crop; image 2 is the original, to check for omitted lines and section headings. '
+        'Transcribe every percentage digit and fibre literally, then derive materials from that text. '
+        'Never infer a familiar brand blend, round numbers, repair totals, or invent a lining. '
+        'Keep every fibre, including minority fibres. Use Shell:/Lining: prefixes only for printed headings. '
+        'If a digit is unclear, return materials=[]; do not guess. Ignore wash temperatures and hang-tag marketing. '
+        'Return only JSON with materials (array of percentage/fibre strings) and composition_label_text (exact text or null).')
+    response = model_usage.call(client.messages.create, stage='material_reread', model=model,
+        max_tokens=450, messages=[{'role':'user','content':[
+            {'type':'image','source':{'type':'base64','media_type':media_type,'data':prepared}},
+            {'type':'image','source':{'type':'base64','media_type':original_type,'data':original}},
+            {'type':'text','text':prompt}]}])
+    if response.stop_reason == 'max_tokens':
+        raise ValueError('Label recheck incomplete')
+    return _safe_json_loads(response.content[0].text)
+
+
 def _reread_unknown_fabric_labels(folder: Path, model: str, full_reread: bool = False):
     """One bounded maker-only reread across core photos when slots may be wrong."""
     photos, _ = _load_photos(folder)
@@ -1062,6 +1088,8 @@ def extract(item_folder: str | Path, hints: dict | None = None, *, single_pass: 
     from app.services import label_safety, label_reader
     independent_material = label_reader.read_folder(folder)
     label_reader.check(result, independent_material)
+    print("  Composition evidence: " + json.dumps({k: independent_material.get(k)
+        for k in ('status', 'consensus', 'text', 'pairs', 'attempts', 'local_latency_ms')}))
     if result.get('size_label_text') and not label_safety.size_supported(result.get('tagged_size'), result['size_label_text']):
         result.setdefault('low_confidence_fields', []).append('tagged_size')
     _do_brand_reread    = VISION_PROVIDER == "claude-haiku" and _should_reread_brand(result)
@@ -1099,6 +1127,10 @@ def extract(item_folder: str | Path, hints: dict | None = None, *, single_pass: 
     material_reader = (_reread_unknown_fabric_labels
                        if result.get('fabric_resolution') == 'needs_confirmation'
                        else _reread_material_photo)
+
+    if _do_material_full and not label_safety.size_uncertain(result) and not result.get('fabric_resolution') == 'needs_confirmation':
+        if any((folder / ('material'+ext)).is_file() for ext in ('.jpg','.jpeg','.png','.webp')):
+            material_reader = _reread_composition_crop
 
     # Decide whether to use parallel execution path
     _use_parallel = (
@@ -1283,7 +1315,7 @@ def extract(item_folder: str | Path, hints: dict | None = None, *, single_pass: 
         "pipeline_version": "single-pass-v1" if single_pass else "two-stage",
         "prompt_chars": len(prompt),
         "material_verification": independent_material,
-        "label_preparation_version": "local-composition-v1",
+        "label_preparation_version": "local-composition-v2",
         "photos_found": _photos_found,
         "crop_applied": {k: v.get("crop_applied", False) for k, v in crop_report.items()},
         "escalated": _escalated,

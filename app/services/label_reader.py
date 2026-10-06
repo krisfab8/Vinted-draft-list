@@ -30,7 +30,7 @@ FIBRES = {
     "mohair": "Mohair",
     "lambswool": "Lambswool",
     "elasthanne": "Elastane",
-    "cashmire": "Cashmere",
+    "cachemire": "Cashmere",
     "kaschmir": "Cashmere",
     "viscose": "Viscose",
     "silk": "Silk",
@@ -175,6 +175,7 @@ def _ocr(image, rotation):
     )
     return {
         "pairs": parsed if good else [],
+        "candidate_pairs": parsed if relevant and min(relevant) >= 0.90 else [],
         "text": text,
         "rotation": rotation,
         "vertical": bool(vertical),
@@ -188,31 +189,76 @@ def _prepare(filename, modified, size):
     with Image.open(filename) as opened:
         image = ImageOps.exif_transpose(opened).convert("RGB")
     image.thumbnail((2000, 2000), Image.Resampling.LANCZOS)
+    original = image.copy()
     try:
         image, meta = crop_label(image)
     except ImportError:
         meta = {"rectified": False, "preparation_unavailable": True}
     reading = {"status": "unreadable", "pairs": [], "text": ""}
-    # Blank images are common in tests; avoid subprocesses when no text contrast exists.
+    # Bounded local checks; preserve raw evidence even when it needs corroboration.
     grey = image.convert("L")
     extrema = grey.getextrema()
+    reads = []
     if extrema[1] - extrema[0] > 35:
         try:
-            # Two perpendicular views; the local reader handles 180-degree flips.
             reads = [_ocr(image, rotation) for rotation in (0, 90)]
+            if sum(bool(r["pairs"]) for r in reads) < 2:
+                fallback_original = meta.get("rectified") and not any(
+                    r.get("candidate_pairs") for r in reads
+                )
+                enhanced = (
+                    original.copy()
+                    if fallback_original
+                    else ImageOps.autocontrast(image.convert("L")).convert("RGB")
+                )
+                enhanced.thumbnail(
+                    (1000, 1000) if fallback_original else (720, 720),
+                    Image.Resampling.LANCZOS,
+                )
+                variant = "original" if fallback_original else "contrast"
+                reads += [
+                    dict(_ocr(enhanced, rotation), variant=variant)
+                    for rotation in (0, 90)
+                ]
         except ImportError:
-            reads = []
             reading["status"] = "unavailable"
         valid = [r for r in reads if r["pairs"]]
-        if valid and len({tuple(canonical(r["pairs"])) for r in valid}) == 1:
+        candidates = [r for r in reads if r.get("candidate_pairs")]
+        distinct = {tuple(canonical(r["candidate_pairs"])) for r in candidates}
+        if len(distinct) > 1:
+            reading["status"] = "conflicting_ocr"
+        elif valid:
             best = max(
                 valid, key=lambda r: (not r.get("vertical"), r["min_confidence"])
             )
-            reading = dict(best, status="readable")
-            image = image.rotate(best["rotation"], expand=True, fillcolor="white")
-            meta["rotation"] = best["rotation"]
-        elif valid:
-            reading["status"] = "conflicting_ocr"
+            reading = dict(best, status="readable", consensus=len(valid) >= 2)
+        # Orientation still helps the focused AI check when percentages need review.
+        oriented = [r for r in reads if r.get("text") and "%" in r["text"]]
+        if oriented:
+            best_orientation = max(
+                oriented, key=lambda r: (not r.get("vertical"), r["min_confidence"])
+            )
+            if best_orientation.get("variant") == "original":
+                image = original
+                meta["fallback_original"] = True
+            image = image.rotate(
+                best_orientation["rotation"], expand=True, fillcolor="white"
+            )
+            meta["rotation"] = best_orientation["rotation"]
+    reading["attempts"] = [
+        {
+            k: r.get(k)
+            for k in (
+                "rotation",
+                "variant",
+                "text",
+                "candidate_pairs",
+                "min_confidence",
+            )
+        }
+        for r in reads
+    ]
+    reading["backend"] = "rapidocr-onnxruntime-1.4.4"
     reading["preparation"] = meta
     reading["local_latency_ms"] = round((time.perf_counter() - start) * 1000)
     return image, reading
@@ -248,10 +294,30 @@ def check(item, reading):
     if reading["status"] == "not_present":
         return
     materials = item.get("materials") or []
+    if reading["status"] == "readable" and reading.get("consensus"):
+        # Two complete, high-confidence local reads agree. Recover their literal facts.
+        exact = []
+        for section, value, fibre in reading["pairs"]:
+            prefix = "" if section == "main" else section.title() + ": "
+            exact.append(f"{prefix}{value:g}% {fibre}")
+        if not matches(materials, reading):
+            if materials:
+                item["material_model_candidate"] = list(materials)
+            item["materials"] = materials = exact
+        item["material_source"] = "label_ocr_consensus"
+        item["composition_label_text"] = reading["text"]
+        item.pop("material_reading_candidate", None)
     numeric = any("%" in str(value) for value in materials)
     if not numeric:
         return
-    if reading["status"] == "readable" and matches(materials, reading):
+    corroborated = reading["status"] != "conflicting_ocr" and any(
+        matches(materials, {"pairs": attempt.get("candidate_pairs")})
+        for attempt in reading.get("attempts", [])
+        if attempt.get("min_confidence", 0) >= 0.90
+    )
+    if (
+        reading["status"] == "readable" and matches(materials, reading)
+    ) or corroborated:
         item["material_confidence"] = "high"
         item["low_confidence_fields"] = [
             f
@@ -264,7 +330,11 @@ def check(item, reading):
                 "material_candidates",
             }
         ]
-        item["material_reason"] = "Independent local label transcription agrees"
+        item["material_reason"] = (
+            "Exact composition recovered from agreeing label reads"
+            if reading.get("consensus")
+            else "AI and independent label transcription agree"
+        )
     else:
         item["material_confidence"] = "medium"
         fields = item.setdefault("low_confidence_fields", [])
@@ -275,3 +345,29 @@ def check(item, reading):
             if reading["status"] == "readable"
             else "Exact material percentages could not be independently verified; check label"
         )
+
+
+def smoke_test():
+    """Exercise the deployed OCR/preparation/recovery path without customer photos or AI."""
+    import tempfile
+    from PIL import ImageDraw, ImageFont
+
+    with tempfile.TemporaryDirectory() as temporary:
+        photo = Image.new("RGB", (700, 300), "white")
+        draw = ImageDraw.Draw(photo)
+        font = ImageFont.load_default(size=40)
+        draw.text((60, 70), "92% POLYESTER", font=font, fill="black")
+        draw.text((60, 150), "8% SPANDEX", font=font, fill="black")
+        path = Path(temporary) / "material.png"
+        photo.save(path)
+        _, reading = prepare(path)
+        item = {"materials": ["62% Polyester", "26% Polyester", "8% Spandex"]}
+        check(item, reading)
+        return {
+            "recovered": matches(
+                item["materials"],
+                {"pairs": [("main", 92.0, "Polyester"), ("main", 8.0, "Spandex")]},
+            ),
+            "status": reading["status"],
+            "consensus": reading.get("consensus", False),
+        }

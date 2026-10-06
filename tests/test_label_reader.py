@@ -144,3 +144,123 @@ def test_writer_cannot_reintroduce_unverified_percentages():
         and "Spandex" not in final["description"]
     )
     assert final["material_verification"] == READING
+
+
+@pytest.mark.parametrize(
+    "materials",
+    [
+        [],
+        ["62% Polyester", "26% Polyester", "8% Spandex"],
+        ["88% Nylon", "12% Spandex"],
+    ],
+)
+def test_agreeing_literal_reads_recover_materials_instead_of_blank(materials):
+    item = dict(
+        materials=materials,
+        material_confidence="low",
+        low_confidence_fields=["materials"],
+    )
+    reading = dict(READING, consensus=True)
+    label_reader.check(item, reading)
+    label_safety.suppress_uncertain(item)
+    assert item["materials"] == ["92% Polyester", "8% Spandex"]
+    assert (
+        item["material_confidence"] == "high"
+        and "materials" not in item["low_confidence_fields"]
+    )
+    assert item["material_source"] == "label_ocr_consensus"
+    assert not extractor._should_reread_material(item)
+
+
+def test_single_local_read_cannot_override_a_conflicting_model():
+    item = dict(materials=["88% Nylon", "12% Spandex"], material_confidence="high")
+    label_reader.check(item, dict(READING, consensus=False))
+    label_safety.suppress_uncertain(item)
+    assert not item["materials"]
+
+
+def test_moderate_local_read_needs_matching_ai_composition():
+    reading = dict(
+        status="unreadable",
+        pairs=[],
+        attempts=[dict(candidate_pairs=READING["pairs"], min_confidence=0.92)],
+    )
+    wrong = dict(materials=["88% Nylon", "12% Spandex"], material_confidence="high")
+    label_reader.check(wrong, reading)
+    assert wrong["material_confidence"] == "medium"
+    corrected = dict(
+        materials=["92% Polyester", "8% Spandex"], material_confidence="medium"
+    )
+    label_reader.check(corrected, reading)
+    assert corrected["material_confidence"] == "high"
+
+
+def test_conflicting_ocr_never_recovers_facts_even_when_one_view_matches_ai():
+    reading = dict(
+        READING,
+        status="conflicting_ocr",
+        consensus=True,
+        attempts=[dict(candidate_pairs=READING["pairs"], min_confidence=0.99)],
+    )
+    item = dict(materials=["92% Polyester", "8% Spandex"], material_confidence="high")
+    label_reader.check(item, reading)
+    label_safety.suppress_uncertain(item)
+    assert item["materials"] == []
+
+
+def test_focused_recheck_sends_only_label_crop_and_original(tmp_path):
+    import json
+    from types import SimpleNamespace as NS
+
+    Image.new("RGB", (100, 150), "white").save(tmp_path / "material.jpg")
+    response = NS(
+        content=[
+            NS(
+                text=json.dumps(
+                    dict(
+                        materials=["92% Polyester", "8% Spandex"],
+                        composition_label_text="92% POLYESTER\n8% SPANDEX",
+                    )
+                )
+            )
+        ],
+        stop_reason="end_turn",
+        usage=NS(input_tokens=100, output_tokens=40),
+    )
+    with patch.object(extractor.anthropic, "Anthropic") as client:
+        client.return_value.messages.create.return_value = response
+        result = extractor._reread_composition_crop(tmp_path, "test-model")
+        call = client.return_value.messages.create.call_args.kwargs
+    assert result["materials"] == ["92% Polyester", "8% Spandex"]
+    content = call["messages"][0]["content"]
+    assert sum(v["type"] == "image" for v in content) == 2
+    assert "92%" not in content[-1]["text"] and "brand blend" in content[-1]["text"]
+
+
+def test_consensus_flows_through_full_extraction_without_paid_material_retry(tmp_path):
+    item = dict(
+        brand="Peter Millar",
+        brand_confidence="high",
+        item_type="polo shirt",
+        materials=["62% Polyester", "26% Polyester", "8% Spandex"],
+        material_confidence="high",
+        confidence=0.78,
+        low_confidence_fields=[],
+        fabric_mill=None,
+    )
+    with patch.object(extractor, "_load_photos", return_value=([], {})), patch.object(
+        extractor, "_extract_claude", return_value=(deepcopy(item), {})
+    ), patch.object(extractor, "VISION_PROVIDER", "claude-haiku"), patch.object(
+        label_reader, "read_folder", return_value=dict(READING, consensus=True)
+    ), patch.object(
+        extractor, "_reread_composition_crop"
+    ) as focused, patch.object(
+        extractor, "_reread_material_photo"
+    ) as full, patch(
+        "app.services.measurements.analyze", return_value=[]
+    ):
+        result, _ = extractor.extract(tmp_path)
+    assert result["materials"] == ["92% Polyester", "8% Spandex"]
+    assert result["material_model_candidate"] == item["materials"]
+    focused.assert_not_called()
+    full.assert_not_called()

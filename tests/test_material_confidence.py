@@ -333,6 +333,7 @@ class TestExtractMaterialGating:
 
         with patch("app.extractor.anthropic") as mock_anth, \
              patch("app.extractor._reread_material_photo", side_effect=fake_reread), \
+             patch("app.extractor._reread_composition_crop", side_effect=fake_reread), \
              patch("app.extractor._reread_brand_photo", return_value=None):
             mock_anth.Anthropic.return_value.messages.create.return_value = mock_resp
             from app.extractor import extract

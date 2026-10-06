@@ -60,5 +60,11 @@ function setup(serverItems, cached, options={}) {
   await run.ctx.window.fetch('/listing/'+missing+'/outcome',{method:'POST'});
   await run.ctx.window.DraftArchive.flush();
   assert(run.calls.filter(([url])=>url==='/api/sales/backup').length>=2);
+  const fresh='upload_retest_'+'a'.repeat(32);
+  const freshRun=setup([fresh],[]); await freshRun.ctx.window.DraftArchive.ready;
+  await freshRun.ctx.window.fetch('/listing/'+fresh,{method:'PATCH'}); await freshRun.ctx.window.DraftArchive.flush();
+  assert(freshRun.calls.filter(([url])=>url==='/api/private/backup?folder='+fresh).length>=2);
+  await freshRun.ctx.window.fetch('/listing/'+fresh,{method:'DELETE'}); await freshRun.ctx.window.DraftArchive.flush();
+  assert.equal(freshRun.state.get(fresh).deleted,true);
   console.log('Archive recovery, server-edit precedence, delete tombstones and failure visibility passed');
 })().catch(error=>{console.error(error);process.exit(1)});

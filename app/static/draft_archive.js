@@ -85,7 +85,7 @@
     const url = new URL(typeof args[0] === 'string' ? args[0] : args[0].url, location.origin);
     const method = String(args[1]?.method || args[0]?.method || 'GET').toUpperCase();
     const deleting = url.origin === location.origin && method === 'DELETE'
-      && url.pathname.match(/^\/listing\/(upload_[a-f0-9]{8})$/);
+      && url.pathname.match(/^\/listing\/(upload_(?:[a-f0-9]{8}|retest_[a-f0-9]{32}))$/);
     if (deleting) {
       // Record deletion before touching the server. If local storage fails,
       // leave the server item intact instead of later resurrecting an old copy.
@@ -100,7 +100,7 @@
     const response = await nativeFetch(...args);
     if (deleting && !response.ok) queue(() => save(deleting[1]));
     if (response.ok && url.origin === location.origin && method !== 'GET') {
-      const match = url.pathname.match(/^(?:\/listing\/|\/api\/listing\/|\/reprice\/|\/regen\/)(upload_[a-f0-9]{8})(?:\/[^/]+)?$/);
+      const match = url.pathname.match(/^(?:\/listing\/|\/api\/listing\/|\/reprice\/|\/regen\/)(upload_(?:[a-f0-9]{8}|retest_[a-f0-9]{32}))(?:\/[^/]+)?$/);
       if (match) {
         if (method === 'DELETE') notice('Listing deleted');
         else queue(async () => { await save(match[1]); if (url.pathname.endsWith('/outcome')) await saveSales(); });

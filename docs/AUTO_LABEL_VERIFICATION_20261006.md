@@ -1,6 +1,6 @@
 # ACC-05: automatic composition-label preparation and independent checking
 
-6 October 2026. Implemented locally; deployment and paid app retest tracked separately.
+6 October 2026. Source deployed; local OCR startup verified live. Paid app retest pending.
 
 ## Evidence motivating this change
 
@@ -36,3 +36,7 @@ No personal photos are added to GitHub as new fixtures. The real-photo checks us
 Cropping, orientation and local OCR use zero AI tokens. The smaller crop may reduce image tokens; that reduction has not been measured in a paid request. A conditional recheck sends the existing core-photo set and permits up to 450 output tokens. It can increase cost versus the previously skipped check. Agreement can avoid that check. Do not promise a fixed token saving or sub-penny result before observing actual usage. CPU latency and memory are additional costs; broader multilingual/dark/curved labels may require seller review.
 
 Next: verify deployed commit and OCR startup log, then user-run Analyse photos again on Peter Millar / Galvin / M&S. Compare fresh facts, false claims, review rate, latency and full model ledger. Original drafts and seller corrections remain intact. This environment cannot access the authenticated live app (ERR_BLOCKED_BY_CLIENT), and has no local provider key, so paid app retests have not been executed by Codex.
+
+## Deployment evidence
+
+Commit 9b47b45f5ab8616eb9df97f6c41264eb8c70a3ba / Render dep-db2c0a6q1p3s73egnte0 became live at 09:34:09 UTC on https://vinted-measurements-test.onrender.com. The new instance logged “Local composition OCR ready (rapidocr-onnxruntime 1.4.4)” at 09:33:42 UTC after inference on a blank image. This verifies hosted dependency/model loading and source rollout, not paid listing accuracy. Authenticated phone UI and real paid app reruns remain unverified.

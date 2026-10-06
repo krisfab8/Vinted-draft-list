@@ -126,7 +126,7 @@ def test_toast_missing_labels_retains_brand_and_targeted_material_reread(tmp_pat
     monkeypatch.setattr(extractor,'ANTHROPIC_API_KEY','test-key')
     monkeypatch.setattr(extractor,'VISION_PROVIDER','claude-haiku')
     monkeypatch.setattr(extractor,'_extract_claude',full_read)
-    monkeypatch.setattr(extractor,'_reread_material_photo',material_read)
+    monkeypatch.setattr(extractor,'_reread_composition_crop',material_read)
     result, usage = extractor.extract(folder)
     assert full_calls == [extractor.HAIKU_MODEL]
     assert rereads == [True]
@@ -229,7 +229,7 @@ class TestParallelExecution:
 
         # Patch API calls and image loading
         with patch("app.extractor._reread_brand_photo", side_effect=brand_spy), \
-             patch("app.extractor._reread_material_photo", side_effect=mat_spy), \
+             patch("app.extractor._reread_composition_crop", side_effect=mat_spy), \
              patch("app.extractor._load_photos", return_value=([], {})), \
              patch("app.extractor._extract_claude", return_value=(_base_extraction(), {})), \
              patch("app.extractor.VISION_PROVIDER", "claude-haiku"):
@@ -261,7 +261,7 @@ class TestParallelExecution:
 
         t0 = time.perf_counter()
         with patch("app.extractor._reread_brand_photo", side_effect=slow_brand), \
-             patch("app.extractor._reread_material_photo", side_effect=slow_mat), \
+             patch("app.extractor._reread_composition_crop", side_effect=slow_mat), \
              patch("app.extractor._load_photos", return_value=([], {})), \
              patch("app.extractor._extract_claude", return_value=(_base_extraction(), {})), \
              patch("app.extractor.VISION_PROVIDER", "claude-haiku"):
@@ -317,7 +317,7 @@ class TestOnlyBrandReread:
 
         with patch("app.extractor._reread_brand_photo",
                    return_value={"brand": "Barbour", "collection_keywords": []}), \
-             patch("app.extractor._reread_material_photo", side_effect=count_mat), \
+             patch("app.extractor._reread_composition_crop", side_effect=count_mat), \
              patch("app.extractor._load_photos", return_value=([], {})), \
              patch("app.extractor._extract_claude", return_value=(item, {})), \
              patch("app.extractor.VISION_PROVIDER", "claude-haiku"):
@@ -341,7 +341,7 @@ class TestOnlyMaterialReread:
         import app.extractor
         monkeypatch.setattr(app.extractor, "ENABLE_PARALLEL_REREADS", True)
 
-        with patch("app.extractor._reread_material_photo",
+        with patch("app.extractor._reread_composition_crop",
                    return_value={"materials": ["100% Wool"], "composition_label_text": "100% Wool", "fabric_mill": None}), \
              patch("app.extractor._load_photos", return_value=([], {})), \
              patch("app.extractor._extract_claude", return_value=(item, {})), \
@@ -366,7 +366,7 @@ class TestOnlyMaterialReread:
             return {"brand": "Barbour", "collection_keywords": []}
 
         with patch("app.extractor._reread_brand_photo", side_effect=count_brand), \
-             patch("app.extractor._reread_material_photo",
+             patch("app.extractor._reread_composition_crop",
                    return_value={"materials": ["100% Wool"], "composition_label_text": "100% Wool", "fabric_mill": None}), \
              patch("app.extractor._load_photos", return_value=([], {})), \
              patch("app.extractor._extract_claude", return_value=(item, {})), \
@@ -393,7 +393,7 @@ class TestRereadFailureGraceful:
             raise RuntimeError("Network timeout")
 
         with patch("app.extractor._reread_brand_photo", side_effect=fail_brand), \
-             patch("app.extractor._reread_material_photo",
+             patch("app.extractor._reread_composition_crop",
                    return_value={"materials": ["80% Wool", "20% Polyester"], "composition_label_text": "80% Wool 20% Polyester", "fabric_mill": None}), \
              patch("app.extractor._load_photos", return_value=([], {})), \
              patch("app.extractor._extract_claude", return_value=(item, {})), \
@@ -418,7 +418,7 @@ class TestRereadFailureGraceful:
 
         with patch("app.extractor._reread_brand_photo",
                    return_value={"brand": "Barbour", "collection_keywords": []}), \
-             patch("app.extractor._reread_material_photo", side_effect=fail_mat), \
+             patch("app.extractor._reread_composition_crop", side_effect=fail_mat), \
              patch("app.extractor._load_photos", return_value=([], {})), \
              patch("app.extractor._extract_claude", return_value=(item, {})), \
              patch("app.extractor.VISION_PROVIDER", "claude-haiku"):
@@ -438,7 +438,7 @@ class TestRereadFailureGraceful:
 
         with patch("app.extractor._reread_brand_photo",
                    side_effect=RuntimeError("timeout")), \
-             patch("app.extractor._reread_material_photo",
+             patch("app.extractor._reread_composition_crop",
                    side_effect=RuntimeError("timeout")), \
              patch("app.extractor._load_photos", return_value=([], {})), \
              patch("app.extractor._extract_claude", return_value=(item, {})), \
@@ -469,7 +469,7 @@ class TestBothSkipped:
 
         with patch("app.extractor._reread_brand_photo",
                    side_effect=lambda *a, **k: calls.append("brand") or None), \
-             patch("app.extractor._reread_material_photo",
+             patch("app.extractor._reread_composition_crop",
                    side_effect=lambda *a, **k: calls.append("material") or None), \
              patch("app.extractor._load_photos", return_value=([], {})), \
              patch("app.extractor._extract_claude", return_value=(item, {})), \
@@ -494,7 +494,7 @@ class TestFlagDisabledSequential:
 
         with patch("app.extractor._reread_brand_photo",
                    return_value={"brand": "Barbour", "collection_keywords": []}), \
-             patch("app.extractor._reread_material_photo",
+             patch("app.extractor._reread_composition_crop",
                    return_value={"materials": ["100% Wool"], "composition_label_text": "100% Wool", "fabric_mill": None}), \
              patch("app.extractor._load_photos", return_value=([], {})), \
              patch("app.extractor._extract_claude", return_value=(item, {})), \
@@ -523,7 +523,7 @@ class TestFlagDisabledSequential:
 
         main_tid = threading.get_ident()
         with patch("app.extractor._reread_brand_photo", side_effect=brand_thread), \
-             patch("app.extractor._reread_material_photo", side_effect=mat_thread), \
+             patch("app.extractor._reread_composition_crop", side_effect=mat_thread), \
              patch("app.extractor._load_photos", return_value=([], {})), \
              patch("app.extractor._extract_claude", return_value=(item, {})), \
              patch("app.extractor.VISION_PROVIDER", "claude-haiku"):
