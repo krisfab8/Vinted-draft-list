@@ -44,6 +44,12 @@ def apply(existing, updates):
         if existing.get(key) != value:
             manual.add(key)
         listing[key] = value
+    if {'tagged_size', 'normalized_size'} & set(updates):
+        from app.services.label_safety import sync_edited_size
+        if 'normalized_size' in updates and 'tagged_size' not in updates and 'tagged_size' in (existing.get('low_confidence_fields') or []):
+            listing['size_reading_candidate'] = existing.get('tagged_size')
+            listing['tagged_size'] = None
+        sync_edited_size(listing)
     listing['manual_fields'] = sorted(manual)
     if 'brand' in updates:
         listing['brand_confirmed'] = True

@@ -183,4 +183,7 @@ def preserve_user_fields(
         description_layout.apply(new_listing)
         measurements.apply_description(new_listing)
 
+    if {'tagged_size', 'normalized_size'} & set(updates):
+        from app.services.label_safety import sync_edited_size
+        sync_edited_size(new_listing)
     return new_listing

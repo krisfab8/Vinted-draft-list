@@ -208,7 +208,7 @@ class TestParallelExecution:
             with lock:
                 call_log.append(("material", tid, t))
             time.sleep(0.05)
-            return {"materials": ["100% Wool"], "fabric_mill": None}
+            return {"materials": ["100% Wool"], "composition_label_text": "100% Wool", "fabric_mill": None}
 
         return brand_photo_spy, mat_photo_spy, call_log
 
@@ -247,7 +247,7 @@ class TestParallelExecution:
         def slow_mat(f, model, full_reread=False):
             call_times.append(time.perf_counter())
             time.sleep(DELAY)
-            return {"materials": ["100% Wool"], "fabric_mill": None}
+            return {"materials": ["100% Wool"], "composition_label_text": "100% Wool", "fabric_mill": None}
 
         import app.extractor
         monkeypatch.setattr(app.extractor, "ENABLE_PARALLEL_REREADS", True)
@@ -335,7 +335,7 @@ class TestOnlyMaterialReread:
         monkeypatch.setattr(app.extractor, "ENABLE_PARALLEL_REREADS", True)
 
         with patch("app.extractor._reread_material_photo",
-                   return_value={"materials": ["100% Wool"], "fabric_mill": None}), \
+                   return_value={"materials": ["100% Wool"], "composition_label_text": "100% Wool", "fabric_mill": None}), \
              patch("app.extractor._load_photos", return_value=([], {})), \
              patch("app.extractor._extract_claude", return_value=(item, {})), \
              patch("app.extractor.VISION_PROVIDER", "claude-haiku"):
@@ -360,7 +360,7 @@ class TestOnlyMaterialReread:
 
         with patch("app.extractor._reread_brand_photo", side_effect=count_brand), \
              patch("app.extractor._reread_material_photo",
-                   return_value={"materials": ["100% Wool"], "fabric_mill": None}), \
+                   return_value={"materials": ["100% Wool"], "composition_label_text": "100% Wool", "fabric_mill": None}), \
              patch("app.extractor._load_photos", return_value=([], {})), \
              patch("app.extractor._extract_claude", return_value=(item, {})), \
              patch("app.extractor.VISION_PROVIDER", "claude-haiku"):
@@ -387,7 +387,7 @@ class TestRereadFailureGraceful:
 
         with patch("app.extractor._reread_brand_photo", side_effect=fail_brand), \
              patch("app.extractor._reread_material_photo",
-                   return_value={"materials": ["80% Wool", "20% Polyester"], "fabric_mill": None}), \
+                   return_value={"materials": ["80% Wool", "20% Polyester"], "composition_label_text": "80% Wool 20% Polyester", "fabric_mill": None}), \
              patch("app.extractor._load_photos", return_value=([], {})), \
              patch("app.extractor._extract_claude", return_value=(item, {})), \
              patch("app.extractor.VISION_PROVIDER", "claude-haiku"):
@@ -488,7 +488,7 @@ class TestFlagDisabledSequential:
         with patch("app.extractor._reread_brand_photo",
                    return_value={"brand": "Barbour", "collection_keywords": []}), \
              patch("app.extractor._reread_material_photo",
-                   return_value={"materials": ["100% Wool"], "fabric_mill": None}), \
+                   return_value={"materials": ["100% Wool"], "composition_label_text": "100% Wool", "fabric_mill": None}), \
              patch("app.extractor._load_photos", return_value=([], {})), \
              patch("app.extractor._extract_claude", return_value=(item, {})), \
              patch("app.extractor.VISION_PROVIDER", "claude-haiku"):
@@ -512,7 +512,7 @@ class TestFlagDisabledSequential:
 
         def mat_thread(f, m, full_reread=False):
             thread_ids.append(("material", threading.get_ident()))
-            return {"materials": ["100% Wool"], "fabric_mill": None}
+            return {"materials": ["100% Wool"], "composition_label_text": "100% Wool", "fabric_mill": None}
 
         main_tid = threading.get_ident()
         with patch("app.extractor._reread_brand_photo", side_effect=brand_thread), \

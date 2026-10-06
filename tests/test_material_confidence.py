@@ -135,24 +135,24 @@ class TestShouldRereadMaterial:
             pricing_sensitive_material=False,
         )) is True
 
-    def test_medium_confidence_polyester_tshirt_skips(self):
-        """Non-premium material + non-premium item → skip at medium."""
+    def test_medium_confidence_polyester_tshirt_rereads(self):
+        """Uncertain synthetic composition needs a recheck too."""
         from app.extractor import _should_reread_material
         assert _should_reread_material(_result(
             materials=["100% Polyester"],
             material_confidence="medium",
             pricing_sensitive_material=False,
             item_type="t-shirt",
-        )) is False
+        )) is True
 
-    def test_medium_confidence_cotton_polo_skips(self):
+    def test_medium_confidence_cotton_polo_rereads(self):
         from app.extractor import _should_reread_material
         assert _should_reread_material(_result(
             materials=["100% Cotton"],
             material_confidence="medium",
             pricing_sensitive_material=False,
             item_type="polo shirt",
-        )) is False
+        )) is True
 
     def test_medium_confidence_polyester_blazer_rerereads(self):
         """Even synthetic fibre triggers reread for tailoring — material matters."""
@@ -274,7 +274,7 @@ class TestRereadMaterialPhoto:
         assert result["materials"] == ["80% Wool", "20% Polyester"]
         assert result["fabric_mill"] == "Vitale Barberis Canonico"
 
-    def test_full_reread_uses_1024px(self, tmp_path):
+    def test_full_reread_uses_1536px(self, tmp_path):
         from PIL import Image
         Image.new("RGB", (3024, 3024)).save(str(tmp_path / "material.jpg"))
 
@@ -293,7 +293,7 @@ class TestRereadMaterialPhoto:
             from app.extractor import _reread_material_photo
             _reread_material_photo(tmp_path, "claude-haiku-4-5-20251001", full_reread=True)
 
-        assert captured.get("max_dim") == 1024
+        assert captured.get("max_dim") == 1536
 
     def test_missing_photo_returns_none(self, tmp_path):
         from app.extractor import _reread_material_photo
@@ -402,7 +402,7 @@ class TestExtractMaterialGating:
         full_rereads = [c for c in calls if c["full_reread"]]
         assert len(full_rereads) == 1
 
-    def test_medium_confidence_polyester_tshirt_skips_full_reread(self, tmp_path):
+    def test_medium_confidence_polyester_tshirt_rereads_full_reread(self, tmp_path):
         payload = self._base_payload(
             materials=["100% Polyester"],
             material_confidence="medium",
@@ -412,7 +412,7 @@ class TestExtractMaterialGating:
         )
         _, calls = self._run(tmp_path, payload)
         full_rereads = [c for c in calls if c["full_reread"]]
-        assert len(full_rereads) == 0, "non-premium t-shirt at medium should skip full reread"
+        assert len(full_rereads) == 1, "uncertain t-shirt composition needs one full reread"
 
     def test_confident_cotton_top_skips_irrelevant_mill_reread(self, tmp_path):
         """A confident ordinary cotton top needs no cloth-mill search."""

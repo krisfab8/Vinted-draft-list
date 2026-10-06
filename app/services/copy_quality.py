@@ -18,6 +18,17 @@ def writer_evidence(item):
 
 def apply(listing, item):
     uncertain = set(item.get('low_confidence_fields') or [])
+    candidate = item.get('size_reading_candidate')
+    if candidate and not (item.get('tagged_size') or item.get('normalized_size')):
+        for field in ('title', 'description'):
+            text = listing.get(field) or ''
+            text = re.sub(r'\b(?:UK|EU|size)\s*:?\s*'+re.escape(str(candidate))+r'(?![a-z0-9])', '', text, flags=re.I)
+            listing[field] = re.sub(r'[ \t]+', ' ', text).strip()
+    if item.get('material_reading_candidate') and not item.get('materials'):
+        for field in ('title', 'description'):
+            text = listing.get(field) or ''
+            text = re.sub(r'\b(?:\d+(?:\.\d+)?%\s*)?(?:wool|cashmere|cotton|polyester|polyamide|silk|linen|nylon|elastane)\b', '', text, flags=re.I)
+            listing[field] = re.sub(r'[ \t]+', ' ', text).strip()
     if 'pattern' in uncertain and item.get('pattern'):
         value = re.escape(str(item['pattern']))
         for field in ('title', 'description'):

@@ -65,13 +65,13 @@ class TestPhotoMaxDimConfig:
         from app.extractor import _PHOTO_MAX_DIM
         assert _PHOTO_MAX_DIM["brand"] == 1024
 
-    def test_model_size_is_1024(self):
+    def test_model_size_is_1536(self):
         from app.extractor import _PHOTO_MAX_DIM
-        assert _PHOTO_MAX_DIM["model_size"] == 1024
+        assert _PHOTO_MAX_DIM["model_size"] == 1536
 
-    def test_material_is_1024(self):
+    def test_material_is_1536(self):
         from app.extractor import _PHOTO_MAX_DIM
-        assert _PHOTO_MAX_DIM["material"] == 1024
+        assert _PHOTO_MAX_DIM["material"] == 1536
 
     def test_default_is_768(self):
         from app.extractor import _DEFAULT_MAX_DIM
@@ -166,8 +166,8 @@ class TestLoadPhotos:
             f"front may be a label and should use 1024 via _compress_image, got {dim_compress.get('front')}"
         assert dim_autocrop.get("brand") == 1024, \
             f"brand should use 1024 via _compress_with_autocrop, got {dim_autocrop.get('brand')}"
-        assert dim_autocrop.get("model_size") == 1024
-        assert dim_autocrop.get("material") == 1024
+        assert dim_autocrop.get("model_size") == 1536
+        assert dim_autocrop.get("material") == 1536
 
     def test_back_not_loaded_when_core_photos_excludes_it(self, tmp_path):
         """Even if a back.jpg file exists, it must not be loaded."""
@@ -229,7 +229,7 @@ class TestRereadDimensions:
         assert captured.get("max_dim") == 1024, \
             f"_reread_brand_photo must use max_dim=1024, got {captured.get('max_dim')}"
 
-    def test_reread_material_uses_1024(self, tmp_path):
+    def test_reread_material_uses_1536(self, tmp_path):
         _make_jpg(tmp_path / "material.jpg", 3024, 3024)
 
         captured = {}
@@ -248,8 +248,8 @@ class TestRereadDimensions:
             from app.extractor import _reread_material_photo
             _reread_material_photo(tmp_path, "claude-haiku-4-5-20251001")
 
-        assert captured.get("max_dim") == 1024, \
-            f"_reread_material_photo must use max_dim=1024, got {captured.get('max_dim')}"
+        assert captured.get("max_dim") == 1536, \
+            f"_reread_material_photo must use max_dim=1536, got {captured.get('max_dim')}"
 
 
 # ---------------------------------------------------------------------------
@@ -325,7 +325,7 @@ def test_reread_cannot_infer_composition_after_absent_label_finding():
     assert not _reread_composition_supported(original, {'materials':['100% Cotton'], 'composition_label_text':'TOAST'})
     assert not _reread_composition_supported(original, {'materials':['100% Cotton'], 'composition_label_text':'98% Cotton 2% Elastane'})
     assert _reread_composition_supported(original, {'materials':['100% Cotton'], 'composition_label_text':'100 % COTONE / COTTON'})
-    assert _reread_composition_supported({'material_reason':'Partially obscured composition label'}, {'materials':['100% Cotton']})
+    assert not _reread_composition_supported({'material_reason':'Partially obscured composition label'}, {'materials':['100% Cotton']})
 
 
 # ---------------------------------------------------------------------------

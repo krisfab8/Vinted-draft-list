@@ -288,8 +288,8 @@ class TestLoadPhotosWithAutocrop:
             assert isinstance(meta, dict), f"crop_report['{role}'] must be a dict"
             assert "crop_applied" in meta
 
-    def test_ocr_roles_use_1024_via_autocrop(self, tmp_path):
-        """OCR roles go through _compress_with_autocrop at max_dim=1024."""
+    def test_ocr_roles_use_role_budgets_via_autocrop(self, tmp_path):
+        """OCR roles retain their configured resolution through autocrop."""
         from unittest.mock import patch
         from app.extractor import _compress_with_autocrop as real_cwa
         self._make_photos(tmp_path)
@@ -305,8 +305,8 @@ class TestLoadPhotosWithAutocrop:
             _load_photos(tmp_path)
 
         assert captured.get("brand") == 1024
-        assert captured.get("model_size") == 1024
-        assert captured.get("material") == 1024
+        assert captured.get("model_size") == 1536
+        assert captured.get("material") == 1536
 
     def test_front_preserves_label_resolution(self, tmp_path):
         """Front slots may contain labels, so preserve max_dim=1024."""

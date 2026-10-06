@@ -125,3 +125,23 @@ def test_matching_preserves_composition_flaws_and_migrates_old_index(item):
     assert comparisons['sample_count'] == 3 and comparisons['median_days_to_sell'] == 10
     assert sales_history.comparisons(dict(ITEM,materials=['10% Wool']))['sample_count'] == 0
     assert sales_history.comparisons(dict(ITEM,flaws_note='Hole in sleeve'))['sample_count'] == 0
+
+
+def test_size_correction_updates_saved_detail_without_replacing_seller_prose(item):
+    folder, client = item
+    existing = dict(ITEM, tagged_size='L', normalized_size='L', description='My own opening.\n\n- Size: L\nMy own notes.')
+    listing_state.write(folder/'listing.json', existing)
+    response = client.patch('/listing/'+folder.name, json={'normalized_size':'18'})
+    assert response.status_code == 200
+    saved = json.loads((folder/'listing.json').read_text())
+    assert saved['tagged_size'] == 'L'
+    assert '- Size: 18 (equivalent); L (label)' in saved['description']
+    assert saved['description'].startswith('My own opening.') and saved['description'].endswith('My own notes.')
+
+
+def test_regeneration_size_update_synchronizes_manual_description():
+    from app.services.pipeline import preserve_user_fields
+    existing = dict(ITEM, tagged_size='L', normalized_size='L', description='My own opening.\n\n- Size: L\nMy own notes.')
+    result = preserve_user_fields(existing, deepcopy(existing), {'normalized_size':'18'})
+    assert '- Size: 18 (equivalent); L (label)' in result['description']
+    assert result['description'].startswith('My own opening.') and result['description'].endswith('My own notes.')

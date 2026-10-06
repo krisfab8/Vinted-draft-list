@@ -113,6 +113,8 @@ Return a JSON object with these fields:
   "cut": "string or null — the cut or fit style if labeled on the tag (e.g. 'Slim', 'Classic', 'Regular', 'Tailored'). Look for 'CUT:' or 'FIT:' on the size tag. Null if not present.",
   "materials": ["COMPLETE list of ALL fibres/materials with percentages exactly as on the care label. Include EVERY fibre listed. Format each as '50% Cotton' or '100% Merino Wool' or 'Polyester lining' etc. Check BOTH the main brand label AND the material/care label photo. Do NOT omit any fibre. Do NOT list the same fibre twice. Common fibres: wool, merino, lambswool, cashmere, cotton, linen, silk, polyester, viscose, elastane, nylon, acrylic, modal, lyocell."],
   "material_confidence": "\"high\" | \"medium\" | \"low\" — how clearly you could read the composition label. See MATERIAL CONFIDENCE rules below.",
+  "size_label_text": "string or null — exact printed size text, never an inferred UK conversion. L remains L, not 8 or 18.",
+  "size_confidence": "high | medium | low — certainty of reading the printed size",
   "material_reason": "string — one sentence: what you read on the care/composition label and why you are confident or uncertain.",
   "material_candidates": ["only if material_confidence is medium or low — 2-3 alternative possible readings, e.g. [\"80% Wool 20% Polyester\", \"80% Wool 20% Nylon\"]"],
   "pricing_sensitive_material": "boolean — true if ANY fibre in the extracted list is a premium or natural fibre where misidentification significantly affects resale value: cashmere, merino, wool, lambswool, alpaca, mohair, angora, linen, silk, leather, suede, down, velvet, tweed.",
@@ -466,8 +468,8 @@ _PHOTO_MAX_DIM: dict[str, int] = {
     "front":      1024,  # may contain a label: role is a hint, not proof of content
     "back":       768,   # overview (kept here in case re-added)
     "brand":      1024,  # OCR — brand label text
-    "model_size": 1024,  # OCR — size/model tag text
-    "material":   1024,  # OCR — care/composition label text
+    "model_size": 1536,  # OCR — size/model tag text
+    "material":   1536,  # OCR — care/composition label text
 }
 _DEFAULT_MAX_DIM = 768  # any extra/unknown photo treated as overview
 
@@ -694,7 +696,7 @@ def _should_reread_material(result: dict) -> bool:
     Gate logic:
       always:  materials empty / None              → reread (label not read at all)
       always:  material_confidence == "low"        → reread
-      maybe:   material_confidence == "medium"     → reread if pricing-sensitive material or item type
+      always:  material_confidence == "medium"     → reread, including synthetics
       never:   material_confidence == "high"       → skip
     """
     if not result.get("materials"):
@@ -705,19 +707,9 @@ def _should_reread_material(result: dict) -> bool:
         return True
     if confidence == "high":
         return False
-    # "medium" — reread if premium/natural fibre or pricing-sensitive item type
-    # 1. Model's own flag
-    if result.get("pricing_sensitive_material"):
-        return True
-    # 2. Deterministic check: scan extracted materials for premium fibres
-    materials_str = " ".join(result.get("materials") or []).lower()
-    if any(f in materials_str for f in _PRICING_SENSITIVE_FIBRES):
-        return True
-    # 3. Item type gate: even basic fabric compositions matter for tailoring/knitwear
-    item_type_lower = (result.get("item_type") or "").lower()
-    if any(kw in item_type_lower for kw in _PRICING_SENSITIVE_ITEM_TYPES):
-        return True
-    return False  # medium confidence, non-premium material, basic item → skip
+    if confidence == "medium":
+        return True  # Minor synthetic fibres matter too; do not guess 100%.
+    return True  # Missing or unfamiliar confidence also needs review.
 
 
 def _apply_brand_corrections(brand: str | None, *, allow_fuzzy: bool = True) -> str | None:
@@ -762,18 +754,9 @@ def _escalation_fields(result: dict) -> list[str]:
 
 
 def _reread_composition_supported(original: dict, reread: dict) -> bool:
-    """Require label text to overturn an explicit finding of no composition label."""
-    reason = original.get('material_reason') or ''
-    absent = re.search(r'\bno\b[^.;]{0,80}\b(?:care|composition|material)\b'
-                       r'[^.;]{0,60}\blabels?\b[^.;]{0,40}\bvisible\b', reason, re.I)
-    if not absent:
-        return True
-    quote = reread.get('composition_label_text')
-    if not isinstance(quote, str) or not quote.strip():
-        return False
-    percentages = re.findall(r'\d+(?:\.\d+)?\s*%', ' '.join(reread.get('materials') or []))
-    return bool(percentages) and all(re.sub(r'\s+', '', value) in re.sub(r'\s+', '', quote)
-                                     for value in percentages)
+    """Require matching percentage/fibre text for every reread replacement."""
+    from app.services.label_safety import composition_supported
+    return composition_supported(reread.get('materials'), reread.get('composition_label_text'))
 
 
 def _mill_check_relevant(result: dict) -> bool:
@@ -802,7 +785,7 @@ def _reread_material_photo(folder: Path, model: str, full_reread: bool = False) 
         for ext_suffix in (".jpg", ".jpeg", ".png", ".webp"):
             mat_photo = folder / f"{base}{ext_suffix}"
             if mat_photo.exists():
-                data, media_type, _ = _compress_with_autocrop(mat_photo, max_dim=1024)
+                data, media_type, _ = _compress_with_autocrop(mat_photo, max_dim=1536)
                 client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY, max_retries=0, timeout=30)
 
                 if full_reread:
@@ -839,7 +822,11 @@ def _reread_material_photo(folder: Path, model: str, full_reread: bool = False) 
                         'A fabric appearance or brand name is not composition evidence. If no percentage label is visible, '
                         'return materials=[] and composition_label_text=null; never infer cotton from corduroy.'
                     )
-                    max_tokens = 180
+                    prompt_text += (' Also read the printed size and manufacturing country from any label. '
+                        'Keep L as L; never invent a numeric equivalent. Return tagged_size, size_label_text, '
+                        'made_in and origin_label_text (exact quotes), or null when unreadable. '
+                        'Keep shell and lining entries separate with Shell: / Lining: prefixes.')
+                    max_tokens = 450
                 else:
                     prompt_text = (
                         "Read the care/material labels in ALL these photos carefully; their slots may be wrong. "
@@ -864,6 +851,8 @@ def _reread_material_photo(folder: Path, model: str, full_reread: bool = False) 
                         "content": _load_photos(folder)[0] + [{"type": "text", "text": prompt_text}],
                     }],
                 )
+                if response.stop_reason == "max_tokens":
+                    raise ValueError("Label recheck incomplete")
                 raw = response.content[0].text.strip()
                 raw = re.sub(r"^```(?:json)?\s*|\s*```$", "", raw, flags=re.MULTILINE).strip()
                 try:
@@ -891,7 +880,10 @@ def _reread_unknown_fabric_labels(folder: Path, model: str, full_reread: bool = 
         'Return JSON only: {"fabric_mill": "name or null", "fabric_line": "line or null"}.'
     )
     if full_reread:
-        prompt += ' Also return materials as an array of exact visible fibre percentages, including lining only if explicitly printed. Never infer composition from appearance.'
+        prompt += (' Also return materials as exact visible percentages with Shell: / Lining: prefixes, '
+                   'composition_label_text quoting the composition, tagged_size and size_label_text quoting the printed size, '
+                   'made_in and origin_label_text quoting the country. Keep L as L; never infer a numeric size or composition. '
+                   'Use null/empty arrays if unreadable.')
     response = model_usage.call(client.messages.create, stage="material_reread", model=model,
                                max_tokens=500 if full_reread else 120, messages=[{"role":"user", "content":
                                    photos + [{"type":"text", "text":prompt}]}])
@@ -1049,8 +1041,11 @@ def extract(item_folder: str | Path, hints: dict | None = None, *, single_pass: 
     # If both brand and material rereads are needed, run them concurrently.
     # Each reread is isolated — failure of one never fails the other.
     # -----------------------------------------------------------------------
+    from app.services import label_safety
+    if result.get('size_label_text') and not label_safety.size_supported(result.get('tagged_size'), result['size_label_text']):
+        result.setdefault('low_confidence_fields', []).append('tagged_size')
     _do_brand_reread    = VISION_PROVIDER == "claude-haiku" and _should_reread_brand(result)
-    _do_material_full   = VISION_PROVIDER == "claude-haiku" and _should_reread_material(result)
+    _do_material_full   = VISION_PROVIDER == "claude-haiku" and (_should_reread_material(result) or label_safety.size_uncertain(result))
     _do_material_mill   = (
         VISION_PROVIDER == "claude-haiku"
         and not _do_material_full
@@ -1079,7 +1074,7 @@ def extract(item_folder: str | Path, hints: dict | None = None, *, single_pass: 
         print(f"  Material re-read skipped (confidence=high); checking for fabric_mill only")
     else:
         if not _do_material_full:
-            print(f"  Material re-read skipped (confidence=high, fabric_mill already set)")
+            print(f"  Material re-read skipped (confidence={result.get('material_confidence')}, mill_check_relevant={_mill_check_relevant(result)})")
 
     material_reader = (_reread_unknown_fabric_labels
                        if result.get('fabric_resolution') == 'needs_confirmation'
@@ -1170,14 +1165,17 @@ def extract(item_folder: str | Path, hints: dict | None = None, *, single_pass: 
             old_mats = result.get("materials")
             result["materials"] = _reread_mat_result["materials"]
             result["material_confidence"] = "high"
+            result["composition_label_text"] = _reread_mat_result["composition_label_text"]
+            result["material_reason"] = "Label recheck: " + _reread_mat_result["composition_label_text"]
+            result["material_candidates"] = []
             result["low_confidence_fields"] = [
-                f for f in result.get("low_confidence_fields", []) if f != "materials"
+                f for f in result.get("low_confidence_fields", []) if f not in {"materials", "material_confidence", "material_reason", "material_candidates"}
             ]
             if _reread_mat_result["materials"] != old_mats:
                 print(f"  Materials updated: {_reread_mat_result['materials']}")
         elif _do_material_full and _reread_mat_result.get('materials'):
             result.setdefault('low_confidence_fields', []).append('materials')
-            print('  Material reread ignored: absent label finding has no quoted composition evidence')
+            print('  Material reread ignored: composition is not supported by quoted label text')
         if _reread_mat_result.get("fabric_mill") and not result.get("fabric_mill"):
             print(f"  Fabric mill re-read: '{_reread_mat_result['fabric_mill']}'")
             result["fabric_mill"] = _reread_mat_result["fabric_mill"]
@@ -1185,6 +1183,18 @@ def extract(item_folder: str | Path, hints: dict | None = None, *, single_pass: 
             result["fabric_line"] = _reread_mat_result["fabric_line"]
         if _reread_mat_result.get("material_hint") and not result.get("material_hint"):
             result["material_hint"] = _reread_mat_result["material_hint"]
+
+    if _do_material_full and _reread_mat_result:
+        reread = _reread_mat_result
+        if label_safety.size_uncertain(result) and label_safety.size_supported(reread.get('tagged_size'), reread.get('size_label_text')):
+            result['tagged_size'] = result['normalized_size'] = reread['tagged_size']
+            result['size_label_text'] = reread['size_label_text']
+            result['size_confidence'] = 'high'
+            result['low_confidence_fields'] = [f for f in result.get('low_confidence_fields', []) if f not in {'tagged_size','normalized_size','size'}]
+        if not result.get('made_in') and label_safety.size_supported(reread.get('made_in'), reread.get('origin_label_text')):
+            result['made_in'] = reread['made_in']
+            result['low_confidence_fields'] = [f for f in result.get('low_confidence_fields', []) if f != 'made_in']
+    label_safety.suppress_uncertain(result)
 
     # Deterministic brand correction as fallback (catches misreads without brand photo)
     result["brand"] = _apply_brand_corrections(result.get("brand"),
@@ -1217,6 +1227,8 @@ def extract(item_folder: str | Path, hints: dict | None = None, *, single_pass: 
         if hints.get("size"):
             result["tagged_size"] = hints["size"]
             result["normalized_size"] = hints["size"]
+            result["size_confidence"] = "high"
+            result["low_confidence_fields"] = [f for f in result.get("low_confidence_fields", []) if f not in {"size", "tagged_size", "normalized_size"}]
 
     result["photos_folder"] = str(folder)
 
