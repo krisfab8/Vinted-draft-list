@@ -35,7 +35,7 @@ def apply(listing, item):
     if item.get('material_reading_candidate') and not item.get('materials'):
         for field in ('title', 'description'):
             text = listing.get(field) or ''
-            text = re.sub(r'\b(?:\d+(?:\.\d+)?%\s*)?(?:wool|cashmere|cotton|polyester|polyamide|silk|linen|nylon|elastane)\b', '', text, flags=re.I)
+            text = re.sub(r'\b(?:\d+(?:\.\d+)?%\s*)?(?:wool|cashmere|cotton|polyester|polyamide|silk|linen|nylon|elastane|spandex|acrylic|viscose|modal|lyocell|angora|alpaca|mohair)\b', '', text, flags=re.I)
             listing[field] = re.sub(r'[ \t]+', ' ', text).strip()
     if 'pattern' in uncertain and item.get('pattern'):
         value = re.escape(str(item['pattern']))

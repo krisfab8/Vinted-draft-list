@@ -37,6 +37,13 @@ if __name__ == "__main__":
     os.umask(0o077)
     root = Path(__file__).resolve().parent.parent
     os.chdir(root)
+    # Smoke-test packaged OCR before accepting uploads (no photos or paid calls).
+    import sys
+    sys.path.insert(0, str(root))
+    from app.services.label_reader import _engine
+    from PIL import Image
+    _engine()(Image.new("RGB", (64, 64), "white"))
+    print("Local composition OCR ready (rapidocr-onnxruntime 1.4.4)", flush=True)
     prepare_storage(root, os.getenv("APP_STORAGE_PATH", "/var/data/vinted"))
     os.execvp("gunicorn", [
         "gunicorn", "app.hosted:create_app()", "--bind", f"0.0.0.0:{os.getenv('PORT', '10000')}",

@@ -139,6 +139,8 @@ def test_full_upload_pipeline_including_three_recorded_model_stages(tmp_path,mon
                'material_confidence':'high','confidence':.92,'low_confidence_fields':[],
                'condition_summary':'Good used condition','flaws_note':None,
                'measurements':[{'role':'measure_length','value_cm':200,'confirmed':True}]}
+    monkeypatch.setattr('app.services.label_reader.read_folder',
+        lambda folder: dict(status='not_present', pairs=[]))  # Mocked ruler/cost integration, not label OCR.
     stage_calls=[]
     def create(**kwargs):
         max_tokens=kwargs['max_tokens'];stage_calls.append(max_tokens)

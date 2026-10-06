@@ -42,7 +42,7 @@ def test_ms_unsupported_recheck_cannot_promote_guessed_facts():
 
 def test_ms_one_shared_recheck_recovers_printed_l_and_country():
     result=run(extracted(),dict(materials=['Shell: 70% Polyester','Shell: 30% Wool','Lining: 100% Polyester'],
-        composition_label_text='70% POLYESTER 30% WOOL\nLINING 100% POLYESTER',
+        composition_label_text='SHELL 70% POLYESTER 30% WOOL\nLINING 100% POLYESTER',
         tagged_size='L',size_label_text='L',made_in='Cambodia',origin_label_text='Made in Cambodia'))
     assert result['tagged_size']==result['normalized_size']=='L'
     assert result['made_in']=='Cambodia' and result['material_confidence']=='high'

@@ -357,7 +357,7 @@ class TestExtractMaterialGating:
         base.update(overrides)
         return base
 
-    def test_high_confidence_basic_material_skips_full_reread(self, tmp_path):
+    def test_high_confidence_basic_material_without_independent_read_gets_recheck(self, tmp_path):
         payload = self._base_payload(
             materials=["100% Cotton"],
             material_confidence="high",
@@ -366,7 +366,7 @@ class TestExtractMaterialGating:
         )
         _, calls = self._run(tmp_path, payload)
         full_rereads = [c for c in calls if c["full_reread"]]
-        assert len(full_rereads) == 0, "high confidence basic material should skip full reread"
+        assert len(full_rereads) == 1, "confidence alone cannot prove numeric composition"
 
     def test_low_confidence_triggers_full_reread(self, tmp_path):
         payload = self._base_payload(
@@ -427,7 +427,7 @@ class TestExtractMaterialGating:
         mill_only_calls = [c for c in calls if not c["full_reread"]]
         assert len(mill_only_calls) == 0
 
-    def test_high_confidence_with_fabric_mill_skips_all_rereads(self, tmp_path):
+    def test_high_confidence_with_fabric_mill_still_checks_unverified_percentages(self, tmp_path):
         """High confidence AND fabric_mill already set → no reread at all."""
         payload = self._base_payload(
             materials=["100% Cotton"],
@@ -437,7 +437,7 @@ class TestExtractMaterialGating:
             fabric_mill="Tessuti Sondrio",  # already found
         )
         _, calls = self._run(tmp_path, payload)
-        assert len(calls) == 0, "high confidence + fabric_mill set should skip all material rereads"
+        assert len(calls) == 1 and calls[0]["full_reread"], "a mill name cannot verify percentages"
 
 
 # ---------------------------------------------------------------------------

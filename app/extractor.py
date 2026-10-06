@@ -438,7 +438,19 @@ def _compress_with_autocrop(path: Path, max_dim: int) -> tuple[str, str, dict]:
         from PIL import Image, ImageOps
         img = ImageOps.exif_transpose(Image.open(path)).convert("RGB")
 
-        if ENABLE_LABEL_AUTOCROP:
+        if ENABLE_LABEL_AUTOCROP and path.stem == "material":
+            from app.services.label_reader import prepare
+            original_size = img.size
+            img, reading = prepare(path)
+            crop_meta = {
+                "original_size": original_size, "cropped_size": img.size,
+                "crop_applied": reading['preparation'].get('rectified', False),
+                "crop_confidence": 1.0 if reading['preparation'].get('rectified') else 0.0,
+                "fallback_used": not reading['preparation'].get('rectified', False),
+                "label_preparation": reading['preparation'],
+                "local_ocr_status": reading['status'],
+            }
+        elif ENABLE_LABEL_AUTOCROP:
             img, crop_meta = _autocrop_label(img)
         else:
             w, h = img.size
@@ -794,7 +806,9 @@ def _reread_material_photo(folder: Path, model: str, full_reread: bool = False) 
                     prompt_text = (
                         "Read the care/material labels in ALL these photos carefully; their slots may be wrong.\n"
                         "1. Read ALL fibre/material composition percentages EXACTLY as printed. "
-                        "Format each entry as '68% Wool' or '100% Cotton' etc. "
+                        "Transcribe the visible digits and fibre names before deriving the materials list. "
+                        "Never substitute a familiar blend or round percentages. "
+                        "If any composition digit is unclear, return materials=[] for review. "
                         "Include EVERY fibre listed, including lining if shown separately. "
                         "Do NOT include care instructions (wash symbols, 'Machine Wash', 'Dry Clean Only', "
                         "temperature numbers, tumble-dry icons) — only fibre composition.\n"
@@ -827,7 +841,9 @@ def _reread_material_photo(folder: Path, model: str, full_reread: bool = False) 
                     prompt_text += (' Also read the printed size and manufacturing country from any label. '
                         'Keep L as L; never invent a numeric equivalent. Return tagged_size, size_label_text, '
                         'made_in and origin_label_text (exact quotes), or null when unreadable. '
-                        'Keep shell and lining entries separate with Shell: / Lining: prefixes.')
+                        'Use Shell: / Lining: prefixes ONLY when those headings are explicitly printed '
+                        'on the label; otherwise use plain percentage/fibre entries. '
+                        'Never invent a lining or apply one composition to two garment sections.')
                     max_tokens = 450
                 else:
                     prompt_text = (
@@ -1043,7 +1059,9 @@ def extract(item_folder: str | Path, hints: dict | None = None, *, single_pass: 
     # If both brand and material rereads are needed, run them concurrently.
     # Each reread is isolated — failure of one never fails the other.
     # -----------------------------------------------------------------------
-    from app.services import label_safety
+    from app.services import label_safety, label_reader
+    independent_material = label_reader.read_folder(folder)
+    label_reader.check(result, independent_material)
     if result.get('size_label_text') and not label_safety.size_supported(result.get('tagged_size'), result['size_label_text']):
         result.setdefault('low_confidence_fields', []).append('tagged_size')
     _do_brand_reread    = VISION_PROVIDER == "claude-haiku" and _should_reread_brand(result)
@@ -1196,6 +1214,7 @@ def extract(item_folder: str | Path, hints: dict | None = None, *, single_pass: 
         if not result.get('made_in') and label_safety.size_supported(reread.get('made_in'), reread.get('origin_label_text')):
             result['made_in'] = reread['made_in']
             result['low_confidence_fields'] = [f for f in result.get('low_confidence_fields', []) if f != 'made_in']
+    label_reader.check(result, independent_material)
     label_safety.suppress_uncertain(result)
 
     # Deterministic brand correction as fallback (catches misreads without brand photo)
@@ -1263,6 +1282,8 @@ def extract(item_folder: str | Path, hints: dict | None = None, *, single_pass: 
     result["_extract_log"] = {
         "pipeline_version": "single-pass-v1" if single_pass else "two-stage",
         "prompt_chars": len(prompt),
+        "material_verification": independent_material,
+        "label_preparation_version": "local-composition-v1",
         "photos_found": _photos_found,
         "crop_applied": {k: v.get("crop_applied", False) for k, v in crop_report.items()},
         "escalated": _escalated,

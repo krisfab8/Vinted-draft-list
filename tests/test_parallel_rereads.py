@@ -17,6 +17,13 @@ from PIL import Image
 # Helpers
 # ---------------------------------------------------------------------------
 
+@pytest.fixture(autouse=True)
+def no_independent_photo_evidence(monkeypatch):
+    # These mocked-provider tests use solid-grey images, not composition fixtures.
+    monkeypatch.setattr('app.services.label_reader.read_folder',
+                        lambda folder: dict(status='not_present', pairs=[]))
+
+
 def _make_jpg(path: Path, w: int = 200, h: int = 200) -> Path:
     Image.new("RGB", (w, h), color=(128, 128, 128)).save(str(path), "JPEG")
     return path

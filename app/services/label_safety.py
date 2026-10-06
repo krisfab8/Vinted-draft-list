@@ -17,21 +17,10 @@ def size_supported(size, quote):
 def composition_supported(materials, quote):
     if not materials or not isinstance(quote, str) or not quote.strip():
         return False
-    # Associate each percentage with its following fibre text, not just any number on the tag.
-    parts = list(re.finditer(r'(\d+(?:\.\d+)?)\s*%\s*([^%]*?)(?=\d+(?:\.\d+)?\s*%|$)', quote, re.I))
-    aliases = {'wool': ('wool','laine','lana','wolle'), 'cotton': ('cotton','coton','cotone','baumwolle'),
-               'silk': ('silk','soie','seide'), 'elastane': ('elastane','elastan','elasthanne','spandex'),
-               'polyamide': ('polyamide','nylon'), 'nylon': ('nylon','polyamide')}
-    for entry in materials:
-        pairs = list(re.finditer(r'(\d+(?:\.\d+)?)\s*%\s*([a-z][a-z ]*)', str(entry), re.I))
-        if not pairs:
-            return False
-        for pair in pairs:
-            fibre = pair[2].strip().lower()
-            names = aliases.get(fibre, (fibre,))
-            if not any(float(part[1]) == float(pair[1]) and any(re.search(r'\b'+re.escape(name)+r'\b', part[2], re.I) for name in names) for part in parts):
-                return False
-    return True
+    from app.services.label_reader import pairs, canonical
+    claimed = pairs('\n'.join(str(v) for v in materials))
+    printed = pairs(quote)
+    return bool(claimed and printed) and canonical(claimed) == canonical(printed)
 
 
 def suppress_uncertain(item):

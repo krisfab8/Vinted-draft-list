@@ -1087,6 +1087,18 @@ def finalize_listing(listing: dict, item: dict, hints: dict | None = None) -> di
         if hints.get("made_in"):
             listing["made_in"] = hints["made_in"]
 
+    # Independent material evidence stays authoritative through prose generation.
+    if 'material_verification' in item:
+        listing['material_verification'] = item['material_verification']
+        listing['materials'] = list(item.get('materials') or [])
+        for field in ('material_reason', 'material_reading_candidate'):
+            if field in item:
+                listing[field] = item[field]
+        if 'materials' in (item.get('low_confidence_fields') or []):
+            fields = listing.setdefault('low_confidence_fields', [])
+            if 'materials' not in fields:
+                fields.append('materials')
+
     # Carry over extraction quality fields for the review UI
     for field in ("brand_confidence", "material_confidence", "tag_keywords_confidence"):
         extracted_confidence = item.get(field)
