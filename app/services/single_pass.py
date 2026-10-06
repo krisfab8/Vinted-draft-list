@@ -44,6 +44,7 @@ materials (array of strings), material_confidence, material_reason,
 material_candidates, pricing_sensitive_material (boolean), fabric_mill,
 fabric_line, material_hint, made_in, colour, colour_secondary, pattern, style,
 cut, gender (men's/women's/unisex), condition_summary, flaws_note,
+garment_text (array of objects: text, location, confidence high/medium/low; exact exterior logo/embroidery/print words, even unfamiliar names; not the maker, no invented affiliations),
 tag_keywords (visible label terms only), tag_keywords_confidence (high/low),
 confidence (0 to 1), low_confidence_fields (array), category, price_gbp.
 Use null for unknown optional text and [] for empty arrays. Missing brand/material

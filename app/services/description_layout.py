@@ -36,18 +36,20 @@ def recover_tag(listing):
 
 def apply(listing):
     """Normalize generated descriptions; editing a saved draft does not call this."""
+    from app.services.garment_text import detail
     desc = listing.get('description') or ''
     listing['description_layout_version'] = 'dash-details-v1'
     # Keep opening prose, other useful bullets, keywords and confirmed measurements.
     # Rebuild only these labelled details, so contradictory/duplicate size lines disappear.
-    managed = r'(?:Size|Made in|Fabric mill|Fabric line|Cloth|Fit|Model|Material|Materials)'
+    managed = r'(?:Size|Made in|Fabric mill|Fabric line|Cloth|Fit|Model|Material|Materials|Logo / print)'
     desc = re.sub(r'[^\S\n]+([-•]\s*'+managed+r'\s*:)', r'\n\1', desc, flags=re.I)
     remaining = re.sub(r'(?mi)^\s*[-•]?\s*'+managed+r'\s*:[^\n]*', '', desc)
     remaining = re.sub(r'\n{3,}', '\n\n', remaining).strip()
     fields = [('Size', size_text(listing)), ('Made in', listing.get('made_in')),
               ('Fabric mill', listing.get('fabric_mill')), ('Fabric line', listing.get('fabric_line')),
               ('Fit', listing.get('cut')), ('Model', listing.get('model_name')),
-              ('Material', ', '.join(listing.get('materials') or []))]
+              ('Material', ', '.join(listing.get('materials') or [])),
+              ('Logo / print', detail(listing))]
     details = '\n'.join(f'- {label}: {value}' for label, value in fields if value)
     if not details:
         listing['description'] = remaining

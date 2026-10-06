@@ -13,11 +13,19 @@ def writer_evidence(item):
         evidence['model_name'] = None
     if item.get('tag_keywords_confidence') != 'high':
         evidence['tag_keywords'] = []
+    from app.services.garment_text import normalize
+    if 'garment_text' in item:
+        evidence['garment_text'] = [v for v in normalize(item['garment_text']) if v['confidence'] == 'high']
     return evidence
 
 
 def apply(listing, item):
     uncertain = set(item.get('low_confidence_fields') or [])
+    from app.services.garment_text import normalize
+    for marking in normalize(item.get('garment_text')):
+        if marking['confidence'] != 'high':
+            for field in ('title', 'description'):
+                listing[field] = re.sub(re.escape(marking['text']), '', listing.get(field) or '', flags=re.I).strip()
     candidate = item.get('size_reading_candidate')
     if candidate and not (item.get('tagged_size') or item.get('normalized_size')):
         for field in ('title', 'description'):

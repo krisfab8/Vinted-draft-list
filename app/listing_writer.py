@@ -882,7 +882,7 @@ Write a complete listing JSON with these fields:
 - low_confidence_fields (array of strings, carry over from extraction)
 
 STRICT RULE — only use facts from the extracted fields. NEVER invent or assume:
-- Description bullet points must come ONLY from: materials, fabric_mill, cut, model_name, tag_keywords (high confidence only), made_in, colour_secondary, pattern.
+- Description bullet points must come ONLY from: materials, fabric_mill, cut, model_name, tag_keywords (high confidence only), made_in, colour_secondary, pattern, garment_text (high confidence only).
 - Do NOT add any observations about construction, stitching, collar style, lining, canvas, patches, buttons, or any physical detail not explicitly in the extracted fields.
 - Do NOT claim "hand finished", "fully lined", "original tags attached", "unworn", "half canvas", "full canvas", "patch collar", "elbow patches" unless these exact terms are in tag_keywords.
 - CONDITION IN DESCRIPTION — do NOT include any condition or flaws wording anywhere in the description. A standardised condition line is appended after generation — do not pre-empt it. Never write condition level phrases ("Good used condition", "Excellent condition", "Very good", etc.), "no visible damage", "no holes or stains", or any similar phrase. Do NOT add a flaw bullet even if flaws_note is set.
@@ -901,6 +901,7 @@ Description format rules:
 - If made_in is set (e.g. "Italy"), include "Made in Italy" in the description — buyers search for this.
 - If fabric_mill is set (e.g. "Tessuti Sondrio"), include the mill name in the description — buyers of quality menswear search for these names. If fabric_line is also set, combine them (e.g. "Loro Piana Trofeo cloth").
 - Include model_name in the description if present.
+- GARMENT TEXT — include every high-confidence exterior logo/embroidery/print wording verbatim in the description, including unfamiliar club/company names. Keep it separate from manufacturer/model; do not invent an affiliation. Omit uncertain readings.
 - TAG KEYWORDS — use items from tag_keywords as follows:
   * If tag_keywords_confidence = "high": include the most buyer-relevant terms (e.g. collection name, fabric grade) in the title if space allows, or prominently in the description body (e.g. "Traveller collection. Super 120s wool.").
   * If tag_keywords_confidence = "low": do NOT include in title or description body — only in the Keywords sentence.
@@ -1035,6 +1036,9 @@ def write(item: dict, hints: dict | None = None) -> tuple[dict, dict]:
 
 def finalize_listing(listing: dict, item: dict, hints: dict | None = None) -> dict:
     """Shared deterministic checks for AI-written and one-pass listings."""
+    from app.services import garment_text
+    garment_text.carry(listing, item)
+
     # Carry forward fields from extractor not covered by listing writer
     listing.setdefault("photos_folder", item.get("photos_folder", ""))
     listing.setdefault("listed_date", date.today().isoformat())

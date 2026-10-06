@@ -24,7 +24,7 @@ def build_prompt(item, hints, categories):
               'trouser_waist', 'trouser_length', 'materials', 'material_confidence', 'colour',
               'colour_secondary', 'pattern', 'cut', 'style', 'gender', 'made_in', 'fabric_mill',
               'fabric_line', 'material_hint', 'tag_keywords', 'tag_keywords_confidence',
-              'condition_summary', 'flaws_note', 'buy_price_gbp', 'low_confidence_fields')
+              'garment_text', 'condition_summary', 'flaws_note', 'buy_price_gbp', 'low_confidence_fields')
     data = {k:item[k] for k in fields if item.get(k) is not None}
     if hints:
         data['seller_confirmed'] = hints
@@ -37,7 +37,7 @@ Shoes: Brand + Model + Colour + Type + UK Size. No W/L for shoes.
 Trousers: preserve visible W/L; activewear keeps letter size, optional W suffix.
 Tailoring: preserve tagged EU/UK evidence; the app handles conversion. Do not convert twice.
 Use specific garment type: collared short-placket polo is a polo, not a jumper.
-Retain fabric mill/line and clearly read tag keywords. Do not put uncertain keywords in title.
+Retain fabric mill/line and clearly read tag keywords. Include all high-confidence garment_text verbatim in the description as logo/print details, even unfamiliar names. Never turn club/company text into the maker or claim affiliation. Do not put uncertain keywords in title.
 Rank premium natural fibres first; keep every distinct composition entry, including lining.
 Description: one short opening, then dash bullets in order: Size, Made in, Fabric mill,
 Fabric line, Fit, Model, Material. Omit unknown facts. Keep UK and EU/tagged sizes together
