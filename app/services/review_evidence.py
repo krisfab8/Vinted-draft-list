@@ -58,7 +58,8 @@ def recheck(path):
             description = description.replace(text, f'- {label}: {after}' if after else '')
     # Rebuild just the generated keywords line, not the seller's other copy.
     import re
-    description = re.sub(r'^Keywords:.*$', 'Keywords: '+', '.join(listing.get('tag_keywords') or [])+'.', description, flags=re.M)
+    from app.services.description_layout import keyword_terms
+    description = re.sub(r'^Keywords:.*$', lambda _: 'Keywords: '+', '.join(keyword_terms(listing))+'.', description, flags=re.M)
     listing['description'] = description
     if generated_copy:
         from app.services import copy_quality, condition

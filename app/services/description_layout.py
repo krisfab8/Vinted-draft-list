@@ -53,11 +53,50 @@ def apply(listing):
     details = '\n'.join(f'- {label}: {value}' for label, value in fields if value)
     if not details:
         listing['description'] = remaining
-        return listing
+        return ensure_keywords(listing)
     lines = remaining.splitlines()
     index = next((i for i, line in enumerate(lines)
                   if re.match(r'^\s*(?:[-•]|Keywords:|Measurements\b)', line, re.I)), len(lines))
     opening = '\n'.join(lines[:index]).strip()
     tail = '\n'.join(lines[index:]).strip()
     listing['description'] = '\n\n'.join(part for part in (opening, details, tail) if part)
+    return ensure_keywords(listing)
+
+
+def keyword_terms(listing):
+    """Every tag word (any confidence) plus clearly read logo/print words.
+
+    Uncertain logo readings stay out: a misread club or company name is worse
+    than none (see GARMENT_TEXT_20261006.md).
+    """
+    from app.services.garment_text import normalize
+    terms, seen = [], set()
+    for term in [*(listing.get('tag_keywords') or []),
+                 *(value['text'] for value in normalize(listing.get('garment_text'))
+                   if value['confidence'] == 'high')]:
+        term = re.sub(r'\s+', ' ', str(term)).strip().rstrip('.')
+        if term and term.casefold() not in seen:
+            seen.add(term.casefold())
+            terms.append(term)
+    return terms
+
+
+def ensure_keywords(listing):
+    """Buyers search tag wording ("Color Wave"), so it always reaches the Keywords line.
+
+    Uncertain readings stay out of the title and detail bullets; this only adds
+    words that are missing from the description entirely.
+    """
+    desc = listing.get('description') or ''
+    missing = [term for term in keyword_terms(listing) if term.casefold() not in desc.casefold()]
+    if not missing:
+        return listing
+    line = re.search(r'(?mi)^Keywords:[^\n]*$', desc)
+    if line:
+        existing = line.group(0).rstrip().rstrip('.')
+        joiner = ', ' if existing.strip() != 'Keywords:' else ' '
+        desc = desc[:line.start()] + existing + joiner + ', '.join(missing) + '.' + desc[line.end():]
+    else:
+        desc = (desc.rstrip() + '\n\n' if desc.strip() else '') + 'Keywords: ' + ', '.join(missing) + '.'
+    listing['description'] = desc
     return listing

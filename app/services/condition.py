@@ -37,6 +37,29 @@ _LEVEL_KEYWORDS: list[tuple[str, str]] = [
 ]
 
 
+# Original retail tags still attached means the item is "New with tags",
+# whatever level word the model chose ("Excellent — unworn with hang tag").
+_RETAIL_TAG_RE = re.compile(
+    r"\b(?:bnwt|nwt|new with tags?)\b"
+    r"|\b(?:hang|swing|price|retail|cardboard|paper)[ -]?tags?\b"
+    r"|\bwith (?:the |its |all )?(?:original )?tags?\b"
+    r"|\btags? (?:still )?(?:attached|on|intact)\b",
+    re.IGNORECASE,
+)
+_NO_RETAIL_TAG_RE = re.compile(
+    r"\b(?:without|no|missing|minus)\s+(?:the |its |any |original |brand |retail |hang |swing |price )*tags?\b"
+    r"|\btags? (?:have been |were |was |been )?(?:removed|cut|detached|missing)\b"
+    r"|\bnew without tags?\b",
+    re.IGNORECASE,
+)
+
+
+def has_retail_tags(text: str | None) -> bool:
+    """True when text says original retail/hang tags are still attached."""
+    s = text or ""
+    return bool(_RETAIL_TAG_RE.search(s)) and not _NO_RETAIL_TAG_RE.search(s)
+
+
 def canonical_level(condition_summary: str | None) -> str:
     """Extract the canonical condition level from a condition_summary string.
 
@@ -47,6 +70,8 @@ def canonical_level(condition_summary: str | None) -> str:
     Defaults to "Very good" when no level can be inferred.
     """
     s = (condition_summary or "").lower()
+    if has_retail_tags(s):
+        return "New with tags"
     for keyword, level in _LEVEL_KEYWORDS:
         if keyword in s:
             return level
@@ -179,7 +204,8 @@ def _apply_condition_inner(listing: dict) -> dict:
     level      = canonical_level(raw_summary)
     downgraded = auto_downgrade(level, flaws_note)
 
-    if downgraded != level:
+    if downgraded != level or (
+            downgraded == "New with tags" and not raw_summary.lower().startswith("new with tags")):
         listing["condition_summary"] = _rebuild_condition_summary(downgraded)
 
     listing["condition_line"] = build_condition_line(downgraded, flaws_note or None)

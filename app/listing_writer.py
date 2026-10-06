@@ -658,7 +658,8 @@ def _build_prompt(item: dict, hints: dict | None = None) -> str:
         )
 
     _cond = (item.get("condition_summary") or "").strip()
-    if _cond.lower().startswith("new with tags"):
+    from app.services.condition import has_retail_tags
+    if _cond.lower().startswith("new with tags") or has_retail_tags(_cond):
         hint_notes.append(
             "CONDITION: This item is BRAND NEW WITH TAGS. "
             "condition_summary MUST be 'New with tags — original labels attached.' "
