@@ -46,7 +46,10 @@ def make_client():
         region_name=region,
         aws_access_key_id=os.environ["B2_KEY_ID"].strip(),
         aws_secret_access_key=os.environ["B2_APP_KEY"].strip(),
-        config=Config(connect_timeout=5, read_timeout=60, retries={"max_attempts": 3}),
+        # Backblaze B2 rejects the CRC checksum headers newer boto3 adds by default.
+        config=Config(connect_timeout=5, read_timeout=60, retries={"max_attempts": 3},
+                      request_checksum_calculation="when_required",
+                      response_checksum_validation="when_required"),
     )
 
 
