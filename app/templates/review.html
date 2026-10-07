@@ -980,9 +980,8 @@ async function repriceListing() {
     const p = data.price_proposal || {};
     const box = document.getElementById('priceProposal');
     const same = Number(p.price_gbp) === Number(data.price_gbp);
-    box.innerHTML = `<strong>${same ? 'Price still looks right' : 'New suggestion'}: £${p.price_gbp}</strong>
-      ${window.PriceGauge?.html(p.range, p.price_gbp, p.adjustments) || ''}
-      ${same ? '' : `<div style="display:flex;gap:8px;margin-top:10px">
+    box.innerHTML = `${window.PriceGauge?.html(p.range, p.price_gbp, p.adjustments) || ''}
+      ${same ? '<p style="text-align:center;font-size:13px;color:var(--gray-7);margin:8px 0 0">Matches your current price</p>' : `<div style="display:flex;gap:8px;margin-top:10px">
         <button class="btn-save-field" onclick="savePrice(${Number(p.price_gbp)})">Use £${p.price_gbp}</button>
         <button class="btn-save-field" onclick="document.getElementById('priceProposal').hidden=true">Keep £${data.price_gbp}</button></div>`}`;
     box.hidden = false;

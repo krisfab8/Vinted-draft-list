@@ -1,6 +1,8 @@
 /* Price gauge: a semicircle from "sells faster" (green) to "max return" (red),
    a needle at the suggested price and the small suggested range highlighted.
-   PriceGauge.html(range, price, reasons) returns markup; no network calls. */
+   PriceGauge.html(range, price, reasons) returns markup; no network calls.
+   Kept deliberately clean: price and range only. Reasons/basis stay in the
+   data (and the tooltip) for a future details view. */
 (() => {
   const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
   const W = 300, H = 140, CX = 150, CY = 124, R = 88;
@@ -45,9 +47,7 @@
         <circle cx="${CX}" cy="${CY}" r="6" fill="currentColor"/>
       </svg>
       <div class="price-gauge-ends"><span>£${esc(range.scale_low)}<br>sells faster</span><span>£${esc(range.scale_high)}<br>max return</span></div>
-      <div class="price-gauge-main">£${esc(price)} <span>suggested range £${esc(range.low)}–£${esc(range.high)}</span></div>
-      <div class="price-gauge-basis">${esc(BASIS[range.basis] || '')}</div>
-      ${list.length ? `<ul class="price-gauge-reasons">${list.map(r => `<li>${esc(r)}</li>`).join('')}</ul>` : ''}
+      <div class="price-gauge-main" title="${esc([BASIS[range.basis], ...list].filter(Boolean).join(' · '))}">£${esc(price)} <span>£${esc(range.low)} – £${esc(range.high)}</span></div>
     </div>`;
   }
 
@@ -58,8 +58,7 @@
     .price-gauge-ends{display:flex;justify-content:space-between;padding:0 8%;font-size:11px;line-height:1.3;color:var(--gray-7,#666);margin-top:-4px}
     .price-gauge-main{font-size:22px;font-weight:800;margin-top:6px}
     .price-gauge-main span{display:block;font-size:13px;font-weight:600;color:var(--gray-7,#666)}
-    .price-gauge-basis{font-size:12px;color:var(--gray-7,#666);margin-top:4px}
-    .price-gauge-reasons{text-align:left;font-size:12px;color:var(--gray-7,#666);margin:8px 0 0;padding-left:18px}`;
+`;
   document.head.appendChild(style);
   window.PriceGauge = {html};
 })();

@@ -369,6 +369,7 @@
   .sheet-reprice:disabled { opacity: .6; }
   .sheet-proposal { margin: 0 20px; padding: 14px; border: 1px solid var(--gray-3); border-radius: 14px; }
   .sheet-proposal-actions { display: flex; gap: 8px; margin-top: 10px; }
+  .sheet-proposal-same { text-align: center; font-size: 13px; color: var(--gray-7); margin: 8px 0 0; }
   .sheet-proposal-actions button {
     flex: 1; padding: 10px; border-radius: 10px; border: 1px solid var(--gray-3);
     background: var(--white); color: var(--black); font: inherit; font-weight: 700; cursor: pointer;
@@ -701,7 +702,8 @@
         <div class="draft-title-text">{{ item.title }}</div>
         {% if sold_mode and item.outcome.buy_price_gbp is not none %}<div class="sale-note" style="margin-top:6px">Bought for £{{ item.outcome.buy_price_gbp }}{% if item.outcome.profit_gbp is not none %} · Profit £{{ item.outcome.profit_gbp }}{% endif %}</div>{% endif %}
         <div class="draft-footer">
-          <div class="draft-date-text">{% set card_date = (item.outcome.sold_date if sold_mode else item.listed_date) or '' %}{{ card_date[5:7] ~ '/' ~ card_date[:4] if card_date else '' }}</div>
+          {% set card_date = (item.outcome.sold_date if sold_mode else ((item.run_stats or {}).finished_at or item.listed_date)) or '' %}
+          <div class="draft-date-text" data-date="{{ card_date }}" title="{{ card_date[:10] }}">{{ card_date[8:10] ~ '/' ~ card_date[5:7] if card_date else '' }}</div>
           {% if item.normalized_size or item.tagged_size %}
             <div class="draft-size-pill">{{ item.normalized_size or item.tagged_size }}</div>
           {% endif %}
@@ -798,16 +800,28 @@ function monthYear(iso) {
   return new Date(iso.slice(0,10)+'T12:00:00').toLocaleDateString('en-GB',{month:'short',year:'numeric'});
 }
 
-function relDate(iso) {
+// Short age at a glance: 1h–23h, 1d–31d, 1mo–11mo, then 1y, 2y…
+// Date-only values (older drafts) count from midnight, so they show days.
+function ageLabel(iso) {
   if (!iso) return "";
-  const d    = new Date(iso);
-  const diff = Math.floor((Date.now() - d) / 86400000);
-  if (diff === 0)  return "Today";
-  if (diff === 1)  return "Yesterday";
-  if (diff < 7)   return `${diff}d ago`;
-  if (diff < 30)  return `${Math.floor(diff / 7)}w ago`;
-  return `${Math.floor(diff / 30)}mo ago`;
+  const then = new Date(iso.length === 10 ? iso + "T00:00:00" : iso);
+  const hours = Math.max(0, (Date.now() - then) / 3600000);
+  if (isNaN(hours)) return "";
+  if (iso.length === 10 && hours < 24) return "today";  // no time recorded
+  if (hours < 1) return "now";
+  if (hours < 24) return `${Math.floor(hours)}h`;
+  const days = Math.floor(hours / 24);
+  if (days < 32) return `${days}d`;
+  const months = Math.floor(days / 30.44);
+  if (months < 12) return `${Math.max(1, months)}mo`;
+  return `${Math.floor(months / 12)}y`;
 }
+
+function relDate(iso) { return ageLabel(iso); }
+
+document.querySelectorAll?.('.draft-date-text[data-date]').forEach(el => {
+  el.textContent = ageLabel(el.dataset.date);
+});
 
 function esc(s) {
   return String(s ?? "")
@@ -920,7 +934,7 @@ function renderSheet(idx) {
       </div>
       <div class="sheet-meta-cell">
         <div class="sheet-meta-label">Listed</div>
-        <div class="sheet-meta-value">${esc(relDate(item.listed_date))}</div>
+        <div class="sheet-meta-value">${esc(relDate(item.run_stats?.finished_at || item.listed_date))}</div>
       </div>
     </div>
     ${mats ? `<div class="materials-row">${mats}</div>` : ""}
@@ -1150,9 +1164,8 @@ async function repriceFromSheet(btn) {
     if (currentFolder !== folder) return;
     const p = data.price_proposal || {};
     const same = Number(p.price_gbp) === Number(data.price_gbp);
-    box.innerHTML = `<strong>${same ? 'Price still looks right' : 'Suggested'}: £${esc(p.price_gbp)}</strong>
-      ${window.PriceGauge?.html(p.range, p.price_gbp, p.adjustments) || ''}
-      ${same ? '' : `<div class="sheet-proposal-actions">
+    box.innerHTML = `${window.PriceGauge?.html(p.range, p.price_gbp, p.adjustments) || ''}
+      ${same ? '<p class="sheet-proposal-same">Matches your current price</p>' : `<div class="sheet-proposal-actions">
         <button type="button" class="use" onclick="useSheetPrice(${Number(p.price_gbp)})">Use £${esc(p.price_gbp)}</button>
         <button type="button" onclick="document.getElementById('sheetProposal').hidden=true">Keep £${esc(data.price_gbp)}</button></div>`}`;
     box.hidden = false;
