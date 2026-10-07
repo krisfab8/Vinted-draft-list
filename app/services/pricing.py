@@ -121,7 +121,21 @@ def lookup_memory(
     best = max(entries, key=_score, default=None)
     if best and _score(best) >= 1:
         return best
+    # Item types vary run to run ("polo shirt", "striped shirt", "performance
+    # short-sleeve shirt"). Fall back to a brand's polo band for any shirt/top.
+    canonical = _canonical_item_type(t, b, entries)
+    if canonical and canonical != t:
+        return lookup_memory(brand, canonical, materials)
     return None
+
+
+def _canonical_item_type(item_type: str, brand: str, entries: list[dict]) -> str | None:
+    if "polo" in item_type:
+        return "polo shirt"
+    shirtlike = any(word in item_type for word in ("shirt", "top", "tee"))
+    brand_has_polo = any(_normalise(e.get("brand")) == brand and _normalise(e.get("item_type")) == "polo shirt"
+                         for e in entries)
+    return "polo shirt" if brand and shirtlike and brand_has_polo else None
 
 
 # ── Condition → band percentile ───────────────────────────────────────────────
@@ -273,10 +287,19 @@ def _apply_pricing_inner(listing: dict, pricing_mode: str = "balanced") -> dict:
     if memory_entry:
         low = float(memory_entry.get("low", 0))
         high = float(memory_entry.get("high", 0))
+        new_band = memory_entry.get("new_band")
+        from app.services.condition import canonical_level
+        level = canonical_level(listing.get("condition_summary"))
+        if new_band and level in ("New with tags", "New without tags"):
+            # A used band cannot stretch to unworn stock (e.g. polos: used £15–£28,
+            # new with tags £30–£40), so new items use their own band.
+            low, high = float(new_band[0]), float(new_band[1])
         band_width = high - low
 
         if band_width > 0:
             pct = _condition_percentile(listing.get("condition_summary"))
+            if new_band and level in ("New with tags", "New without tags"):
+                pct = 0.5 if level == "New with tags" else 0.25
             offset = _PRICING_MODE_OFFSET.get(pricing_mode, 0.0)
             if offset:
                 pct = max(0.0, min(1.0, pct + offset))
@@ -286,7 +309,8 @@ def _apply_pricing_inner(listing: dict, pricing_mode: str = "balanced") -> dict:
 
             final_price = memory_price
             parts = [p for p in [memory_entry.get("brand"), memory_entry.get("item_type"), memory_entry.get("material_group")] if p]
-            adjustments.append(f"memory: {' '.join(parts)} → £{int(low)}–£{int(high)}, {int(pct*100)}th percentile")
+            band_name = f"{level.lower()} band " if new_band and level in ("New with tags", "New without tags") else ""
+            adjustments.append(f"memory: {' '.join(parts)} {band_name}→ £{int(low)}–£{int(high)}, {int(pct*100)}th percentile")
         else:
             confidence = "low"
     else:
@@ -314,7 +338,7 @@ def _apply_pricing_inner(listing: dict, pricing_mode: str = "balanced") -> dict:
         listing["price_evidence"] = {
             "source": "reference_memory" if memory_entry else "model_suggestion",
             "confidence": "unverified",
-            "range_gbp": [float(memory_entry["low"]), float(memory_entry["high"])] if memory_entry else None,
+            "range_gbp": [low, high] if memory_entry else None,
             "note": "Stored reference band; not a fresh market lookup." if memory_entry else
                     "AI suggestion; no matching reference band or live comparable sales checked.",
         }

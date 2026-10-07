@@ -78,6 +78,8 @@ def ensure_tag_terms(listing, item, limit=2, max_length=120):
     added = 0
     for term in item.get('tag_keywords') or []:
         term = re.sub(r'\s+', ' ', str(term)).strip()
+        if term.isupper() and len(term) > 3:
+            term = term.title()  # "SUMMER COMFORT" on the tag reads as "Summer Comfort"
         if added >= limit or not term or _NOT_TITLE_WORDS.search(term) or tokens(term) <= tokens(title):
             continue
         if brand and title.lower().startswith(brand.lower()):

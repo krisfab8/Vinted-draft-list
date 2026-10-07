@@ -151,14 +151,17 @@ def crop_label(image):
     }
 
 
-OCR_MAX_SIDE = 1024
+OCR_MAX_SIDE = 800
 
 
 @lru_cache(maxsize=1)
 def _engine():
     from rapidocr_onnxruntime import RapidOCR
 
-    return RapidOCR(intra_op_num_threads=1, inter_op_num_threads=1)
+    # Detect text at no more than OCR_MAX_SIDE px. The default ("min" 736) can
+    # scale images up, and detection memory grows with the image area.
+    return RapidOCR(intra_op_num_threads=1, inter_op_num_threads=1,
+                    det_limit_type="max", det_limit_side_len=OCR_MAX_SIDE)
 
 
 def _ocr(image, rotation):
@@ -166,7 +169,8 @@ def _ocr(image, rotation):
 
     rotated = image.rotate(rotation, expand=True, fillcolor="white")
     # Text detection memory grows with image area: a 2000px label photo peaked
-    # at ~815 MB and got the 512 MB server killed; 1024px peaks near 400 MB.
+    # at ~815 MB and got the 512 MB server killed. At 800px a full analysis
+    # peaks near 385 MB and labels still read (real-OCR tests, smoke test).
     rotated.thumbnail((OCR_MAX_SIDE, OCR_MAX_SIDE), Image.Resampling.LANCZOS)
     result, _ = _engine()(np.array(rotated), use_cls=True)
     lines = [(str(row[1]), float(row[2])) for row in (result or [])]

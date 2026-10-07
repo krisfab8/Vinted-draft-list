@@ -65,6 +65,7 @@ def run_pipeline(
     pricing.apply_pricing(listing, pricing_mode=pricing_mode)
     marks.append(("end", time.perf_counter(), len(run_calls)))
     listing["run_stats"] = _run_stats(marks, run_calls, datetime.now(timezone.utc).isoformat(timespec="seconds"))
+    _release_memory()
     if extract_log.get("reread_errors"):
         listing.setdefault("warnings", []).append("reread_failed")
     listing["analysis_models"] = {
@@ -72,6 +73,21 @@ def run_pipeline(
     }
 
     return listing, extract_usage, write_usage, extract_log, write_log
+
+
+def _release_memory():
+    """Hand freed image/OCR buffers back to the OS between analyses.
+
+    Without this, resident memory crept ~40 MB per item until the next label
+    read pushed the 512 MB Render instance over its limit.
+    """
+    import ctypes
+    import gc
+    gc.collect()
+    try:
+        ctypes.CDLL("libc.so.6").malloc_trim(0)
+    except (OSError, AttributeError):
+        pass  # not glibc (e.g. macOS dev machine)
 
 
 def _run_stats(marks, calls, finished_at):

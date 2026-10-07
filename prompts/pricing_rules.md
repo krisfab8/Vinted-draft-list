@@ -48,6 +48,9 @@ This is a floor only — do not use the buy price as the main pricing driver.
 | Lambswool / merino jumper         | £18   | £50     |
 | Sweatshirt / hoodie (branded)     | £15   | £40     |
 | Shirt (branded)                   | £10   | £30     |
+| Polo / golf top (premium golf: Peter Millar, Galvin Green, Greyson, G/FORE, J.Lindeberg, Kjus, RLX) | £15 | £28 |
+| Polo / golf top, premium golf, NEW WITH TAGS | £30   | £40     |
+| Polo shirt (branded high street)  | £8    | £24     |
 | T-shirt (branded)                 | £8    | £22     |
 
 ### Men's Bottoms

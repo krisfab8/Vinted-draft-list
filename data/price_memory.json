@@ -1,11 +1,12 @@
 {
-  "_comment": "Price memory V1 — lightweight local price guide for common resale items.",
+  "_comment": "Price memory V1 \u2014 lightweight local price guide for common resale items.",
   "_schema": {
     "key_format": "brand|item_type|material_group  OR  brand|item_type  OR  item_type",
     "material_group": "cashmere | wool | cotton | linen | silk | synthetic | leather | down",
-    "prices": "GBP — typical UK Vinted resale prices (not buy price)",
+    "prices": "GBP \u2014 typical UK Vinted resale prices (not buy price)",
     "source": "manual | sold_listings | price_history",
-    "confidence": "high | medium | low"
+    "confidence": "high | medium | low",
+    "new_band": "optional [low, high] used instead of low/high when the item is new with or without tags"
   },
   "entries": [
     {
@@ -235,7 +236,7 @@
       "high": 140,
       "source": "manual",
       "confidence": "low",
-      "notes": "Generic cashmere blazer — bump up if brand is identified"
+      "notes": "Generic cashmere blazer \u2014 bump up if brand is identified"
     },
     {
       "brand": null,
@@ -326,6 +327,156 @@
       "high": 28,
       "source": "manual",
       "confidence": "low"
+    },
+    {
+      "brand": "peter millar",
+      "item_type": "polo shirt",
+      "material_group": null,
+      "low": 15,
+      "typical": 21,
+      "high": 28,
+      "new_band": [
+        30,
+        40
+      ],
+      "source": "estimate",
+      "confidence": "low",
+      "notes": "Estimate (7 Oct 2026): used polos seen selling ~\u00a315\u2013\u00a325 on eBay UK/US; new-with-tags band from seller experience (listed \u00a335, offers ~\u00a330). Replace with real sales as they come in."
+    },
+    {
+      "brand": "galvin green",
+      "item_type": "polo shirt",
+      "material_group": null,
+      "low": 12,
+      "typical": 18,
+      "high": 26,
+      "new_band": [
+        28,
+        38
+      ],
+      "source": "estimate",
+      "confidence": "low",
+      "notes": "Estimate: premium golf polo; replace with real sales."
+    },
+    {
+      "brand": "greyson",
+      "item_type": "polo shirt",
+      "material_group": null,
+      "low": 15,
+      "typical": 22,
+      "high": 30,
+      "new_band": [
+        30,
+        45
+      ],
+      "source": "estimate",
+      "confidence": "low",
+      "notes": "Estimate: premium golf polo; replace with real sales."
+    },
+    {
+      "brand": "g/fore",
+      "item_type": "polo shirt",
+      "material_group": null,
+      "low": 15,
+      "typical": 22,
+      "high": 30,
+      "new_band": [
+        30,
+        45
+      ],
+      "source": "estimate",
+      "confidence": "low",
+      "notes": "Estimate: premium golf polo; replace with real sales."
+    },
+    {
+      "brand": "j.lindeberg",
+      "item_type": "polo shirt",
+      "material_group": null,
+      "low": 12,
+      "typical": 18,
+      "high": 26,
+      "new_band": [
+        26,
+        38
+      ],
+      "source": "estimate",
+      "confidence": "low",
+      "notes": "Estimate: premium golf polo; replace with real sales."
+    },
+    {
+      "brand": "kjus",
+      "item_type": "polo shirt",
+      "material_group": null,
+      "low": 12,
+      "typical": 20,
+      "high": 28,
+      "new_band": [
+        28,
+        40
+      ],
+      "source": "estimate",
+      "confidence": "low",
+      "notes": "Estimate: premium golf polo; replace with real sales."
+    },
+    {
+      "brand": "rlx",
+      "item_type": "polo shirt",
+      "material_group": null,
+      "low": 12,
+      "typical": 18,
+      "high": 26,
+      "new_band": [
+        25,
+        38
+      ],
+      "source": "estimate",
+      "confidence": "low",
+      "notes": "Estimate: premium golf polo; replace with real sales."
+    },
+    {
+      "brand": "castore",
+      "item_type": "polo shirt",
+      "material_group": null,
+      "low": 10,
+      "typical": 16,
+      "high": 22,
+      "new_band": [
+        20,
+        32
+      ],
+      "source": "estimate",
+      "confidence": "low",
+      "notes": "Estimate: premium golf polo; replace with real sales."
+    },
+    {
+      "brand": "footjoy",
+      "item_type": "polo shirt",
+      "material_group": null,
+      "low": 8,
+      "typical": 12,
+      "high": 18,
+      "new_band": [
+        15,
+        25
+      ],
+      "source": "estimate",
+      "confidence": "low",
+      "notes": "Estimate: premium golf polo; replace with real sales."
+    },
+    {
+      "brand": null,
+      "item_type": "polo shirt",
+      "material_group": null,
+      "low": 6,
+      "typical": 12,
+      "high": 24,
+      "new_band": [
+        15,
+        28
+      ],
+      "source": "estimate",
+      "confidence": "low",
+      "notes": "Generic branded polo estimate."
     }
   ]
 }

@@ -107,3 +107,10 @@ def test_uncertain_or_too_long_tag_names_stay_out_of_title():
     ensure_tag_terms(result, {"tag_keywords": ["Summer Comfort"], "tag_keywords_confidence": "high"},
                      max_length=len(title) + 5)
     assert result["title"] == title
+
+
+def test_capitalised_tag_names_are_title_cased_in_title():
+    from app.services.premium_features import ensure_tag_terms
+    result = {"brand": "Peter Millar", "title": "Peter Millar Polo Shirt Mens S"}
+    ensure_tag_terms(result, {"tag_keywords": ["SUMMER COMFORT", "E4"], "tag_keywords_confidence": "high"})
+    assert result["title"] == "Peter Millar E4 Summer Comfort Polo Shirt Mens S"
