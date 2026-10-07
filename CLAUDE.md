@@ -355,12 +355,17 @@ Every improvement should help move the system toward this outcome:
 ## Working Efficiently (read first)
 
 - Use `docs/AGENT_MAP.md` for commands, file locations and deploy steps instead of exploring.
-- The owner writes short prompts with code words (full table in `docs/PROMPTS.md`):
-  - `fix:` smallest fix → tests → ship. `tweak:` text/CSS only → `quick-edit` agent → ship.
-  - `build:` 3–5 line plan → build → tests → phone-size screenshot → ship.
-  - `plan:` ideas only, no code. `ask:` answer only, no code. `look:` screenshot + report.
-  - `ship`: tests → commit → push both branches → confirm Render deploy is live.
-  - `link`: reply with the Render URL only. `logs:` read Render logs, short summary.
+- The owner usually speaks prompts by voice: expect rambling, run-on requests with transcription
+  slips. Work out the intent yourself; never ask them to rephrase or use special words.
+  - Split a voice message into its separate asks and handle each one.
+  - Problem or "this doesn't work" → smallest fix → tests → ship.
+  - "Change/make it look…" → text/CSS only, delegate to `quick-edit` when the file is known → ship.
+  - New feature → 3–5 line plan in the reply, then build → tests → phone-size screenshot → ship.
+  - "What do you think / how would you / plan" with no "do it" → answer or plan only, no code.
+  - Default for any change: finish it end to end (tests → commit → push both branches →
+    confirm Render deploy is live), unless they say otherwise.
+- Keep work local: touch only the files the ask needs (see the map), run only the relevant tests
+  while iterating, and the full suite once before shipping.
 - Delegate cheap work to cheaper models:
   - `quick-edit` (Haiku): exact small edits where file and change are known.
   - `test-runner` (Haiku): run tests, report failures only.

@@ -1,4 +1,7 @@
-# Prompt cheat-sheet (save tokens)
+# Prompt cheat-sheet (optional)
+
+Not needed: speak normally (voice is fine) and Claude works out the intent. These code words
+are just shortcuts if you ever want them.
 
 Start a message with a **code word**. Claude knows what each one means (see "Codes" in CLAUDE.md),
 so you don't need to explain. Add a screenshot and one line if it's visual.
