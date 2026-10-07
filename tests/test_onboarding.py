@@ -54,3 +54,37 @@ def test_upload_page_sends_new_users_to_welcome(profile_file, monkeypatch, tmp_p
     assert client.get("/welcome").status_code == 200
     client.post("/api/onboarding", json=ANSWERS)
     assert '<meta name="onboarded" content="yes">' in client.get("/").get_data(as_text=True)
+
+
+def test_profile_patch_validates_choices(profile_file):
+    client = web.app.test_client()
+    assert client.patch("/api/profile", json={"pricing_mode": "cheap"}).status_code == 422
+    assert client.patch("/api/profile", json={"photo_mode": "pro"}).json["photo_mode"] == "pro"
+
+
+def test_upload_page_carries_onboarding_choices(profile_file, monkeypatch, tmp_path):
+    monkeypatch.setattr(web, "ITEMS_DIR", tmp_path / "items")
+    client = web.app.test_client()
+    client.post("/api/onboarding", json=ANSWERS)
+    html = client.get("/").get_data(as_text=True)
+    assert '<meta name="photo-mode" content="pro">' in html
+    assert '<meta name="pricing-mode" content="price">' in html
+
+
+def test_reprice_uses_the_onboarding_style(profile_file, monkeypatch, tmp_path):
+    from app.services import pricing, sales_history
+    monkeypatch.setattr(pricing, "lookup_memory", lambda **kwargs: None)
+    monkeypatch.setattr(sales_history, "comparisons", lambda listing: {})
+    items = tmp_path / "items"; folder = items / "upload_0000abcd"; folder.mkdir(parents=True)
+    listing = {"title": "Peter Millar Polo Shirt Mens S", "brand": "Peter Millar", "item_type": "polo shirt",
+               "price_gbp": 30, "ai_price_gbp": 30, "condition_summary": "Very good used condition",
+               "ai_price_condition": "Very good", "description": "Polo.", "category": "Men > Polo Shirts"}
+    (folder / "listing.json").write_text(json.dumps(listing))
+    monkeypatch.setattr(web, "ITEMS_DIR", items)
+    client = web.app.test_client()
+    client.post("/api/onboarding", json=ANSWERS)  # Best price
+    response = client.post("/reprice/upload_0000abcd", json={})
+    assert response.status_code == 200, response.get_data(as_text=True)[:300]
+    body = response.json
+    proposal = body.get("price_proposal") or body.get("proposal") or body
+    assert proposal.get("price_gbp") == 33

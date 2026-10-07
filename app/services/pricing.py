@@ -169,11 +169,10 @@ def _condition_percentile(condition_summary: str | None) -> float:
 
 # ── Core pricing function ─────────────────────────────────────────────────────
 
-_PRICING_MODE_OFFSET: dict[str, float] = {
-    "speed": -0.10,    # bottom of band — sell faster
-    "price": +0.10,    # top of band — maximise return
-    "balanced": 0.0,   # no adjustment (default)
-}
+# The seller's onboarding answer always moves the price, whatever the evidence:
+# Sell fast prices under the fair price, Best price over it.
+_PRICING_MODE_FACTOR: dict[str, float] = {"speed": 0.90, "price": 1.10, "balanced": 1.0}
+_PRICING_MODE_LABEL = {"speed": "Sell fast", "price": "Best price", "balanced": "Balanced"}
 
 
 # Resale value relative to "Very good" used condition.
@@ -213,19 +212,18 @@ def price_range(listing: dict) -> dict | None:
         basis = "estimate"
     spread = max(_RANGE_SPREAD[basis] * price, 2.0)
     low, high = max(1, round(price - spread)), round(price + spread)
+    # The dial is centred on the fair price, so Balanced sits in the middle,
+    # Sell fast to the left and Best price to the right. Older drafts without a
+    # fair price centre on their own price.
+    try:
+        fair = float(listing.get("fair_price_gbp") or price)
+    except (TypeError, ValueError):
+        fair = price
+    half = max(fair * 0.35, abs(price - fair) * 1.6, 3.0)
     band = evidence.get("range_gbp") if basis in ("reference", "web") else None
     if band and band[0] < band[1]:
-        scale_low, scale_high = min(float(band[0]), low), max(float(band[1]), high)
-    else:
-        # Anchor on the model's own price so condition/flaw adjustments visibly
-        # move the needle towards "max return" or "sells faster".
-        try:
-            anchor = float(listing.get("ai_price_gbp") or price)
-        except (TypeError, ValueError):
-            anchor = price
-        scale_low, scale_high = min(anchor * 0.6, low), max(anchor * 1.4, high)
-    pad = (scale_high - scale_low) * 0.1
-    scale_low, scale_high = max(0, round(scale_low - pad)), round(scale_high + pad)
+        half = max(half, fair - float(band[0]), float(band[1]) - fair)
+    scale_low, scale_high = max(0, round(fair - half)), round(fair + half)
     return {"low": low, "high": high, "scale_low": scale_low, "scale_high": scale_high,
             "position": round((price - scale_low) / (scale_high - scale_low), 3), "basis": basis}
 
@@ -251,6 +249,8 @@ def apply_pricing(listing: dict, pricing_mode: str = "balanced") -> dict:
 
 def _apply_pricing_inner(listing: dict, pricing_mode: str = "balanced") -> dict:
     adjustments: list[str] = []
+    if pricing_mode not in _PRICING_MODE_FACTOR:
+        pricing_mode = "balanced"
 
     # ── 0. Capture AI price ───────────────────────────────────────────────────
     ai_price = listing.get("price_gbp")
@@ -300,10 +300,6 @@ def _apply_pricing_inner(listing: dict, pricing_mode: str = "balanced") -> dict:
             pct = _condition_percentile(listing.get("condition_summary"))
             if new_band and level in ("New with tags", "New without tags"):
                 pct = 0.5 if level == "New with tags" else 0.25
-            offset = _PRICING_MODE_OFFSET.get(pricing_mode, 0.0)
-            if offset:
-                pct = max(0.0, min(1.0, pct + offset))
-                adjustments.append(f"pricing mode: {pricing_mode} ({'+' if offset > 0 else ''}{int(offset*100)}%)")
             memory_price = round(low + pct * band_width, 0)
             confidence = _normalise(memory_entry.get("confidence"))
 
@@ -405,6 +401,18 @@ def _apply_pricing_inner(listing: dict, pricing_mode: str = "balanced") -> dict:
         listing['price_evidence'] = dict(history, confidence='observed_sample',
             note=f"Suggested from {history['sample_count']} matching confirmed Vinted sales (median accepted price; postage excluded).")
         adjustments.append('matching confirmed sale history used')
+
+    # ── 3.5. Pricing style: the fair price is the dial's middle; the style
+    #         moves the asking price either side of it, for every evidence source.
+    factor = _PRICING_MODE_FACTOR[pricing_mode]
+    listing["fair_price_gbp"] = round(final_price) if final_price is not None else None
+    if factor != 1.0 and final_price is not None:
+        styled = round(final_price * factor, 0)
+        adjustments.append(f"pricing style: {_PRICING_MODE_LABEL[pricing_mode]} "
+                           f"{'+' if factor > 1 else '−'}{abs(round((factor - 1) * 100))}% "
+                           f"(£{int(final_price)} → £{int(styled)})")
+        final_price = styled
+    listing["pricing_mode"] = pricing_mode
 
     # ── 4. Round to nearest £1 and write back ─────────────────────────────────
     if final_price is not None:

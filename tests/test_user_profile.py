@@ -111,7 +111,7 @@ def test_pricing_mode_speed_logs_adjustment():
     adjustments = result.get("price_adjustments", [])
     # If memory was matched, adjustment will be logged; otherwise falls back silently
     if any("memory:" in a for a in adjustments):
-        assert any("pricing mode: speed" in a for a in adjustments)
+        assert any("pricing style: Sell fast" in a for a in adjustments)
 
 
 def test_pricing_mode_pct_clamped_at_zero():

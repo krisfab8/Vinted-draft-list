@@ -78,7 +78,8 @@ def recheck(path):
     manual_price = current_price != original.get('price_gbp')
     if not manual_price and listing.get('ai_price_gbp') is not None:
         listing['price_gbp'] = listing['ai_price_gbp']
-        pricing.apply_pricing(listing)
+        from app.services import user_profile
+        pricing.apply_pricing(listing, pricing_mode=user_profile.load().get('pricing_mode', 'balanced'))
     listing['evidence_check_version'] = 'fabric-price-v1'
     validate_or_raise(listing)
     from app.services import listing_state

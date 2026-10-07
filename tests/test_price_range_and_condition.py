@@ -46,10 +46,9 @@ def test_reference_band_already_handles_condition(monkeypatch):
     assert r["scale_low"] <= 20 and r["scale_high"] >= 40
 
 
-def test_range_is_small_and_needle_inside_scale():
+def test_range_is_small_and_dial_centred_on_the_fair_price():
     r = priced(condition_summary="Very good used condition", ai_price_condition="Very good")["price_range"]
-    assert r == {"low": 24, "high": 32, "scale_low": 15, "scale_high": 41,
-                 "position": round((28 - 15) / (41 - 15), 3), "basis": "estimate"}
+    assert r == {"low": 24, "high": 32, "scale_low": 18, "scale_high": 38, "position": 0.5, "basis": "estimate"}
 
 
 def test_no_price_means_no_range():
@@ -67,6 +66,9 @@ def test_accepting_a_suggestion_keeps_its_range_and_reasons():
     assert typed["price_range"]["low"] < 30 < typed["price_range"]["high"]
 
 
-def test_needle_moves_towards_max_return_when_new_with_tags():
-    r = priced(condition_summary="New with tags", ai_price_condition="Excellent")["price_range"]
-    assert r["position"] > 0.6  # £35 against a scale anchored on the £28 AI price
+def test_condition_moves_the_price_not_the_needle():
+    # New with tags raises the fair price (£35 vs £28); the dial re-centres on it,
+    # so only the pricing style moves the needle.
+    listing = priced(condition_summary="New with tags", ai_price_condition="Excellent")
+    assert listing["price_gbp"] == 35 and listing["price_range"]["position"] == 0.5
+    assert listing["price_range"]["scale_low"] < 35 < listing["price_range"]["scale_high"]

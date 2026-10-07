@@ -232,3 +232,8 @@ body.tab-upload:has(#resultCard:empty):has(#reviewCard:empty) .page-upload .uplo
 .page-upload .photo-mode button { min-width: 0; padding: 0 14px; }
 .sn-streak.met { background: var(--sn-pop); border-color: var(--sn-pop); }
 .sn-streak.met small { color: var(--sn-text); }
+.sn-style { display: flex; flex-direction: column; gap: 6px; font-size: 13px; font-weight: 700; color: var(--gray-7); }
+.sn-seg { display: flex; gap: 4px; padding: 4px; border-radius: 999px; background: var(--sn-bg); border: 1px solid var(--sn-line); }
+.sn-seg button { flex: 1; height: 40px; border: none; border-radius: 999px; background: none; font: inherit; font-size: 14px; font-weight: 700; color: var(--sn-muted); }
+.sn-seg button.on { background: var(--sn-text); color: #fff; }
+.sn-streak b + small { margin-left: -4px; }

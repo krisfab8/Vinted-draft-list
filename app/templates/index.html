@@ -3,6 +3,8 @@
 
 {% block head %}
 <meta name="onboarded" content="{{ 'yes' if onboarded else 'no' }}">
+<meta name="photo-mode" content="{{ profile.photo_mode if onboarded else '' }}">
+<meta name="pricing-mode" content="{{ profile.pricing_mode }}">
 <script>
   // First visit: onboarding. If this server lost the profile (restart) but the phone
   // remembers it, restore it quietly instead of asking again.
@@ -1460,6 +1462,14 @@
       </label>
       <label for="hintMadeIn" class="wide">Made in<input type="text" id="hintMadeIn" placeholder="e.g. Italy" autocomplete="off"></label>
       <label for="hintDamages" class="wide">Flaws<input type="text" id="hintDamages" placeholder="e.g. small mark on cuff" autocomplete="off"></label>
+      <div class="wide sn-style">
+        <span id="pricingStyleLabel">Pricing style</span>
+        <div class="sn-seg" role="group" aria-labelledby="pricingStyleLabel">
+          <button type="button" data-pricing-mode="speed" onclick="setPricingMode('speed')">Sell fast</button>
+          <button type="button" data-pricing-mode="balanced" onclick="setPricingMode('balanced')">Balanced</button>
+          <button type="button" data-pricing-mode="price" onclick="setPricingMode('price')">Best price</button>
+        </div>
+      </div>
     </div>
     <button class="sn-done" value="done">Done</button>
   </form>
@@ -1592,11 +1602,18 @@
   /* ── Photo mode (Guided / Pro) and on-phone quality checks ── */
   const photoQuality = new WeakMap();
   let qualityQueue = Promise.resolve();
+  // The phone's last choice wins; otherwise the onboarding answer saved on the profile.
   function getPhotoMode() {
-    try { return localStorage.getItem("photoMode") || ""; } catch (_) { return ""; }
+    let local = "";
+    try { local = localStorage.getItem("photoMode") || ""; } catch (_) {}
+    return local || document.querySelector('meta[name="photo-mode"]')?.content || "";
   }
-  function setPhotoMode(mode) {
+  function saveProfile(fields) {
+    fetch("/api/profile", {method: "PATCH", headers: {"Content-Type": "application/json"}, body: JSON.stringify(fields)}).catch(() => {});
+  }
+  function setPhotoMode(mode, {persist = true} = {}) {
     if (mode) { try { localStorage.setItem("photoMode", mode); } catch (_) {} }
+    if (mode && persist) saveProfile({photo_mode: mode});
     // Nothing chosen yet shows Guided as the default; the camera still asks once.
     const shown = mode || "guided";
     document.querySelectorAll("[data-photo-mode]").forEach(btn => {
@@ -3223,7 +3240,16 @@
     getQuality: file => photoQuality.get(file),
     onAnalyse: () => createListing(),
   });
-  setPhotoMode(getPhotoMode());
+  setPhotoMode(getPhotoMode(), {persist: false});
+  /* Pricing style (from onboarding): every price, reprice and the dial follow it. */
+  function setPricingMode(mode, {persist = true} = {}) {
+    document.querySelectorAll("[data-pricing-mode]").forEach(btn => {
+      btn.classList.toggle("on", btn.dataset.pricingMode === mode);
+      btn.setAttribute("aria-pressed", String(btn.dataset.pricingMode === mode));
+    });
+    if (persist) saveProfile({pricing_mode: mode});
+  }
+  setPricingMode(document.querySelector('meta[name="pricing-mode"]')?.content || "balanced", {persist: false});
   renderGrid();
 </script>
 {% endblock %}

@@ -1524,8 +1524,12 @@ def update_profile():
     updates = request.json or {}
     profile = profile_svc.load()
     # Identity fields change only through validated onboarding.
-    profile.update({k: v for k, v in updates.items()
-                    if k in profile_svc.DEFAULTS and k not in {"name", "email", "onboarded_at", "marketing_opt_in"}})
+    for key, value in updates.items():
+        if key not in profile_svc.DEFAULTS or key in {"name", "email", "onboarded_at", "marketing_opt_in"}:
+            continue
+        if key in profile_svc.CHOICES and value not in profile_svc.CHOICES[key]:
+            return jsonify(error=f"Choose an option for {key.replace('_', ' ')}."), 422
+        profile[key] = value
     profile_svc.save(profile)
     return jsonify(profile)
 

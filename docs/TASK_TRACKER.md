@@ -239,3 +239,13 @@ Keep IDs stable. Do not rename an open task to hide scope. Split partial work in
 - Profile is backed up to B2 (profile/user_profile.json) and restored after restarts; the phone also keeps a copy and restores it quietly.
 - Upload count shows today / daily goal; chip turns lime when met. Animation placeholders marked "ANIM" for the gamification pass.
 - Colours are tokens at the top of studio.css (--sn-*) so a natural palette can be swapped in one place.
+
+## 2026-10-07 — Onboarding answers drive the app
+- Pricing style (onboarding "What matters most?", or Details → Pricing style) now moves every price: Sell fast −10%,
+  Balanced = fair price, Best price +10% — for reference bands, AI prices, web prices and own-sales medians alike
+  (previously only reference bands, ±10% of band width). Upload, Reprice, Analyse again and evidence re-checks all use it.
+- The price dial is centred on the item's fair price (listing.fair_price_gbp): Balanced sits in the middle, Sell fast left,
+  Best price right. Condition and flaws change the £ values, not the needle.
+- Camera mode comes from the profile (reseller → Pro) on every device; toggling it saves to the profile; the camera no
+  longer asks "How do you list?" after onboarding. PATCH /api/profile validates choice values.
+- Daily goal from items-a-week; "new to Vinted" keeps the review-page guidance.
