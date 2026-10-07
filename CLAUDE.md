@@ -349,3 +349,23 @@ Every improvement should help move the system toward this outcome:
 - better resale pricing
 - lower manual effort
 - maintainable iteration toward beta
+
+---
+
+## Working Efficiently (read first)
+
+- Use `docs/AGENT_MAP.md` for commands, file locations and deploy steps instead of exploring.
+- The owner writes short prompts with code words (full table in `docs/PROMPTS.md`):
+  - `fix:` smallest fix → tests → ship. `tweak:` text/CSS only → `quick-edit` agent → ship.
+  - `build:` 3–5 line plan → build → tests → phone-size screenshot → ship.
+  - `plan:` ideas only, no code. `ask:` answer only, no code. `look:` screenshot + report.
+  - `ship`: tests → commit → push both branches → confirm Render deploy is live.
+  - `link`: reply with the Render URL only. `logs:` read Render logs, short summary.
+- Delegate cheap work to cheaper models:
+  - `quick-edit` (Haiku): exact small edits where file and change are known.
+  - `test-runner` (Haiku): run tests, report failures only.
+  - `code-finder` (Haiku): locate code, return file:line pointers.
+  - Keep pricing, routes, `draft_creator.py`, data/state changes and design decisions on the main model.
+- Quality is never traded for tokens: always run tests before shipping and confirm the deploy
+  is live before telling the owner it is.
+- Replies: short, plain English, what changed + how to check it. No long recaps.
