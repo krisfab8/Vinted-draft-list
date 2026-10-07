@@ -201,8 +201,18 @@ def _prepare(filename, modified, size):
     reads = []
     if extrema[1] - extrema[0] > 35:
         try:
-            reads = [_ocr(image, rotation) for rotation in (0, 90)]
-            if sum(bool(r["pairs"]) for r in reads) < 2:
+            reads = [_ocr(image, 0)]
+            # Fast path: a clear upright read confirmed by a contrast read is the
+            # usual case; skip the other two views (each costs seconds of CPU).
+            quick = False
+            if reads[0]["pairs"]:
+                contrast = ImageOps.autocontrast(image.convert("L")).convert("RGB")
+                contrast.thumbnail((720, 720), Image.Resampling.LANCZOS)
+                reads.append(dict(_ocr(contrast, 0), variant="contrast"))
+                quick = canonical(reads[1]["pairs"]) == canonical(reads[0]["pairs"]) and bool(reads[1]["pairs"])
+            if not quick:
+                reads = [reads[0], _ocr(image, 90)]
+            if not quick and sum(bool(r["pairs"]) for r in reads) < 2:
                 fallback_original = meta.get("rectified") and not any(
                     r.get("candidate_pairs") for r in reads
                 )

@@ -85,6 +85,7 @@ def _run_stats(marks, calls, finished_at):
             "calls": len(stage_calls),
             "input_tokens": sum(c.get("input_tokens") or 0 for c in stage_calls),
             "output_tokens": sum(c.get("output_tokens") or 0 for c in stage_calls),
+            "cached_tokens": sum(c.get("cache_read_input_tokens") or 0 for c in stage_calls),
             "searches": sum(c.get("web_search_requests") or 0 for c in stage_calls),
             "models": sorted({c["model"] for c in stage_calls if c.get("model")}),
         })

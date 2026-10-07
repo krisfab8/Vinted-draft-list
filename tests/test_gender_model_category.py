@@ -182,3 +182,16 @@ class TestGenderPromptDefault:
         """Old wording removed."""
         from app.extractor import _EXTRACT_PROMPT
         assert "never default to men" not in _EXTRACT_PROMPT.lower()
+
+
+def test_womens_without_tag_evidence_is_flagged_for_review():
+    from app.extractor import _flag_unsupported_womens
+    guess = {"gender": "women's", "gender_confidence": "medium", "low_confidence_fields": ["made_in"]}
+    _flag_unsupported_womens(guess, None)
+    assert guess["gender_confidence"] == "low" and guess["low_confidence_fields"] == ["gender", "made_in"]
+    tagged = {"gender": "women's", "gender_confidence": "high", "tag_keywords": ["Womens"]}
+    _flag_unsupported_womens(tagged, None)
+    assert tagged["gender_confidence"] == "high" and "low_confidence_fields" not in tagged
+    seller_said = {"gender": "women's", "gender_confidence": "medium"}
+    _flag_unsupported_womens(seller_said, {"gender": "women's"})
+    assert seller_said["gender_confidence"] == "medium"

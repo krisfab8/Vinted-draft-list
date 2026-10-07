@@ -35,7 +35,9 @@ Use at most 6 examples. If you find nothing useful, set confidence to "low"."""
 
 
 def enabled():
-    return bool(config.ANTHROPIC_API_KEY) and os.getenv("ENABLE_WEB_PRICE", "1") == "1"
+    # Off by default: ~4p and ~9s per item for little pricing gain in the first
+    # live test (7 Oct 2026). Set ENABLE_WEB_PRICE=1 to try it again.
+    return bool(config.ANTHROPIC_API_KEY) and os.getenv("ENABLE_WEB_PRICE", "0") == "1"
 
 
 def _facts(listing):

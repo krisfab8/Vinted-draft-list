@@ -271,6 +271,15 @@ def _infer_gender_confidence(result: dict) -> str:
     return "medium"
 
 
+def _flag_unsupported_womens(result: dict, hints: dict | None) -> None:
+    """The prompt allows women's only on explicit evidence, yet the same men's
+    polo has come back women's. Without women's wording on a tag, flag it for review."""
+    if (result.get("gender") == "women's" and not (hints or {}).get("gender")
+            and result.get("gender_confidence") != "high"):
+        result["gender_confidence"] = "low"
+        result["low_confidence_fields"] = sorted(set(result.get("low_confidence_fields") or []) | {"gender"})
+
+
 def _extract_model_deterministic(result: dict) -> tuple[str | None, str]:
     """Try to split a model name from the brand field without using AI.
 
@@ -1292,6 +1301,7 @@ def extract(item_folder: str | Path, hints: dict | None = None, *, single_pass: 
         result["model_name"] = det_model
     result["model_confidence"] = model_conf
     result["gender_confidence"] = _infer_gender_confidence(result)
+    _flag_unsupported_womens(result, hints)
 
     # Brand alias application — auto-correct low-confidence brands from operator memory
     if result.get("brand_confidence") == "low":

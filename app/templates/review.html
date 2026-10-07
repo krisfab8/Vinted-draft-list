@@ -736,7 +736,7 @@
         <td>{{ st.name }}</td>
         <td>{{ '%.1f' % (st.ms / 1000) }} s</td>
         <td>£{{ '%.4f' % st.cost_gbp }}</td>
-        <td>{% if st.calls %}{{ st.calls }} AI call{{ 's' if st.calls != 1 }} · {{ st.input_tokens }} in / {{ st.output_tokens }} out{% if st.searches %} · {{ st.searches }} search{{ 'es' if st.searches != 1 }}{% endif %}{% else %}no AI{% endif %}</td>
+        <td>{% if st.calls %}{{ st.calls }} AI call{{ 's' if st.calls != 1 }} · {{ st.input_tokens }} in / {{ st.output_tokens }} out{% if st.cached_tokens %} · {{ st.cached_tokens }} cached{% endif %}{% if st.searches %} · {{ st.searches }} search{{ 'es' if st.searches != 1 }}{% endif %}{% else %}no AI{% endif %}</td>
       </tr>
     {% endfor %}
     </tbody>

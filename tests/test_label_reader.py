@@ -264,3 +264,43 @@ def test_consensus_flows_through_full_extraction_without_paid_material_retry(tmp
     assert result["material_model_candidate"] == item["materials"]
     focused.assert_not_called()
     full.assert_not_called()
+
+
+def _fake_read(pairs, confidence=0.99, rotation=0):
+    return {"pairs": pairs, "candidate_pairs": pairs, "text": "x%", "rotation": rotation,
+            "vertical": False, "min_confidence": confidence}
+
+
+def test_clear_upright_read_confirmed_by_contrast_skips_other_views(tmp_path, monkeypatch):
+    from PIL import Image, ImageDraw
+    from app.services import label_reader
+    good = [["main", 92.0, "Polyester"], ["main", 8.0, "Spandex"]]
+    calls = []
+    monkeypatch.setattr(label_reader, "_ocr", lambda image, rotation: calls.append(rotation) or _fake_read(good, rotation=rotation))
+    monkeypatch.setattr(label_reader, "crop_label", lambda image: (image, {"rectified": False}))
+    path = tmp_path / "material.jpg"
+    image = Image.new("RGB", (400, 300), "white"); ImageDraw.Draw(image).rectangle((50, 50, 200, 120), fill="black")
+    image.save(path)
+    label_reader._prepare.cache_clear()
+    _, reading = label_reader._prepare(str(path), 1, 1)
+    assert calls == [0, 0]  # upright original + upright contrast only
+    assert reading["status"] == "readable" and reading["consensus"] is True
+
+
+def test_unclear_first_read_still_tries_every_view(tmp_path, monkeypatch):
+    from PIL import Image, ImageDraw
+    from app.services import label_reader
+    good = [["main", 92.0, "Polyester"], ["main", 8.0, "Spandex"]]
+    calls = []
+    def read(image, rotation):
+        calls.append(rotation)
+        return _fake_read(good if len(calls) > 1 else [], 0.99 if len(calls) > 1 else 0.5, rotation)
+    monkeypatch.setattr(label_reader, "_ocr", read)
+    monkeypatch.setattr(label_reader, "crop_label", lambda image: (image, {"rectified": False}))
+    path = tmp_path / "material.jpg"
+    image = Image.new("RGB", (400, 300), "white"); ImageDraw.Draw(image).rectangle((50, 50, 200, 120), fill="black")
+    image.save(path)
+    label_reader._prepare.cache_clear()
+    _, reading = label_reader._prepare(str(path), 2, 2)
+    assert calls == [0, 90, 0, 90]  # first read unclear: same four views as before
+    assert reading["consensus"] is True

@@ -37,6 +37,7 @@ def fake(monkeypatch, tmp_path):
     import anthropic
     monkeypatch.setattr(anthropic, "Anthropic", FakeClient)
     monkeypatch.setattr(config, "ANTHROPIC_API_KEY", "test-key")
+    monkeypatch.setenv("ENABLE_WEB_PRICE", "1")
     monkeypatch.setattr(model_usage, "LEDGER_PATH", tmp_path / "ledger.jsonl")
     monkeypatch.setattr(web_price, "MODEL", "claude-haiku-4-5-20251001")
     return FakeClient
@@ -67,8 +68,12 @@ def test_pause_turn_continues_and_bad_reply_is_not_used(fake):
     assert "typical_gbp" not in result
 
 
-def test_disabled_without_key(monkeypatch):
+def test_disabled_without_key_or_by_default(monkeypatch):
     monkeypatch.setattr(config, "ANTHROPIC_API_KEY", "")
+    monkeypatch.setenv("ENABLE_WEB_PRICE", "1")
+    assert web_price.estimate(ITEM) is None
+    monkeypatch.setattr(config, "ANTHROPIC_API_KEY", "key")
+    monkeypatch.delenv("ENABLE_WEB_PRICE")
     assert web_price.estimate(ITEM) is None
 
 
