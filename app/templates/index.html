@@ -1309,6 +1309,85 @@
   .camera-message { text-align:center; padding:0 24px; font-size:14px; line-height:1.4; max-width:500px; margin:0 auto; }
   .camera-native { display:block; margin:12px auto; background:#303030; border:1px solid #777; padding:12px 18px; border-radius:24px; }
 
+  /* Guided / Pro capture: stitched ghost, quality states, light intro panels. */
+  .camera-top { align-items:flex-start; gap:10px; }
+  .camera-top-group { display:flex; gap:8px; }
+  .camera-step { margin-top:4px; padding:8px 18px; border-radius:999px; background:rgba(15,23,42,.6); font-size:18px; font-weight:800; }
+  .camera-step:empty { display:none; }
+  .camera-ghost { position:absolute; inset:0; z-index:0; pointer-events:none; }
+  .camera-ghost svg { width:100%; height:100%; }
+  .camera-ghost[hidden], .camera-example[hidden], .camera-quality[hidden], .camera-hint[hidden], .camera-dots[hidden], .camera-skip[hidden], .camera-intro[hidden], .camera-review[hidden], .camera-photos[hidden], .camera-done[hidden] { display:none; }
+  .camera-ghost path { transition: stroke .2s; }
+  .camera-example { display:flex; flex-direction:column; align-items:center; gap:6px; }
+  .camera-example-art { width:60px; height:74px; border-radius:12px; background:#2A2F36; border:3px solid #fff; box-sizing:border-box; display:grid; place-items:center; box-shadow:0 6px 16px rgba(0,0,0,.25); }
+  .camera-example span { font-size:11px; font-weight:800; color:#0F172A; background:#fff; border-radius:6px; padding:2px 7px; }
+  .camera-quality { display:flex; gap:7px; align-items:center; height:44px; padding:0 16px; border-radius:999px; background:rgba(15,23,42,.6); }
+  .camera-quality i { width:10px; height:10px; border-radius:50%; background:#fff; }
+  .camera-quality i.ok { background:#22C55E; } .camera-quality i.warn { background:#F59E0B; } .camera-quality i.bad { background:#EF4444; }
+  .camera-hint { display:block; width:max-content; max-width:90%; margin:0 auto 14px; padding:11px 18px; border-radius:999px; background:rgba(15,23,42,.72); font-size:16px; font-weight:800; text-align:center; }
+  .camera-hint.ok { background:#16A34A; }
+  .camera-dots { display:flex; justify-content:center; gap:6px; margin-bottom:8px; }
+  .camera-dots i { width:6px; height:6px; border-radius:3px; background:rgba(255,255,255,.35); }
+  .camera-dots i.done { background:rgba(255,255,255,.75); }
+  .camera-dots i.on { width:26px; background:#fff; }
+  .camera-shutter { transition:border-color .2s; }
+  .camera-shutter.fix { border-color:#F59E0B; }
+  .camera-shutter.ok { border-color:#22C55E; }
+  .camera-shutter.arming { animation:shutterArm .75s ease-in-out infinite alternate; }
+  @keyframes shutterArm { to { box-shadow:0 0 0 6px rgba(34,197,94,.45); } }
+  .camera-skip { grid-column:3; grid-row:1; border:0; background:rgba(15,23,42,.55); border-radius:22px; height:44px; padding:0 16px; font-weight:700 !important; }
+  .camera-guided #cameraFlip, .camera-guided #cameraGallery { visibility:hidden; }
+  .camera-thumb-flag { position:absolute; left:3px; bottom:3px; width:18px; height:18px; border-radius:50%; background:#F59E0B; color:#1C1917; font-style:normal; font-weight:900; font-size:12px; line-height:18px; text-align:center; }
+  .camera-review { position:absolute; inset:0; z-index:3; background:#2A2F36; display:flex; flex-direction:column; }
+  .camera-review img { position:absolute; inset:0; width:100%; height:100%; object-fit:contain; }
+  .camera-review-top { position:relative; display:flex; justify-content:center; padding:calc(20px + env(safe-area-inset-top)) 18px 0; }
+  .camera-review-title { display:flex; align-items:center; gap:8px; background:#F59E0B; color:#1C1917; border-radius:999px; padding:8px 18px; font-size:18px; font-weight:800; }
+  .camera-review-title svg { width:18px; height:18px; fill:none; stroke:#1C1917; stroke-width:2.6; stroke-linecap:round; }
+  .camera-review-bottom { position:relative; margin-top:auto; padding:0 20px calc(24px + env(safe-area-inset-bottom)); display:flex; flex-direction:column; align-items:stretch; gap:10px; }
+  .camera-retake { display:flex; align-items:center; justify-content:center; gap:10px; height:56px; border:0; border-radius:16px; background:#fff; color:#0F172A !important; font-size:17px; font-weight:800 !important; }
+  .camera-retake svg { width:20px; height:20px; fill:none; stroke:#0F172A; stroke-width:2.6; stroke-linecap:round; stroke-linejoin:round; }
+  .camera-keep { height:44px; border:0; background:none; color:#CBD5E1 !important; font-size:15px; font-weight:600 !important; }
+  .camera-intro { position:absolute; inset:0; z-index:4; background:#F8FAFC; color:#0F172A; overflow-y:auto; }
+  .camera-intro button { color:inherit; }
+  .ci-page { min-height:100%; box-sizing:border-box; max-width:480px; margin:0 auto; display:flex; flex-direction:column; gap:22px; padding:calc(40px + env(safe-area-inset-top)) 24px calc(28px + env(safe-area-inset-bottom)); }
+  .ci-page h2 { margin:0; font-size:32px; line-height:1.15; font-weight:800; letter-spacing:-.02em; }
+  .ci-kicker { font-size:13px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:#64748B; margin-bottom:-14px; }
+  .ci-soft { color:#94A3B8; font-weight:700; }
+  .ci-back { width:44px; height:44px; border-radius:22px; background:#fff; border:1px solid #E2E8F0; display:grid; place-items:center; }
+  .ci-back svg { width:20px; height:20px; fill:none; stroke:#0F172A; stroke-width:2.4; stroke-linecap:round; stroke-linejoin:round; }
+  .ci-mode { display:flex; align-items:center; gap:16px; text-align:left; background:#fff; border:2px solid #E2E8F0; border-radius:22px; padding:20px; }
+  .ci-mode.on { border-color:#2563EB; box-shadow:0 8px 24px rgba(37,99,235,.12); }
+  .ci-mode-art { width:64px; height:64px; border-radius:18px; background:#EFF6FF; display:grid; place-items:center; flex-shrink:0; }
+  .ci-mode-art.pro { background:#F1F5F9; }
+  .ci-mode-text { display:flex; flex-direction:column; gap:5px; }
+  .ci-mode-text b { font-size:20px; font-weight:800; }
+  .ci-mode-text small { font-size:14px; color:#475569; }
+  .ci-bars { display:flex; gap:5px; margin-top:2px; }
+  .ci-bars i { width:18px; height:5px; border-radius:3px; background:#2563EB; }
+  .ci-chips { display:flex; gap:6px; margin-top:2px; }
+  .ci-chips em { font-style:normal; font-size:11px; font-weight:700; background:#F1F5F9; border-radius:6px; padding:3px 7px; }
+  .ci-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; }
+  .ci-tile { position:relative; aspect-ratio:.86; background:#fff; border:2px solid #E2E8F0; border-radius:18px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:10px; font-size:14px; font-weight:700; box-sizing:border-box; padding:0; }
+  .ci-tile.static { border-width:1px; }
+  .ci-tile.on { background:#EFF6FF; border-color:#2563EB; color:#1D4ED8; }
+  .ci-tile.dashed { border:2px dashed #CBD5E1; background:none; color:#64748B; }
+  .ci-num { position:absolute; top:9px; left:11px; font-size:12px; color:#94A3B8; }
+  .ci-photo { position:relative; aspect-ratio:.86; border-radius:18px; overflow:hidden; background:#2A2F36; }
+  .ci-photo img { width:100%; height:100%; object-fit:cover; }
+  .ci-photo-label { position:absolute; left:8px; bottom:8px; font-size:11px; font-weight:700; color:#fff; background:rgba(15,23,42,.6); border-radius:6px; padding:2px 7px; }
+  .ci-photo-flag { position:absolute; top:7px; right:7px; width:22px; height:22px; border-radius:11px; border:2px solid #fff; box-sizing:border-box; display:grid; place-items:center; font-style:normal; font-weight:900; font-size:12px; color:#1C1917; }
+  .ci-photo-flag.ok { background:#16A34A; } .ci-photo-flag.warn { background:#F59E0B; }
+  .ci-photo-flag svg, .ci-badge-ok svg { width:11px; height:11px; fill:none; stroke:#fff; stroke-width:4; stroke-linecap:round; stroke-linejoin:round; }
+  .ci-badge-ok { width:44px; height:44px; border-radius:22px; background:#16A34A; display:grid; place-items:center; margin-bottom:-8px; }
+  .ci-badge-ok svg { width:22px; height:22px; stroke-width:3; }
+  .ci-grow { flex-grow:1; }
+  .ci-primary { height:56px; border:0; border-radius:16px; background:#2563EB; color:#fff !important; font-size:17px; font-weight:700 !important; }
+  .ci-note { text-align:center; font-size:13px; color:#64748B; margin-top:-8px; }
+  .photo-mode { display:inline-flex; gap:4px; padding:4px; margin:8px 0 12px; border-radius:12px; background:var(--d-soft); }
+  .photo-mode button { border:0; background:none; padding:7px 14px; border-radius:9px; font:inherit; font-size:13px; font-weight:700; color:var(--d-muted); cursor:pointer; }
+  .photo-mode button.on { background:#fff; color:var(--d-text); box-shadow:0 1px 3px rgba(15,23,42,.12); }
+  .slot-quality { position:absolute; left:8px; top:8px; z-index:2; padding:3px 8px; border-radius:999px; background:#F59E0B; color:#1C1917; font-size:11px; font-weight:800; }
+
   @media (prefers-reduced-motion: reduce) {
     .loading-ring { animation: none; }
     * { transition: none !important; }
@@ -1334,6 +1413,10 @@
   <div class="photo-section-header">
     <div class="section-title" style="margin-bottom:0">Photos</div>
     <div class="photo-counter" id="photoCounter">0 of 20</div>
+  </div>
+  <div class="photo-mode" role="group" aria-label="Photo mode">
+    <button type="button" data-photo-mode="guided" onclick="setPhotoMode('guided')">Guided</button>
+    <button type="button" data-photo-mode="pro" onclick="setPhotoMode('pro')">Pro</button>
   </div>
 
   <!-- Role order chips -->
@@ -1429,11 +1512,34 @@
 <dialog id="photoCamera" class="photo-camera" aria-label="Add item photos">
   <div class="camera-stage">
     <video id="cameraPreview" class="camera-preview" autoplay muted playsinline aria-label="Camera preview"></video>
+    <div id="cameraGhost" class="camera-ghost" hidden aria-hidden="true">
+      <svg viewBox="0 40 390 844" preserveAspectRatio="xMidYMid meet">
+        <defs>
+          <!-- The sewn stitch is a thin dashed band 7-9 units from the edge: inside garments, outside labels. -->
+          <mask id="ghostMaskIn" maskUnits="userSpaceOnUse" x="0" y="0" width="390" height="844">
+            <rect width="390" height="844" fill="#000"/><path id="cameraMaskInFill" fill="#fff"/><path id="cameraMaskInEdge" fill="none" stroke="#000" stroke-width="14" stroke-linejoin="round"/>
+          </mask>
+          <mask id="ghostMaskOut" maskUnits="userSpaceOnUse" x="0" y="0" width="390" height="844">
+            <rect width="390" height="844" fill="#fff"/><path id="cameraMaskOutFill" fill="#000"/><path id="cameraMaskOutEdge" fill="none" stroke="#000" stroke-width="14" stroke-linejoin="round"/>
+          </mask>
+        </defs>
+        <path id="cameraGhostFill" fill="#fff" fill-opacity=".28" stroke="#fff" stroke-width="3" stroke-linejoin="round"/>
+        <path id="cameraGhostStitch" fill="none" stroke="#fff" stroke-width="18" stroke-dasharray="7 6" stroke-linejoin="round" mask="url(#ghostMaskIn)"/>
+        <path id="cameraGhostExtra" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" opacity=".85"/>
+      </svg>
+    </div>
     <div class="camera-top">
-      <button type="button" id="cameraClose" class="camera-icon" aria-label="Close camera"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg></button>
-      <button type="button" id="cameraTorch" class="camera-icon" aria-label="Camera light" aria-pressed="false" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m13 2-9 12h7l-1 8 10-13h-7z"/></svg></button>
+      <div class="camera-top-group">
+        <button type="button" id="cameraClose" class="camera-icon" aria-label="Close camera"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg></button>
+        <button type="button" id="cameraTorch" class="camera-icon" aria-label="Camera light" aria-pressed="false" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m13 2-9 12h7l-1 8 10-13h-7z"/></svg></button>
+      </div>
+      <div id="cameraStep" class="camera-step"></div>
+      <div id="cameraExample" class="camera-example" hidden><div id="cameraExampleArt" class="camera-example-art"></div><span>Like this</span></div>
+      <div id="cameraQuality" class="camera-quality" role="status" hidden></div>
     </div>
     <div class="camera-bottom">
+      <div id="cameraHint" class="camera-hint" hidden></div>
+      <div id="cameraDots" class="camera-dots" hidden></div>
       <div id="cameraMessage" class="camera-message" role="status" aria-live="polite"></div>
       <button type="button" id="cameraNative" class="camera-native" hidden>Open phone camera</button>
       <div id="cameraPhotos" class="camera-photos" aria-label="Added photos"></div>
@@ -1441,9 +1547,20 @@
         <button type="button" id="cameraGallery" class="camera-icon" aria-label="Choose photos from gallery"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8" cy="8" r="1"/><path d="m3 17 6-6 4 4 3-3 5 5"/></svg></button>
         <button type="button" id="cameraShutter" class="camera-shutter" aria-label="Take photo" disabled><span></span></button>
         <button type="button" id="cameraFlip" class="camera-icon" aria-label="Switch camera"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 10a9 9 0 0 1 16-4M21 14A9 9 0 0 1 5 18M19 2v4h-4M5 22v-4h4"/></svg></button>
+        <button type="button" id="cameraSkip" class="camera-skip" hidden>Skip</button>
       </div>
       <div class="camera-footer"><button type="button" id="cameraDone" class="camera-done">Done</button></div>
     </div>
+    <div id="cameraReview" class="camera-review" hidden>
+      <img id="cameraReviewImage" alt="Photo just taken">
+      <div class="camera-review-top"><div class="camera-review-title"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v6M12 16.5v.5"/></svg><span id="cameraReviewTitle">Blurry</span></div></div>
+      <div class="camera-review-bottom">
+        <div id="cameraReviewText" class="camera-hint"></div>
+        <button type="button" id="cameraReviewRetake" class="camera-retake"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12a8 8 0 0114-5.3L20 9M20 4v5h-5"/><path d="M20 12a8 8 0 01-14 5.3L4 15M4 20v-5h5"/></svg>Retake</button>
+        <button type="button" id="cameraReviewKeep" class="camera-keep">Use anyway</button>
+      </div>
+    </div>
+    <div id="cameraIntro" class="camera-intro" hidden></div>
   </div>
 </dialog>
 <input type="file" id="fileInput" accept="image/*" multiple>
@@ -1451,6 +1568,7 @@
 {% endblock %}
 
 {% block scripts %}
+<script src="{{ url_for('static', filename='photo_quality.js') }}"></script>
 <script src="{{ url_for('static', filename='camera_capture.js') }}"></script>
 <script>
   const SLOT_LABELS = ["Front", "Brand label", "Model / Size tag", "Material", "Back (optional)"];
@@ -1461,6 +1579,38 @@
     material:"Material",back:"Back",extra:"Extra",measure_pit_to_pit:"Measure pit-to-pit",
     measure_length:"Measure back length",measure_sleeve:"Measure sleeve"};
   let selectedForSwap = null;
+
+  /* ── Photo mode (Guided / Pro) and on-phone quality checks ── */
+  const photoQuality = new WeakMap();
+  let qualityQueue = Promise.resolve();
+  function getPhotoMode() {
+    try { return localStorage.getItem("photoMode") || ""; } catch (_) { return ""; }
+  }
+  function setPhotoMode(mode) {
+    try { localStorage.setItem("photoMode", mode); } catch (_) {}
+    document.querySelectorAll("[data-photo-mode]").forEach(btn => {
+      btn.classList.toggle("on", btn.dataset.photoMode === mode);
+      btn.setAttribute("aria-pressed", String(btn.dataset.photoMode === mode));
+    });
+  }
+  function noteQuality(file, result) {
+    if (result) photoQuality.set(file, result);
+    if (photos.includes(file)) renderGrid();
+  }
+  function queueQualityCheck(file) {
+    if (!window.PhotoQuality || photoQuality.has(file)) return;
+    qualityQueue = qualityQueue.then(async () => {
+      if (!photos.includes(file) || photoQuality.has(file)) return;
+      const kind = PhotoQuality.kindForRole(photoRoles.get(file));
+      noteQuality(file, await PhotoQuality.checkFile(file, kind));
+    }).catch(() => {});
+  }
+  function qualityBadge(file) {
+    const q = photoQuality.get(file);
+    if (!q || q.ok) return "";
+    const text = q.hint === "More light" ? "Dark" : q.hint === "Avoid glare" ? "Glare" : "Blurry";
+    return `<div class="slot-quality" title="Retake for a clearer listing">${text}</div>`;
+  }
 
   /* ── Grid render ── */
   function setPhotoRole(event,index) {
@@ -1494,6 +1644,7 @@
 
       slot.innerHTML = `
         <img src="${url}" alt="${label}">
+        ${qualityBadge(file)}
         <div class="slot-gradient"></div>
         <div class="slot-role-label" style="right:8px">
           <select aria-label="Photo role" style="max-width:100%;background:white;color:#222;border-radius:6px;padding:5px" onchange="setPhotoRole(event,${i})">
@@ -1567,15 +1718,21 @@
     input.click();
   }
 
-  function addPhotoFiles(files) {
+  // role: set by a guided step; otherwise the first free named role, as before.
+  function addPhotoFiles(files, role) {
     const incoming = Array.from(files).slice(0, 20 - photos.length);
+    if (role && role !== "extra") {
+      // A retaken guided step replaces nothing: the older photo becomes an extra.
+      photos.forEach(file => { if (photoRoles.get(file) === role) photoRoles.set(file, "extra"); });
+    }
     const used = new Set(photos.map(file => photoRoles.get(file)));
     incoming.forEach(file => {
-      const role = ["front","brand","model_size","material","back"].find(role => !used.has(role)) || "extra";
-      photoRoles.set(file,role); used.add(role);
+      const next = role || ["front","brand","model_size","material","back"].find(role => !used.has(role)) || "extra";
+      photoRoles.set(file,next); used.add(next);
     });
     photos = photos.concat(incoming);
     incoming.forEach(file => queuePhotoPreparation(file));
+    if (!role) incoming.forEach(file => queueQualityCheck(file));
     selectedForSwap = null;
     renderGrid();
     if (document.getElementById("photoCamera").open) photoCamera.refresh();
@@ -3030,7 +3187,14 @@
     removePhoto: index => removePhoto({stopPropagation(){}}, index),
     pickGallery: () => choosePhotoSource("fileInput"),
     pickNativeCamera: () => choosePhotoSource("cameraInput"),
+    getMode: getPhotoMode,
+    setMode: setPhotoMode,
+    getRole: file => photoRoles.get(file),
+    noteQuality,
+    getQuality: file => photoQuality.get(file),
+    onAnalyse: () => createListing(),
   });
+  setPhotoMode(getPhotoMode());
   renderGrid();
 </script>
 {% endblock %}

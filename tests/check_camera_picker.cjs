@@ -5,7 +5,7 @@ const order=[],listeners={},inputs={};
 for(const id of ['fileInput','cameraInput'])inputs[id]={value:'old',files:[],click(){order.push(id)},addEventListener(type,fn){listeners[id]=fn}};
 const dialog={open:true};
 const photoCamera={open(){order.push('open')},refresh(){}};
-const context={photoCamera,document:{getElementById:id=>id==='photoCamera'?dialog:inputs[id]},photos:[],photoRoles:new WeakMap(),selectedForSwap:null,queuePhotoPreparation:f=>order.push(f.name),renderGrid:()=>order.push('render')};
+const context={photoCamera,document:{getElementById:id=>id==='photoCamera'?dialog:inputs[id]},photos:[],photoRoles:new WeakMap(),selectedForSwap:null,queuePhotoPreparation:f=>order.push(f.name),queueQualityCheck:f=>order.push('check:'+f.name),renderGrid:()=>order.push('render')};
 vm.createContext(context);vm.runInContext(code,context);
 context.openFilePicker();context.choosePhotoSource('cameraInput');
 assert.deepStrictEqual(order,['open','cameraInput']);assert.equal(inputs.cameraInput.value,'');
@@ -13,6 +13,9 @@ inputs.cameraInput.files=[{name:'camera.jpg'}];listeners.cameraInput.call(inputs
 inputs.fileInput.files=[{name:'gallery1.jpg'},{name:'gallery2.jpg'}];listeners.fileInput.call(inputs.fileInput);
 assert.equal(context.photos.length,3);assert.equal(context.photoRoles.get(context.photos[0]),'front');assert.equal(context.photoRoles.get(context.photos[1]),'brand');
 inputs.cameraInput.files=[];listeners.cameraInput.call(inputs.cameraInput);assert.equal(context.photos.length,3);
+// A guided step sets its own role; a retaken step demotes the older photo to extra.
+const care1={name:'care1.jpg'},care2={name:'care2.jpg'};context.addPhotoFiles([care1],'material');context.addPhotoFiles([care2],'material');
+assert.equal(context.photoRoles.get(care1),'extra');assert.equal(context.photoRoles.get(care2),'material');assert(!order.includes('check:care2.jpg'));assert(order.includes('check:gallery1.jpg'));
 context.photos=Array.from({length:19},()=>({}));inputs.fileInput.files=[{name:'one.jpg'},{name:'two.jpg'}];listeners.fileInput.call(inputs.fileInput);assert.equal(context.photos.length,20);
 assert.match(source,/<input[^>]+id="cameraInput"[^>]+capture="environment"/);
 assert(!source.match(/<input[^>]+id="fileInput"[^>]+capture=/));

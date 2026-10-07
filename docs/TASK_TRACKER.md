@@ -208,3 +208,14 @@ Keep IDs stable. Do not rename an open task to hide scope. Split partial work in
 - Logo / print line: no quotes or brackets ("DUNBARNIE LINKS, chest embroidery").
 - Generated titles spell letter sizes as "Size Large" / "Size Small" (W32 L30, 44R, UK 9 unchanged). Seller-edited titles untouched; a size edit swaps either form.
 - Existing drafts change only when regenerated.
+
+## 2026-10-07 — Guided / Pro photo capture
+- Upload page: Guided | Pro switch (remembered on the device). First camera open asks "How do you list?".
+- Guided: "What is it?" (9 shapes) → "5 photos + flaws" → camera with a stitched ghost per step (Front, Back, Brand, Size, Care label),
+  "Like this" example, step dots, Skip (not on Front). Shoots itself after ~0.75 s of sharp, steady, well-lit frames; blurry/dark/glare
+  stills go to a Retake / Use anyway screen. Each photo gets its step's role. "All set" screen: + Flaws, Analyse (starts the listing).
+- Pro: stitched frame, live quality dots, manual shots, amber "!" on weak thumbnails.
+- Gallery photos are checked too; weak ones get a Blurry / Dark / Glare badge in the grid.
+- All checks run on the phone (app/static/photo_quality.js): no server or AI cost. Thresholds are first guesses;
+  open the app with ?camdebug=1 to see live sharp/light/glare/move values for tuning.
+- Not yet: Pro multi-item batch queue ("Next item" / "Analyse N items").
