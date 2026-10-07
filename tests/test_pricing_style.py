@@ -18,16 +18,24 @@ def priced(mode, **extra):
 
 
 def test_style_moves_an_ai_price():
-    assert priced("speed")["price_gbp"] == 27
+    # AI-only estimate: the recommended band is ±15% around the fair £30.
+    assert priced("speed")["price_gbp"] == 26
     assert priced("balanced")["price_gbp"] == 30
-    assert priced("price")["price_gbp"] == 33
-    assert any("pricing style: Best price +10%" in a for a in priced("price")["price_adjustments"])
+    assert priced("price")["price_gbp"] == 34
+    assert any("pricing style: Best price top of the range (£30 → £34)" in a for a in priced("price")["price_adjustments"])
 
 
 def test_dial_needle_follows_style():
     left, middle, right = (priced(m)["price_range"]["position"] for m in ("speed", "balanced", "price"))
     assert left < middle < right
     assert abs(middle - 0.5) < 0.05
+
+
+def test_needle_sits_on_the_band_edge_for_the_style():
+    # Best price asks at the top of the recommended band, Sell fast at the bottom.
+    best, fast = priced("price"), priced("speed")
+    assert best["price_gbp"] == best["price_range"]["high"]
+    assert fast["price_gbp"] == fast["price_range"]["low"]
 
 
 def test_style_moves_a_web_price():

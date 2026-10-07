@@ -87,4 +87,4 @@ def test_reprice_uses_the_onboarding_style(profile_file, monkeypatch, tmp_path):
     assert response.status_code == 200, response.get_data(as_text=True)[:300]
     body = response.json
     proposal = body.get("price_proposal") or body.get("proposal") or body
-    assert proposal.get("price_gbp") == 33
+    assert proposal.get("price_gbp") == 34

@@ -296,3 +296,9 @@ Keep IDs stable. Do not rename an open task to hide scope. Split partial work in
 - Kept from the original: draft link, listed date, buy price; sales history is keyed by folder so it stays.
 - Same request twice (double tap/retry) returns the applied result without paying again; a failed run can be retried.
 - Review shows the "Fresh photo analysis" before/after table; the drafts sheet note reads "Fresh AI read · replaces this listing".
+
+## 2026-10-07 — Pricing style sets the needle on the band edge
+- The recommended band (dial's coloured range) is centred on the fair price; Best price asks at its top edge,
+  Sell fast at its bottom edge, Balanced in the middle. Band width follows evidence (±8% sales history,
+  ±10% web/reference, ±15% AI-only). Previously a flat ±10% with the band centred on the asking price,
+  so the needle always looked central.

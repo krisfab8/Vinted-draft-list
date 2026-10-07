@@ -189,6 +189,22 @@ _CONDITION_FACTOR: dict[str, float] = {
 _RANGE_SPREAD = {"observed": 0.08, "web": 0.10, "reference": 0.10, "estimate": 0.15}
 
 
+def _range_basis(listing: dict) -> str:
+    evidence = listing.get("price_evidence") or {}
+    if evidence.get("confidence") == "observed_sample":
+        return "observed"
+    if evidence.get("source") == "reference_memory":
+        return "reference"
+    if evidence.get("source") == "web_sold_search":
+        return "web"
+    return "estimate"
+
+
+def _band_spread(listing: dict, fair: float) -> float:
+    """Half-width of the recommended band around the fair price (tighter with better evidence)."""
+    return max(_RANGE_SPREAD[_range_basis(listing)] * fair, 2.0)
+
+
 def price_range(listing: dict) -> dict | None:
     """A small suggested range around price_gbp plus a wider gauge scale.
 
@@ -202,23 +218,16 @@ def price_range(listing: dict) -> dict | None:
     if price <= 0:
         return None
     evidence = listing.get("price_evidence") or {}
-    if evidence.get("confidence") == "observed_sample":
-        basis = "observed"
-    elif evidence.get("source") == "reference_memory":
-        basis = "reference"
-    elif evidence.get("source") == "web_sold_search":
-        basis = "web"
-    else:
-        basis = "estimate"
-    spread = max(_RANGE_SPREAD[basis] * price, 2.0)
-    low, high = max(1, round(price - spread)), round(price + spread)
-    # The dial is centred on the fair price, so Balanced sits in the middle,
-    # Sell fast to the left and Best price to the right. Older drafts without a
-    # fair price centre on their own price.
+    basis = _range_basis(listing)
+    # The dial and its recommended band are centred on the fair price: Balanced
+    # sits in the middle, Sell fast on the band's left edge, Best price on its
+    # right edge. Older drafts without a fair price centre on their own price.
     try:
         fair = float(listing.get("fair_price_gbp") or price)
     except (TypeError, ValueError):
         fair = price
+    spread = _band_spread(listing, fair)
+    low, high = max(1, round(fair - spread)), round(fair + spread)
     half = max(fair * 0.35, abs(price - fair) * 1.6, 3.0)
     band = evidence.get("range_gbp") if basis in ("reference", "web") else None
     if band and band[0] < band[1]:
@@ -402,15 +411,17 @@ def _apply_pricing_inner(listing: dict, pricing_mode: str = "balanced") -> dict:
             note=f"Suggested from {history['sample_count']} matching confirmed Vinted sales (median accepted price; postage excluded).")
         adjustments.append('matching confirmed sale history used')
 
-    # ── 3.5. Pricing style: the fair price is the dial's middle; the style
-    #         moves the asking price either side of it, for every evidence source.
+    # ── 3.5. Pricing style: the fair price is the middle of the recommended band;
+    #         Sell fast asks at the band's low edge, Best price at its high edge,
+    #         for every evidence source.
     factor = _PRICING_MODE_FACTOR[pricing_mode]
     listing["fair_price_gbp"] = round(final_price) if final_price is not None else None
     if factor != 1.0 and final_price is not None:
-        styled = round(final_price * factor, 0)
+        fair = round(final_price)
+        spread = _band_spread(listing, fair)
+        styled = max(1, round(fair + spread if factor > 1 else fair - spread))
         adjustments.append(f"pricing style: {_PRICING_MODE_LABEL[pricing_mode]} "
-                           f"{'+' if factor > 1 else '−'}{abs(round((factor - 1) * 100))}% "
-                           f"(£{int(final_price)} → £{int(styled)})")
+                           f"{'top' if factor > 1 else 'bottom'} of the range (£{fair} → £{styled})")
         final_price = styled
     listing["pricing_mode"] = pricing_mode
 
