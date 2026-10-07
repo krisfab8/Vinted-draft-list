@@ -1397,103 +1397,69 @@
 
 {% block content %}
 <!-- Page heading -->
-<div class="listing-heading">
-  {% if is_reseller %}
-  <div class="page-title">Add to inventory</div>
-  <div style="font-size:13px;font-weight:400;color:var(--d-muted);margin-top:4px;letter-spacing:0.1px">A good photo. A great listing.</div>
-  {% else %}
-  <div class="page-title">New listing</div>
-  <div style="font-size:13px;font-weight:400;color:var(--d-muted);margin-top:4px;letter-spacing:0.1px">A good photo. A great listing.</div>
-  {% endif %}
+<div class="sn-hero">
+  <h1 class="sn-title">Snap it.<br><span>List it<i>.</i></span></h1>
+  <div class="sn-streak" id="snStreak" aria-label="Listed today: {{ today_count or 0 }}">
+    <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2c1 4 6 6 6 12a6 6 0 01-12 0c0-3 2-5 3-6 0 2 1 3 2 3 0-4 0-6 1-9z" fill="#FF9F0A"/><path d="M12 12c2 2 3 3 3 5a3 3 0 01-6 0c0-2 2-3 3-5z" fill="#FFD60A"/></svg>
+    <b id="snStreakCount">{{ today_count or 0 }}</b><small>today</small>
+  </div>
 </div>
 
 <div class="upload-card">
 <!-- ── Photos ── -->
 <div class="photo-section">
-  <div class="photo-section-header">
-    <div class="section-title" style="margin-bottom:0">Photos</div>
-    <div class="photo-counter" id="photoCounter">0 of 20</div>
-  </div>
-  <div class="photo-mode" role="group" aria-label="Photo mode">
-    <button type="button" data-photo-mode="guided" onclick="setPhotoMode('guided')">Guided</button>
-    <button type="button" data-photo-mode="pro" onclick="setPhotoMode('pro')">Pro</button>
-  </div>
-
-  <!-- Role order chips -->
-  <div class="role-chips">
-    <span class="role-chip">Front</span>
-    <span class="role-chip">Brand</span>
-    <span class="role-chip">Size tag</span>
-    <span class="role-chip">Material</span>
-    <span class="role-chip">Back</span>
-  </div>
-
-  <div class="photo-grid" id="photoGrid"></div>
-
+  <div class="photo-grid" id="photoGrid" aria-label="Photos"></div>
   <!-- Swap mode hint -->
   <div class="swap-hint" id="swapHint">
     Tap another photo to swap — or tap again to cancel
   </div>
 </div>
 
-<div class="upload-details">
-<div class="section-title details-title">Listing details</div>
-<!-- ── Buy price ── -->
-<div class="form-section">
-  <div class="field">
-    <label for="buyPrice">Buy price <span style="font-size:11px;font-weight:400;text-transform:none;letter-spacing:0;color:var(--d-muted);opacity:0.75">optional</span></label>
-    <div class="input-wrap">
-      <span class="input-symbol">£</span>
-      <input type="number" id="buyPrice" placeholder="0.00" min="0" step="0.50" inputmode="decimal">
-    </div>
+<div class="sn-controls">
+  <div class="photo-mode" role="group" aria-label="Photo mode">
+    <button type="button" data-photo-mode="guided" onclick="setPhotoMode('guided')">Guided</button>
+    <button type="button" data-photo-mode="pro" onclick="setPhotoMode('pro')">Pro</button>
   </div>
+  <label class="sn-buy" for="buyPrice"><span>£</span>
+    <input type="number" id="buyPrice" placeholder="Buy" min="0" step="0.50" inputmode="decimal" aria-label="Buy price (optional)">
+  </label>
+  <button type="button" class="sn-details-btn" id="hintsToggle" onclick="toggleHints()" aria-label="Details: brand, size, gender, made in, flaws">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></svg>
+    <i id="hintsDot" hidden></i>
+  </button>
 </div>
 
-<!-- ── Hints ── -->
-<div class="form-section">
-  <button class="hints-toggle" id="hintsToggle" type="button" onclick="toggleHints()">
-    <span>Add details <span style="font-weight:400;font-size:12px;opacity:0.65">brand, size, gender</span></span>
-    <span class="chevron" style="font-size:11px;color:var(--d-muted)">▼</span>
-  </button>
-  <div class="hints-panel" id="hintsPanel">
-    <div class="field">
-      <label for="hintBrand">Brand <span>— e.g. Suit Supply</span></label>
-      <input type="text" id="hintBrand" placeholder="e.g. Suit Supply, Barbour" autocomplete="off">
+<dialog class="sn-sheet" id="hintsPanel" aria-label="Details">
+  <form method="dialog">
+    <div class="sn-grab"></div>
+    <h2>Details</h2>
+    <div class="sn-fields">
+      <label for="hintBrand">Brand<input type="text" id="hintBrand" placeholder="e.g. Barbour" autocomplete="off"></label>
+      <label for="hintSize">Size<input type="text" id="hintSize" placeholder="e.g. M, W32 L32" autocomplete="off"></label>
+      <label for="hintGender" class="wide">Gender
+        <select id="hintGender">
+          <option value="">Auto</option>
+          <option value="men's">Men's</option>
+          <option value="women's">Women's</option>
+          <option value="unisex">Unisex</option>
+        </select>
+      </label>
+      <label for="hintMadeIn" class="wide">Made in<input type="text" id="hintMadeIn" placeholder="e.g. Italy" autocomplete="off"></label>
+      <label for="hintDamages" class="wide">Flaws<input type="text" id="hintDamages" placeholder="e.g. small mark on cuff" autocomplete="off"></label>
     </div>
-    <div class="field">
-      <label for="hintSize">Size <span>— e.g. W32 L32, 44R, M</span></label>
-      <input type="text" id="hintSize" placeholder="e.g. W32 L32 or 44R" autocomplete="off">
-    </div>
-    <div class="field">
-      <label for="hintGender">Gender</label>
-      <select id="hintGender">
-        <option value="">Auto-detect</option>
-        <option value="men's">Men's</option>
-        <option value="women's">Women's</option>
-        <option value="unisex">Unisex</option>
-      </select>
-    </div>
-    <div class="field">
-      <label for="hintMadeIn">Made in <span>— optional</span></label>
-      <input type="text" id="hintMadeIn" placeholder="e.g. Italy, Portugal, Japan" autocomplete="off">
-    </div>
-    <div class="field">
-      <label for="hintDamages">Damages <span>— optional</span></label>
-      <input type="text" id="hintDamages" placeholder="e.g. small stain on left knee, 1cm" autocomplete="off">
-    </div>
-  </div>
-</div>
+    <button class="sn-done" value="done">Done</button>
+  </form>
+</dialog>
 
 <!-- ── Submit ── -->
-<button class="btn-submit" id="submitBtn" onclick="createListing()">
-  <span class="btn-label">Create listing <span aria-hidden="true">↗</span></span>
+<button class="btn-submit" id="submitBtn" onclick="createListing()" disabled>
+  <span class="btn-label"><span>Create listing</span><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
   <span class="btn-loading-inner">
     <span class="btn-spinner-ring"></span>
     <span class="btn-step-text" id="btnStepText">Analysing photos</span>
   </span>
 </button>
 
-</div>
 <!-- Loading step dots — visible inside card during processing -->
 <div class="loading-state" id="loadingState" style="padding:16px 0 4px">
   <div class="loading-steps-bar">
@@ -1575,10 +1541,37 @@
   let photos = [];
   const photoRoles = new WeakMap();
   let photoUrls = [];
-  const ROLE_LABELS = {front:"Front",brand:"Brand label",model_size:"Model / Size tag",
-    material:"Material",back:"Back",extra:"Extra",measure_pit_to_pit:"Measure pit-to-pit",
-    measure_length:"Measure back length",measure_sleeve:"Measure sleeve"};
+  const ROLE_LABELS = {front:"Front",brand:"Brand",model_size:"Size tag",
+    material:"Care label",back:"Back",extra:"Extra",measure_pit_to_pit:"Pit to pit",
+    measure_length:"Length",measure_sleeve:"Sleeve"};
   let selectedForSwap = null;
+  const dealtPhotos = new WeakSet();  // photos already animated onto the grid
+
+  /* ── Celebration: a burst from the button and today's count ticks up ── */
+  function celebrateListing() {
+    const btn = document.getElementById("submitBtn");
+    if (btn && !window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      const colours = ["#C6F432", "#1D1D1F", "#FF9F0A", "#C6F432", "#86868B"];
+      for (let i = 0; i < 18; i++) {
+        const bit = document.createElement("span");
+        const angle = (i / 18) * Math.PI * 2, dist = 90 + (i % 3) * 40;
+        const box = btn.getBoundingClientRect();
+        bit.className = "sn-burst-bit";
+        bit.style.cssText = `left:${box.left + box.width / 2}px;top:${box.top + box.height / 2}px;--dx:${Math.round(Math.cos(angle) * dist * 1.6)}px;--dy:${Math.round(Math.sin(angle) * dist - 40)}px;--rot:${(i * 47) % 360}deg;`
+          + `background:${colours[i % colours.length]};border-radius:${i % 2 ? "2px" : "50%"};animation-delay:${(i % 4) * 0.03}s`;
+        document.body.appendChild(bit);
+        setTimeout(() => bit.remove(), 1200);
+      }
+    }
+    const count = document.getElementById("snStreakCount"), streak = document.getElementById("snStreak");
+    if (count && streak) {
+      count.textContent = String((parseInt(count.textContent, 10) || 0) + 1);
+      count.classList.remove("flip"); void count.offsetWidth; count.classList.add("flip");
+      const plus = document.createElement("span"); plus.className = "plus"; plus.textContent = "+1";
+      streak.appendChild(plus); setTimeout(() => plus.remove(), 1500);
+      streak.setAttribute("aria-label", `Listed today: ${count.textContent}`);
+    }
+  }
 
   /* ── Photo mode (Guided / Pro) and on-phone quality checks ── */
   const photoQuality = new WeakMap();
@@ -1587,10 +1580,12 @@
     try { return localStorage.getItem("photoMode") || ""; } catch (_) { return ""; }
   }
   function setPhotoMode(mode) {
-    try { localStorage.setItem("photoMode", mode); } catch (_) {}
+    if (mode) { try { localStorage.setItem("photoMode", mode); } catch (_) {} }
+    // Nothing chosen yet shows Guided as the default; the camera still asks once.
+    const shown = mode || "guided";
     document.querySelectorAll("[data-photo-mode]").forEach(btn => {
-      btn.classList.toggle("on", btn.dataset.photoMode === mode);
-      btn.setAttribute("aria-pressed", String(btn.dataset.photoMode === mode));
+      btn.classList.toggle("on", btn.dataset.photoMode === shown);
+      btn.setAttribute("aria-pressed", String(btn.dataset.photoMode === shown));
     });
   }
   function noteQuality(file, result) {
@@ -1621,12 +1616,16 @@
 
   function renderGrid() {
     const grid = document.getElementById("photoGrid");
-    const counter = document.getElementById("photoCounter");
     const hint = document.getElementById("swapHint");
     photoUrls.forEach(url => URL.revokeObjectURL(url));
     photoUrls = [];
     grid.innerHTML = "";
-    counter.textContent = `${photos.length} of 20`;
+    let dealIndex = 0;
+    const submit = document.getElementById("submitBtn");
+    if (submit && !submit.classList.contains("loading")) {
+      submit.disabled = photos.length === 0;
+      submit.classList.toggle("ready", photos.length > 0);
+    }
     hint.classList.toggle("visible", selectedForSwap !== null);
 
     photos.forEach((file, i) => {
@@ -1638,7 +1637,10 @@
       const isTarget = selectedForSwap !== null && !isSelected;
 
       const slot = document.createElement("div");
-      slot.className = "photo-slot has-photo" +
+      const isNew = !dealtPhotos.has(file);
+      dealtPhotos.add(file);
+      slot.style.animationDelay = isNew ? `${(dealIndex++) * 0.08}s` : "";
+      slot.className = "photo-slot has-photo" + (isNew ? " sn-new" : "") +
         (isSelected ? " selected" : "") +
         (isTarget ? " swap-target" : "");
 
@@ -1682,8 +1684,12 @@
       const nextLabel = photos.length === 0
         ? "Add photos"
         : (SLOT_LABELS[photos.length] || `Extra ${photos.length - 4}`);
-      btn.innerHTML = `
-        <div class="add-more-icon">${photos.length === 0 ? `<img src="/static/upload-art.svg" alt="" aria-hidden="true">` : "+"}</div>
+      btn.innerHTML = photos.length === 0 ? `
+        <svg class="sn-stage-stitch" aria-hidden="true"><rect x="1" y="1" width="calc(100% - 2px)" height="calc(100% - 2px)" rx="20" fill="none" stroke="#9BC21C" stroke-width="2" stroke-dasharray="9 6"/></svg>
+        <svg class="sn-stage-shirt" width="96" height="100" viewBox="24 176 342 415" fill="none" stroke="#1D1D1F" stroke-width="12" stroke-linejoin="round" stroke-linecap="round" aria-hidden="true"><path d="M140 196l-96 54 34 88 44-17v250h146V321l44 17 34-88-96-54c-10 25-37 42-55 42s-45-17-55-42z" stroke-dasharray="24 18"/><path d="M178 210l17 22 17-22" stroke-width="10"/></svg>
+        <div class="sn-stage-cta"><span class="sn-plus"><b><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#1D1D1F" stroke-width="3.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></b></span>Add photos</div>
+      ` : `
+        <div class="add-more-icon">+</div>
         <div class="add-more-label">${nextLabel}</div>
       `;
       btn.onclick = () => {
@@ -1919,13 +1925,14 @@
       const data = await readUploadResponse(resp);
       loading.style.display = "none";
       if (resp.ok && data.folder && window.DraftArchive) window.DraftArchive.save(data.folder);
+      if (resp.ok) celebrateListing();
       resp.ok ? showResult(data) : showError(data.error || "Unknown error");
     } catch (err) {
       loading.style.display = "none";
       showError(err.message);
     } finally {
-      btn.disabled = false;
       btn.classList.remove("loading");
+      btn.disabled = photos.length === 0;
     }
   }
 
@@ -1946,11 +1953,17 @@
   }
 
   function toggleHints() {
-    const btn   = document.getElementById("hintsToggle");
-    const panel = document.getElementById("hintsPanel");
-    const isOpen = panel.classList.toggle("open");
-    btn.classList.toggle("open", isOpen);
+    const sheet = document.getElementById("hintsPanel");
+    if (sheet.open) sheet.close(); else sheet.showModal();
   }
+  document.getElementById("hintsPanel").addEventListener("close", () => {
+    const filled = ["hintBrand", "hintSize", "hintGender", "hintMadeIn", "hintDamages"]
+      .some(id => document.getElementById(id).value.trim());
+    document.getElementById("hintsDot").hidden = !filled;  // a dot shows details were added
+  });
+  document.getElementById("hintsPanel").addEventListener("click", event => {
+    if (event.target.id === "hintsPanel") event.target.close();  // tap outside closes
+  });
 
   /* ── Result helpers ── */
   function fmtCost(gbp) {

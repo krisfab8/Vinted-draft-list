@@ -33,7 +33,7 @@ function cameraSteps(shape) {
   ];
 }
 
-function cameraIcon(key, {back = false, stroke = '#2563EB', size = 56, filled = false} = {}) {
+function cameraIcon(key, {back = false, stroke = '#1D1D1F', size = 56, filled = false} = {}) {
   const s = CAMERA_SHAPES[key] || CAMERA_SHAPES.other;
   const d = back && s.back ? s.back : s.d;
   const extra = back ? '' : s.extra;
@@ -307,7 +307,7 @@ function createPhotoCamera({getPhotos, addPhotos, removePhoto, pickGallery, pick
     } else if (name === 'pick') {
       html = `${back('mode')}<h2>What is it?</h2><div class="ci-grid">
         ${CAMERA_GARMENTS.map(key => `<button type="button" class="ci-tile${key === shape ? ' on' : ''}" data-shape="${key}">
-          ${cameraIcon(key, {stroke: key === shape ? '#2563EB' : '#334155'})}<span>${CAMERA_SHAPES[key].label}</span></button>`).join('')}
+          ${cameraIcon(key, {stroke: key === shape ? '#1D1D1F' : '#86868B'})}<span>${CAMERA_SHAPES[key].label}</span></button>`).join('')}
         </div><div class="ci-grow"></div><button type="button" class="ci-primary" data-go="shots">Next</button>`;
     } else if (name === 'shots') {
       html = `${back('pick')}<h2>5 photos <span class="ci-soft">+ flaws</span></h2><div class="ci-grid">

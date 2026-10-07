@@ -618,6 +618,27 @@ def serve_item_photo(folder, filename):
 
 # ── Helpers ────────────────────────────────────────────────────────────────
 
+@app.context_processor
+def _nav_counts():
+    """Red counts on the bottom bar (drafts, sold this month) and today's listings."""
+    from datetime import date
+    from app.services import sales_history
+    try:
+        rows = sales_history.read_all()
+    except Exception:
+        rows = []
+    month = date.today().strftime('%Y-%m')
+    sold_count = sum(1 for row in rows if row.get('status') == 'sold' and (row.get('sold_date') or '').startswith(month))
+    today, made_today = date.today(), 0
+    if ITEMS_DIR.exists():
+        for item_dir in ITEMS_DIR.iterdir():
+            listing = item_dir / "listing.json"
+            if item_dir.is_dir() and not item_dir.name.startswith("_") and listing.exists():
+                made_today += date.fromtimestamp(listing.stat().st_ctime) == today
+    # Route-supplied values (e.g. draft_count) take precedence over these defaults.
+    return {"sold_count": sold_count, "today_count": made_today, "draft_count": _draft_count()}
+
+
 def _draft_count() -> int:
     from app.services import sales_history
     sold = {row['folder'] for row in sales_history.read_all() if row['status'] == 'sold'}

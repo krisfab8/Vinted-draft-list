@@ -219,3 +219,13 @@ Keep IDs stable. Do not rename an open task to hide scope. Split partial work in
 - All checks run on the phone (app/static/photo_quality.js): no server or AI cost. Thresholds are first guesses;
   open the app with ?camdebug=1 to see live sharp/light/glare/move values for tuning.
 - Not yet: Pro multi-item batch queue ("Next item" / "Analyse N items").
+
+## 2026-10-07 — Studio look across the app
+- New shared theme `app/static/studio.css` (loaded last): light grey page, white rounded cards, one lime accent, Manrope.
+- Bottom bar: floating, icon-only standard controls (no sliding pill), red counts on Drafts and Sold (sold this month).
+  Counts come from a context processor in web.py (route values still win).
+- Upload fits one screen: "Snap it. List it." hero with today's count, one photo stage (stitched border, deal-in animation,
+  Blurry/Dark/Glare shake), one row for Guided|Pro, £ Buy and a Details button (pop-up sheet with the same fields/ids),
+  lime Create listing (sheen when ready, fills while writing, burst + count +1 on success).
+- Drafts/Sold: fewer words (count is just a number, "Search", short empty states, "Vinted not connected").
+- Camera intro panels use the same colours.

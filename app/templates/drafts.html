@@ -595,8 +595,8 @@
 {% block content %}
 <!-- ── Vinted not-connected note ── -->
 <div class="auth-note" id="auth-note">
-  <span>Connect Vinted to create drafts.</span>
-  <a href="/connect">Connect →</a>
+  <span>Vinted not connected</span>
+  <a href="/connect">Connect</a>
 </div>
 
 <div class="drafts-heading">
@@ -606,7 +606,7 @@
     <span id="review-count-badge" style="display:none;background:var(--gold-bg);color:#b86a00;border:1px solid rgba(184,106,0,0.2);font-size:11px;font-weight:700;padding:3px 10px;border-radius:var(--r-pill)"></span>
   </div>
   {% if listings %}
-    <div class="drafts-count-badge">{{ listings|length }} item{{ 's' if listings|length != 1 }}</div>
+    <div class="drafts-count-badge" aria-label="{{ listings|length }} item{{ 's' if listings|length != 1 }}">{{ listings|length }}</div>
   {% endif %}
 </div>
 
@@ -621,7 +621,7 @@
     <div class="sales-trend-card" data-sales="{{ sale_summary.revenue_gbp }}" data-profit="{{ sale_summary.gross_profit_gbp if sale_summary.gross_profit_gbp is not none else '' }}">
       <div class="trend-top"><span class="trend-label" id="trend-label">Sales</span><div class="chart-switch" aria-label="Chart metric"><button type="button" class="selected" aria-pressed="true" onclick="switchSalesChart('sales',this)">Sales</button><button type="button" aria-pressed="false" onclick="switchSalesChart('profit',this)">Profit</button></div></div>
       <div class="trend-value" id="trend-value">£{{ '%.2f'|format(sale_summary.revenue_gbp) }}</div>
-      <div class="trend-count">{{ sale_summary.sold_count }} sold <span class="trend-dot">·</span> cumulative this month</div>
+      <div class="trend-count">{{ sale_summary.sold_count }} sold</div>
       {% for mode in ['sales', 'profit'] %}
       {% set chart = sale_summary.sales_chart if mode == 'sales' else sale_summary.profit_chart %}
       <div id="chart-{{ mode }}" class="trend-chart" {% if mode == 'profit' %}hidden{% endif %}>
@@ -636,7 +636,7 @@
           <polyline vector-effect="non-scaling-stroke" points="{{ chart.points }}" fill="none" stroke="#fff" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>
         </svg>
         <div class="chart-axis"><span>1 {{ chart.month_label }}</span><span>{{ chart.end_day }} {{ chart.month_label }}</span></div>
-        {% else %}<div class="chart-empty">{{ 'Your first sale starts the story.' if mode == 'sales' else 'Add purchase costs to see profit.' }}</div>{% endif %}
+        {% else %}<div class="chart-empty">{{ 'No sales yet' if mode == 'sales' else 'Add buy prices to see profit' }}</div>{% endif %}
       </div>
       {% endfor %}
     </div>
@@ -655,13 +655,13 @@
       </div>
     </div>
   </div>
-  <details class="metric-explainer"><summary>{{ sale_summary.known_cost_count }}/{{ sale_summary.sold_count }} purchase costs recorded · Details</summary><p>Profit and the ring use sales with known purchase costs, before fees and seller-paid postage. Unknown costs are excluded. Return on cost is profit divided by purchase costs. The ring shows a loss separately when costs exceed sales.</p>
+  <details class="metric-explainer"><summary>{{ sale_summary.known_cost_count }}/{{ sale_summary.sold_count }} costs · Details</summary><p>Profit and the ring use sales with known purchase costs, before fees and seller-paid postage. Unknown costs are excluded. Return on cost is profit divided by purchase costs. The ring shows a loss separately when costs exceed sales.</p>
     <table class="chart-data"><caption>Daily recorded sales</caption><thead><tr><th>Day</th><th>Sales</th><th>Profit before fees</th></tr></thead><tbody>{% for day in sale_summary.daily %}<tr><td>{{ day.day }}</td><td>£{{ '%.2f'|format(day.sales_gbp) }}</td><td>{{ '£%.2f'|format(day.profit_gbp) if day.profit_gbp is not none else '—' }}</td></tr>{% endfor %}</tbody></table>
   </details>
 </section>
 {% endif %}
 <div class="inventory-toolbar">
-  <input id="inventory-search" type="search" placeholder="Search brand, title or size" aria-label="Search inventory" oninput="filterInventory()" style="flex:1;min-width:180px;padding:10px;border:1px solid var(--gray-3);border-radius:12px">
+  <input id="inventory-search" type="search" placeholder="Search" aria-label="Search inventory" oninput="filterInventory()" style="flex:1;min-width:180px;padding:10px;border:1px solid var(--gray-3);border-radius:12px">
   <select {% if sold_mode %}hidden{% endif %} id="inventory-status" aria-label="Filter inventory by status" onchange="filterInventory()" style="padding:10px;border:1px solid var(--gray-3);border-radius:12px">
     <option value="all">All items</option><option value="draft">Drafts</option><option value="listed">Live / unsold</option>
     <option value="withdrawn">Withdrawn</option><option value="returned">Returned</option>
@@ -671,9 +671,9 @@
 {% if not listings %}
   <div class="empty-state">
     <div class="empty-icon">👕</div>
-    <div class="empty-title">{{ 'No sales this month' if sold_mode else 'No listings yet' }}</div>
-    <div class="empty-sub">{{ 'Choose another month, or open a draft and tap Sold to record a sale.' if sold_mode else 'Upload your first item photos and get an AI-generated Vinted listing in seconds.' }}</div>
-    <a href="{{ '/drafts' if sold_mode else '/' }}" class="btn-create">{{ 'View drafts →' if sold_mode else 'Create listing →' }}</a>
+    <div class="empty-title">{{ 'No sales yet' if sold_mode else 'Nothing here yet' }}</div>
+    <div class="empty-sub">{{ 'Open a draft and tap Sold.' if sold_mode else 'Add photos to make your first listing.' }}</div>
+    <a href="{{ '/drafts' if sold_mode else '/' }}" class="btn-create">{{ 'Drafts' if sold_mode else 'Add photos' }}</a>
   </div>
 {% else %}
   <div class="drafts-grid">
