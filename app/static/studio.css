@@ -370,3 +370,4 @@ body.tab-upload:has(#resultCard:empty):has(#reviewCard:empty) .page-upload .uplo
 .sn-stats > div + div { border-left: 1px solid var(--sn-line); }
 .sn-stats strong { font-size: 22px; font-weight: 800; letter-spacing: -.03em; font-variant-numeric: tabular-nums; }
 .sn-stats span { font-size: 12px; font-weight: 700; color: var(--sn-muted); }
+.ci-tile .ci-sub { margin-top: -6px; padding: 0 6px; font-size: 10.5px; line-height: 1.25; font-weight: 600; color: var(--sn-muted); text-align: center; }

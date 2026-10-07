@@ -280,3 +280,8 @@ Keep IDs stable. Do not rename an open task to hide scope. Split partial work in
 - Reprice shows one dial: the proposal replaces the current dial until Use/Keep.
 - Drafts chip reads "14 drafts"; red needs-a-check dots removed from cards (premium star stays).
 - Upload "Details" is a labelled pill (pencil + Details) instead of a bare sliders icon; the sheet closes on swipe-down.
+
+## 2026-10-07 — Camera item groups
+- "What is it?" is 7 groups (Tops, Coats, Bottoms, Dresses, Shoes, Hats, Other) with a short subtitle; one tap picks (no Next).
+- Each group has its own 5 shots: clothes = front, back, brand, size, care label; shoes = left, right, sole, size tag, logo;
+  hats = front, back, brim, inside, logo; other = front, back, side, logo, tag. Sole/brim/side use the extra photo slot.

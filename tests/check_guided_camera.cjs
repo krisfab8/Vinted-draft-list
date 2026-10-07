@@ -52,8 +52,8 @@ const settle=async()=>{for(let i=0;i<10;i++)await Promise.resolve()};
   assert(s.e.cameraIntro.innerHTML.includes('How do you list?'));assert.equal(s.e.cameraIntro.hidden,false);
   s.click({mode:'guided'});assert.equal(s.mode(),'guided');
   s.click('after-mode');assert(s.e.cameraIntro.innerHTML.includes('What is it?'));
-  s.click({shape:'trousers'});assert(s.e.cameraIntro.innerHTML.includes('ci-tile on" data-shape="trousers"'));
-  s.click('shots');assert(s.e.cameraIntro.innerHTML.includes('5 photos'));
+  assert(s.e.cameraIntro.innerHTML.includes('Bottoms'));assert(!s.e.cameraIntro.innerHTML.includes('data-go="shots"'));
+  s.click({shape:'trousers'});assert(s.e.cameraIntro.innerHTML.includes('5 photos'));  // one tap picks
   s.click('camera');await settle();
   assert.equal(s.e.cameraIntro.hidden,true);assert.equal(s.e.cameraStep.textContent,'Front');
   assert(s.e.cameraGhostFill.attrs.d.startsWith('M110 190'));assert.equal(s.e.cameraSkip.hidden,true);
@@ -101,5 +101,10 @@ const settle=async()=>{for(let i=0;i<10;i++)await Promise.resolve()};
   assert(!s.e.cameraIntro.innerHTML);assert.equal(s.e.cameraQuality.hidden,false);assert.equal(s.e.cameraDone.hidden,false);
   for(let i=0;i<10;i++)s.tick();assert.equal(s.files.length,0);assert(s.e.cameraQuality.innerHTML.includes('class="ok"'));
   await s.e.cameraShutter.onclick();await settle();assert.equal(s.roles.get(s.files[0]),'auto');assert.equal(s.notes.get(s.files[0]).ok,true);
+  // Shoes: left, right, sole (an extra slot), size tag, logo; extras advance one at a time.
+  s=setup('guided');s.camera.open();s.click({shape:'shoes'});s.click('camera');await settle();
+  assert.equal(s.e.cameraStep.textContent,'Left side');assert.equal(s.e.cameraHint.textContent,'Photograph the left side about this size');
+  for(const want of ['Right side','Sole','Size tag']){await s.e.cameraShutter.onclick();await settle();assert.equal(s.e.cameraStep.textContent,want);}
+  assert.deepStrictEqual(s.files.map(f=>s.roles.get(f)),['front','back','extra']);
   console.log('Photo quality grading, guided steps, fading outline, manual shots, label focus wait, retake, skip, flaws, analyse and pro mode checks passed');
 })().catch(e=>{console.error(e);process.exit(1)});

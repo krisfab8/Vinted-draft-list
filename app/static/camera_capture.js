@@ -23,18 +23,45 @@ const CAMERA_SHAPES = {
   frame: {label: '', d: 'M44 150h302a16 16 0 0116 16v290a16 16 0 01-16 16H44a16 16 0 01-16-16V166a16 16 0 0116-16z', extra: ''},
 };
 const CAMERA_NOUNS = {top: 'top', long: 'top', coat: 'coat', trousers: 'trousers', shorts: 'shorts', dress: 'dress',
-                      shoes: 'shoes', hat: 'hat', other: 'item'};
+                      shoes: 'shoe', hat: 'hat', other: 'item'};
 const CAMERA_LABEL_HINTS = {brand: 'Brand label, in focus', size: 'Size label, in focus', care: 'Care label, in focus'};
 const GUIDE_SHOW_MS = 2000, FOCUS_WAIT_MS = 2500;
-const CAMERA_GARMENTS = ['top', 'long', 'coat', 'trousers', 'shorts', 'dress', 'shoes', 'hat', 'other'];
+// Few groups, each with the shots that sell that kind of item. Roles map to the saved photo slots.
+const CAMERA_GARMENTS = ['top', 'coat', 'trousers', 'dress', 'shoes', 'hat', 'other'];
+const CAMERA_GROUPS = {top: {label: 'Tops', sub: 'T-shirts, jumpers'}, coat: {label: 'Coats', sub: 'Jackets, gilets'},
+  trousers: {label: 'Bottoms', sub: 'Trousers, shorts'}, dress: {label: 'Dresses', sub: 'Dresses, skirts'},
+  shoes: {label: 'Shoes', sub: 'Trainers, boots'}, hat: {label: 'Hats', sub: 'Caps, beanies'}, other: {label: 'Other', sub: 'Bags, scarves'}};
 
 function cameraSteps(shape) {
+  const label = (role, text, ghost, hint) => ({role, label: text, ghost, kind: 'label', hint});
+  const shot = (role, text, ghost, hint, back = false) => ({role, label: text, ghost, kind: 'garment', hint, back});
+  if (shape === 'shoes') return [
+    shot('front', 'Left side', 'shoes', 'Photograph the left side about this size'),
+    shot('back', 'Right side', 'shoes', 'Now the right side'),
+    shot('extra', 'Sole', 'other', 'Turn it over: the whole sole'),
+    label('model_size', 'Size tag', 'size', 'Size tag inside, in focus'),
+    label('brand', 'Logo', 'brand', 'Logo or brand, in focus'),
+  ];
+  if (shape === 'hat') return [
+    shot('front', 'Front', 'hat'),
+    shot('back', 'Back', 'hat', 'Now the back'),
+    shot('extra', 'Brim', 'other', 'Close-up of the brim'),
+    label('material', 'Inside', 'care', 'Inside and its tags, in focus'),
+    label('brand', 'Logo', 'brand', 'Logo or brand, in focus'),
+  ];
+  if (shape === 'other') return [
+    shot('front', 'Front', 'other'),
+    shot('back', 'Back', 'other', 'Now the back'),
+    shot('extra', 'Side', 'other', 'Another angle'),
+    label('brand', 'Logo', 'brand', 'Logo or brand, in focus'),
+    label('model_size', 'Tag', 'size', 'Any tag or size, in focus'),
+  ];
   return [
-    {role: 'front', label: 'Front', ghost: shape, kind: 'garment'},
-    {role: 'back', label: 'Back', ghost: shape, back: true, kind: 'garment'},
-    {role: 'brand', label: 'Brand', ghost: 'brand', kind: 'label'},
-    {role: 'model_size', label: 'Size', ghost: 'size', kind: 'label'},
-    {role: 'material', label: 'Care label', ghost: 'care', kind: 'label'},
+    shot('front', 'Front', shape),
+    shot('back', 'Back', shape, '', true),
+    label('brand', 'Brand', 'brand'),
+    label('model_size', 'Size', 'size'),
+    label('material', 'Care label', 'care'),
   ];
 }
 
@@ -155,6 +182,7 @@ function createPhotoCamera({getPhotos, addPhotos, removePhoto, pickGallery, pick
   }
   function clearGuideTimer() { if (guideTimer) clearTimeout(guideTimer); guideTimer = null; }
   function guideHint(step) {
+    if (step.hint) return step.hint;
     if (step.kind === 'label') return CAMERA_LABEL_HINTS[step.ghost] || 'Label, in focus';
     if (extraStep) return 'Get close to the flaw';
     return `Photograph the ${CAMERA_NOUNS[shape] || 'item'} about this size`;
@@ -317,8 +345,13 @@ function createPhotoCamera({getPhotos, addPhotos, removePhoto, pickGallery, pick
     }
   }
   function nextMissingStep(from) {
-    const used = new Set(getPhotos().map(getRole));
-    for (let i = from; i < steps.length; i++) if (!used.has(steps[i].role)) return i;
+    const roles = getPhotos().map(getRole), used = new Set(roles);
+    const extras = roles.filter(role => role === 'extra').length;
+    // Extra-slot steps (sole, brim, side) count as done in order, one extra photo each.
+    for (let i = from; i < steps.length; i++) {
+      if (steps[i].role !== 'extra') { if (!used.has(steps[i].role)) return i; continue; }
+      if (steps.slice(0, i + 1).filter(step => step.role === 'extra').length > extras) return i;
+    }
     return steps.length;
   }
   function advance() {
@@ -364,10 +397,10 @@ function createPhotoCamera({getPhotos, addPhotos, removePhoto, pickGallery, pick
     } else if (name === 'pick') {
       html = `${back('mode')}<h2>What is it?</h2><div class="ci-grid">
         ${CAMERA_GARMENTS.map(key => `<button type="button" class="ci-tile${key === shape ? ' on' : ''}" data-shape="${key}">
-          ${cameraIcon(key, {stroke: key === shape ? '#1D1D1F' : '#86868B'})}<span>${CAMERA_SHAPES[key].label}</span></button>`).join('')}
-        </div><div class="ci-grow"></div><button type="button" class="ci-primary" data-go="shots">Next</button>`;
+          ${cameraIcon(key, {stroke: key === shape ? '#1D1D1F' : '#86868B'})}<span>${CAMERA_GROUPS[key].label}</span><small class="ci-sub">${CAMERA_GROUPS[key].sub}</small></button>`).join('')}
+        </div>`;
     } else if (name === 'shots') {
-      html = `${back('pick')}<h2>5 photos <span class="ci-soft">+ flaws</span></h2><div class="ci-grid">
+      html = `${back('pick')}<h2>${steps.length} photos <span class="ci-soft">+ flaws</span></h2><div class="ci-grid">
         ${steps.map((step, i) => `<div class="ci-tile static"><b class="ci-num">${i + 1}</b>${cameraIcon(step.ghost, {back: step.back})}<span>${step.label}</span></div>`).join('')}
         <div class="ci-tile dashed">${'<svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#64748B" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>'}<span>Flaws</span></div>
         </div><div class="ci-grow"></div><button type="button" class="ci-primary" data-go="camera">Start</button>`;
@@ -406,7 +439,7 @@ function createPhotoCamera({getPhotos, addPhotos, removePhoto, pickGallery, pick
       setMode(target.dataset.mode);
       return showPanel('mode');
     }
-    if (target.dataset.shape) { shape = target.dataset.shape; steps = cameraSteps(shape); return showPanel('pick'); }
+    if (target.dataset.shape) { shape = target.dataset.shape; steps = cameraSteps(shape); return showPanel('shots'); }  // one tap picks
     const go = target.dataset.go;
     if (go === 'mode') return showPanel('mode');
     if (go === 'pick') return showPanel('pick');
