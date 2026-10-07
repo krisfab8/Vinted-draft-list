@@ -81,7 +81,8 @@ def restore(data, items_dir):
     # Only known accounting fields; no arbitrary keys or credential files.
     allowed={'id','run_id','item','timestamp','stage','model','input_tokens','output_tokens',
              'cache_creation_input_tokens','cache_read_input_tokens','cost_gbp','cost_usd',
-             'error_type','stop_reason','latency_ms','rate_version','usd_to_gbp','billing_status'}
+             'error_type','stop_reason','latency_ms','rate_version','usd_to_gbp','billing_status',
+             'web_search_requests'}
     existing={e['id'] for e in model_usage.read_events()}
     if events:
         model_usage.LEDGER_PATH.parent.mkdir(parents=True,exist_ok=True)

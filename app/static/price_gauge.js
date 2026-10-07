@@ -15,6 +15,7 @@
   const BASIS = {
     observed: 'Based on your matching sales',
     reference: 'Based on your saved price references',
+    web: 'Based on sold prices found by web search',
     estimate: 'AI estimate — no matching sales yet, so the range is wider',
   };
   let ids = 0;

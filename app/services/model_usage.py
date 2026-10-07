@@ -15,6 +15,7 @@ LEDGER_PATH = ROOT / 'data' / 'model_calls.jsonl'
 RATES = {'claude-haiku-4-5-20251001': (1, 5), 'claude-sonnet-4-6': (3, 15),
          'gpt-6-luna': (.1, .5), 'gpt-6.1-sol': (2, 10)}
 USD_TO_GBP = .79
+WEB_SEARCH_USD = .01  # Anthropic web search: $10 per 1,000 searches
 _context = ContextVar('model_usage', default=None)
 _lock = threading.Lock()
 
@@ -32,9 +33,15 @@ def cost_usd(event):
     if rate is None or event.get('input_tokens') is None or event.get('output_tokens') is None:
         return None
     # Cache writes and hits have separate rates on Anthropic.
-    return (event['input_tokens'] * rate[0] + event['output_tokens'] * rate[1]
-            + event.get('cache_creation_input_tokens', 0) * rate[0] * 1.25
-            + event.get('cache_read_input_tokens', 0) * rate[0] * .1) / 1_000_000
+    return ((event['input_tokens'] * rate[0] + event['output_tokens'] * rate[1]
+             + event.get('cache_creation_input_tokens', 0) * rate[0] * 1.25
+             + event.get('cache_read_input_tokens', 0) * rate[0] * .1) / 1_000_000
+            + (event.get('web_search_requests') or 0) * WEB_SEARCH_USD)
+
+
+def _searches(usage):
+    value = getattr(getattr(usage, 'server_tool_use', None), 'web_search_requests', None)
+    return value if isinstance(value, int) and not isinstance(value, bool) else 0
 
 
 def record(model, stage, *, usage=None, stop_reason=None, error=None, latency_ms=0):
@@ -49,6 +56,7 @@ def record(model, stage, *, usage=None, stop_reason=None, error=None, latency_ms
              'output_tokens': integer('output_tokens'),
              'cache_creation_input_tokens': integer('cache_creation_input_tokens') or 0,
              'cache_read_input_tokens': integer('cache_read_input_tokens') or 0,
+             'web_search_requests': _searches(usage),
              'stop_reason': stop_reason if isinstance(stop_reason, str) else None,
              'error_type': type(error).__name__ if error else None,
              'latency_ms': latency_ms, 'rate_version': '2026-10-02', 'usd_to_gbp': USD_TO_GBP}

@@ -28,7 +28,11 @@ def run_pipeline(
     extract_log and write_log are observability dicts already popped from
     their respective usage/item dicts — callers don't need to pop them.
     """
+    import time
+    from datetime import datetime, timezone
     from app.config import ENABLE_SINGLE_PASS, VISION_PROVIDER, LISTING_PROVIDER
+    run_calls = (model_usage._context.get() or {}).get("calls", [])
+    marks = [("Reading photos", time.perf_counter(), len(run_calls))]
     single_pass = ENABLE_SINGLE_PASS and VISION_PROVIDER == LISTING_PROVIDER and VISION_PROVIDER in ("claude-haiku", "openai")
     if single_pass:
         item, extract_usage = extractor.extract(item_path, hints=hints or None, single_pass=True)
@@ -39,6 +43,7 @@ def run_pipeline(
     if buy_price_gbp is not None:
         item["buy_price_gbp"] = float(buy_price_gbp)
 
+    marks.append(("Writing listing", time.perf_counter(), len(run_calls)))
     if single_pass:
         from app.services.single_pass import assemble
         listing, write_usage = assemble(item, hints or {})
@@ -52,7 +57,14 @@ def run_pipeline(
     except EbayQueryError:
         pass
     listing["measurement_proposals"] = item.get("measurement_proposals", [])
+    from app.services import web_price
+    if web_price.enabled():
+        marks.append(("Web price search", time.perf_counter(), len(run_calls)))
+        listing["web_price"] = web_price.estimate(listing)
+    marks.append(("Pricing", time.perf_counter(), len(run_calls)))
     pricing.apply_pricing(listing, pricing_mode=pricing_mode)
+    marks.append(("end", time.perf_counter(), len(run_calls)))
+    listing["run_stats"] = _run_stats(marks, run_calls, datetime.now(timezone.utc).isoformat(timespec="seconds"))
     if extract_log.get("reread_errors"):
         listing.setdefault("warnings", []).append("reread_failed")
     listing["analysis_models"] = {
@@ -60,6 +72,26 @@ def run_pipeline(
     }
 
     return listing, extract_usage, write_usage, extract_log, write_log
+
+
+def _run_stats(marks, calls, finished_at):
+    """Time, cost and tokens per pipeline stage, from the run's own call ledger."""
+    stages = []
+    for (name, start, first), (_, end, last) in zip(marks, marks[1:]):
+        stage_calls = calls[first:last]
+        stages.append({
+            "name": name, "ms": round((end - start) * 1000),
+            "cost_gbp": round(sum(c.get("cost_gbp") or 0 for c in stage_calls), 5),
+            "calls": len(stage_calls),
+            "input_tokens": sum(c.get("input_tokens") or 0 for c in stage_calls),
+            "output_tokens": sum(c.get("output_tokens") or 0 for c in stage_calls),
+            "searches": sum(c.get("web_search_requests") or 0 for c in stage_calls),
+            "models": sorted({c["model"] for c in stage_calls if c.get("model")}),
+        })
+    return {"stages": stages, "finished_at": finished_at,
+            "total_ms": sum(s["ms"] for s in stages),
+            "total_cost_gbp": round(sum(s["cost_gbp"] for s in stages), 5),
+            "cost_complete": all(c.get("cost_gbp") is not None for c in calls)}
 
 
 # ── Hint reconstruction ───────────────────────────────────────────────────────

@@ -173,7 +173,7 @@ _CONDITION_FACTOR: dict[str, float] = {
 }
 
 # Half-width of the suggested range: tighter when the evidence is stronger.
-_RANGE_SPREAD = {"observed": 0.08, "reference": 0.10, "estimate": 0.15}
+_RANGE_SPREAD = {"observed": 0.08, "web": 0.10, "reference": 0.10, "estimate": 0.15}
 
 
 def price_range(listing: dict) -> dict | None:
@@ -193,11 +193,13 @@ def price_range(listing: dict) -> dict | None:
         basis = "observed"
     elif evidence.get("source") == "reference_memory":
         basis = "reference"
+    elif evidence.get("source") == "web_sold_search":
+        basis = "web"
     else:
         basis = "estimate"
     spread = max(_RANGE_SPREAD[basis] * price, 2.0)
     low, high = max(1, round(price - spread)), round(price + spread)
-    band = evidence.get("range_gbp") if basis == "reference" else None
+    band = evidence.get("range_gbp") if basis in ("reference", "web") else None
     if band and band[0] < band[1]:
         scale_low, scale_high = min(float(band[0]), low), max(float(band[1]), high)
     else:
@@ -292,24 +294,41 @@ def _apply_pricing_inner(listing: dict, pricing_mode: str = "balanced") -> dict:
         if ai_price is not None:
             adjustments.append("no memory match — using AI price")
 
-    listing["price_evidence"] = {
-        "source": "reference_memory" if memory_entry else "model_suggestion",
-        "confidence": "unverified",
-        "range_gbp": [float(memory_entry["low"]), float(memory_entry["high"])] if memory_entry else None,
-        "note": "Stored reference band; not a fresh market lookup." if memory_entry else
-                "AI suggestion; no matching reference band or live comparable sales checked.",
-    }
+    # ── 1.2. Web sold-price search beats a bare AI guess or a generic band ────
+    web = listing.get("web_price") or {}
+    use_web = (web.get("typical_gbp") and web.get("confidence") in ("high", "medium")
+               and (web.get("sold_count") or 0) >= 2)
+    if use_web:
+        final_price = float(web["typical_gbp"])
+        adjustments.append(f"web search: {web['sold_count']} sold examples, typical £{web['typical_gbp']:g} "
+                           f"(£{web['low_gbp']:g}–£{web['high_gbp']:g})")
+        listing["price_evidence"] = {
+            "source": "web_sold_search", "confidence": "web_sample",
+            "range_gbp": [float(web["low_gbp"]), float(web["high_gbp"])],
+            "note": web.get("note") or "Typical sold price found by web search.",
+        }
+        memory_entry = None  # web evidence is item-specific; skip the generic band clamp
+        adjustments = [a for a in adjustments if not a.startswith("no memory match")]
 
-    if generic_premium:
+    if not use_web:
+        listing["price_evidence"] = {
+            "source": "reference_memory" if memory_entry else "model_suggestion",
+            "confidence": "unverified",
+            "range_gbp": [float(memory_entry["low"]), float(memory_entry["high"])] if memory_entry else None,
+            "note": "Stored reference band; not a fresh market lookup." if memory_entry else
+                    "AI suggestion; no matching reference band or live comparable sales checked.",
+        }
+
+    if generic_premium and not use_web:
         listing['price_evidence']['note'] = 'Provisional AI price: premium cloth/construction needs comparable-sales review.'
 
     # ── 1.5. Condition change since the model priced it ───────────────────────
-    # A reference band already positions by condition; a bare AI price does not,
-    # so scale it when the condition now differs from the one it was priced at.
+    # A reference band already positions by condition; a bare AI or web price
+    # does not, so scale it when the condition now differs from the one it was priced at.
     if not memory_entry and final_price is not None:
         from app.services.condition import canonical_level
         current = canonical_level(listing.get("condition_summary"))
-        priced_at = listing.get("ai_price_condition")
+        priced_at = web.get("condition_level") if use_web else listing.get("ai_price_condition")
         if not priced_at and current in ("New with tags", "New without tags"):
             priced_at = "Excellent"  # older drafts: the writer only prices used levels
         if priced_at in _CONDITION_FACTOR and current in _CONDITION_FACTOR and priced_at != current:

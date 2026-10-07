@@ -512,7 +512,7 @@ def upload_listing():
         # upload adds cost fields to the listing (not present in create-listing response)
         cost_usd = _calc_cost_usd(extract_usage) + _calc_cost_usd(write_usage)
         cost_gbp = cost_usd * _USD_TO_GBP
-        listing["cost_gbp"] = round(cost_gbp, 5)
+        listing["cost_gbp"] = (listing.get("run_stats") or {}).get("total_cost_gbp") or round(cost_gbp, 5)
         listing["model_calls"] = extract_usage.get("calls", []) + write_usage.get("calls", [])
         listing["cost_complete"] = extract_usage.get("cost_complete", True) and write_usage.get("cost_complete", True)
         listing["cost_status"] = "estimated" if listing["cost_complete"] else "incomplete"
@@ -1028,7 +1028,8 @@ def reanalyze_listing(folder):
                 pricing_mode=profile_svc.load().get('pricing_mode', 'balanced'))
             listing['reanalysis_source'] = folder
             listing['reanalysis_baseline'] = photo_reanalysis.baseline_fields(baseline)
-            listing['cost_gbp'] = round((_calc_cost_usd(eu)+_calc_cost_usd(wu))*_USD_TO_GBP, 5)
+            listing['cost_gbp'] = (listing.get('run_stats') or {}).get('total_cost_gbp') \
+                or round((_calc_cost_usd(eu)+_calc_cost_usd(wu))*_USD_TO_GBP, 5)
             listing['model_calls'] = eu.get('calls', [])+wu.get('calls', [])
             listing['cost_complete'] = eu.get('cost_complete', True) and wu.get('cost_complete', True)
             listing['cost_status'] = 'estimated' if listing['cost_complete'] else 'incomplete'

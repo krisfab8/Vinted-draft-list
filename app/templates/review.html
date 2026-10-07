@@ -507,6 +507,10 @@
     opacity: 1;
     transform: translateX(-50%) translateY(0);
   }
+  .stats-table { width:100%; border-collapse:collapse; font-size:12px; margin:4px 0 8px; }
+  .stats-table th, .stats-table td { text-align:left; padding:6px 6px; border-bottom:1px solid var(--gray-2); vertical-align:top; }
+  .stats-table th { font-weight:700; color:var(--gray-7); text-transform:uppercase; font-size:10px; letter-spacing:.4px; }
+  .stats-table td:nth-child(2), .stats-table td:nth-child(3) { white-space:nowrap; font-variant-numeric:tabular-nums; }
 </style>
 {% endblock %}
 
@@ -710,6 +714,64 @@
     <div id="priceGauge" style="width:100%"></div>
   </div>
 </div>
+
+<!-- ── Analysis stats: what this analysis cost and how long it took ── -->
+{% set rs = listing.run_stats %}
+{% set wp = listing.web_price %}
+{% if rs or listing.cost_gbp is number %}
+<div class="review-section" id="analysisStats">
+  <div class="review-section-title">Analysis stats</div>
+  {% if rs %}
+  <div class="field-row" style="flex-wrap:wrap">
+    <div class="field-label">Total</div>
+    <div class="field-value"><strong>£{{ '%.4f' % rs.total_cost_gbp }}</strong> ({{ '%.2f' % (rs.total_cost_gbp * 100) }}p)
+      · <strong>{{ '%.1f' % (rs.total_ms / 1000) }} s</strong>{% if not rs.cost_complete %} · <span class="conf-badge conf-low">cost incomplete</span>{% endif %}</div>
+  </div>
+  <div style="overflow-x:auto">
+  <table class="stats-table">
+    <thead><tr><th>Step</th><th>Time</th><th>Cost</th><th>Detail</th></tr></thead>
+    <tbody>
+    {% for st in rs.stages %}
+      <tr>
+        <td>{{ st.name }}</td>
+        <td>{{ '%.1f' % (st.ms / 1000) }} s</td>
+        <td>£{{ '%.4f' % st.cost_gbp }}</td>
+        <td>{% if st.calls %}{{ st.calls }} AI call{{ 's' if st.calls != 1 }} · {{ st.input_tokens }} in / {{ st.output_tokens }} out{% if st.searches %} · {{ st.searches }} search{{ 'es' if st.searches != 1 }}{% endif %}{% else %}no AI{% endif %}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% else %}
+  <div class="field-row">
+    <div class="field-label">Cost</div>
+    <div class="field-value">£{{ '%.4f' % listing.cost_gbp }}{% if listing.cost_tokens %} · {{ listing.cost_tokens.input }} in / {{ listing.cost_tokens.output }} out tokens{% endif %}
+      <span style="font-size:12px;color:var(--gray-5)">(made before timing was recorded)</span></div>
+  </div>
+  {% endif %}
+  {% if wp %}
+  <div class="field-row" style="flex-wrap:wrap;gap:6px 8px">
+    <div class="field-label">Web price</div>
+    <div class="field-value" style="width:100%">
+      {% if wp.typical_gbp %}
+        Typical <strong>£{{ '%g' % wp.typical_gbp }}</strong> (£{{ '%g' % wp.low_gbp }}–£{{ '%g' % wp.high_gbp }})
+        · <span class="conf-badge conf-{{ 'high' if wp.confidence == 'high' else 'medium' if wp.confidence == 'medium' else 'low' }}">{{ wp.confidence }}</span>
+        · {{ wp.sold_count }} sold example{{ 's' if wp.sold_count != 1 }}
+      {% else %}No usable prices found.{% endif %}
+      <div style="font-size:12px;color:var(--gray-5)">{{ wp.searches }} search{{ 'es' if wp.searches != 1 }} · £{{ '%.4f' % wp.cost_gbp }} · {{ '%.1f' % (wp.latency_ms / 1000) }} s{% if wp.note %} · {{ wp.note }}{% endif %}</div>
+      {% if wp.examples %}
+      <ul style="margin:6px 0 0;padding-left:18px;font-size:12px">
+        {% for ex in wp.examples %}
+        <li>{% if ex.url %}<a href="{{ ex.url }}" target="_blank" rel="noopener noreferrer">{{ ex.title or 'Listing' }}</a>{% else %}{{ ex.title }}{% endif %}
+          — £{{ '%g' % ex.price_gbp }} {{ 'sold' if ex.sold else 'asking' }}</li>
+        {% endfor %}
+      </ul>
+      {% endif %}
+    </div>
+  </div>
+  {% endif %}
+</div>
+{% endif %}
 
 <!-- ── Description ── -->
 <div class="review-section">
