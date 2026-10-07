@@ -1192,6 +1192,9 @@ def finalize_listing(listing: dict, item: dict, hints: dict | None = None) -> di
         listing.setdefault('colour_from_tag', item['colour_from_tag'])
     from app.services import description_layout
     description_layout.apply(listing)
+    # The model's price reflects the level it wrote, before deterministic
+    # upgrades (e.g. hang tag -> New with tags); repricing scales from it.
+    listing['ai_price_condition'] = _cond_svc.canonical_level(listing.get('condition_summary'), retail_tags=False)
     _cond_svc.apply_condition(listing)
     _cond_svc.inject_condition_line(listing)
 

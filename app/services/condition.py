@@ -60,7 +60,7 @@ def has_retail_tags(text: str | None) -> bool:
     return bool(_RETAIL_TAG_RE.search(s)) and not _NO_RETAIL_TAG_RE.search(s)
 
 
-def canonical_level(condition_summary: str | None) -> str:
+def canonical_level(condition_summary: str | None, retail_tags: bool = True) -> str:
     """Extract the canonical condition level from a condition_summary string.
 
     Returns one of:
@@ -70,7 +70,7 @@ def canonical_level(condition_summary: str | None) -> str:
     Defaults to "Very good" when no level can be inferred.
     """
     s = (condition_summary or "").lower()
-    if has_retail_tags(s):
+    if retail_tags and has_retail_tags(s):
         return "New with tags"
     for keyword, level in _LEVEL_KEYWORDS:
         if keyword in s:

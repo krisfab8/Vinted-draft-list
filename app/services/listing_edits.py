@@ -56,8 +56,15 @@ def apply(existing, updates):
     if 'category' in updates:
         listing['category_locked'] = True
     if 'price_gbp' in updates:
-        listing.pop('price_proposal', None)
+        proposal = listing.pop('price_proposal', None) or {}
         listing['price_evidence'] = {'source': 'seller_selected', 'note': 'Price chosen by you.'}
+        # Accepting a suggestion keeps its range and reasons; a typed price gets a fresh range.
+        if proposal.get('range') and proposal.get('price_gbp') == updates['price_gbp']:
+            listing['price_range'] = proposal['range']
+            listing['price_adjustments'] = proposal.get('adjustments') or []
+        else:
+            from app.services.pricing import price_range
+            listing['price_range'] = price_range(listing)
         if existing.get('price_gbp') != updates['price_gbp']:
             from datetime import datetime, timezone
             listing.setdefault('initial_asking_price_gbp', existing.get('price_gbp'))

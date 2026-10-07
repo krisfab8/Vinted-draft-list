@@ -23,12 +23,13 @@ context.showToast=message=>messages.push(message);
  const failure=context.openSheet(0);pending.shift()({ok:false});await failure;
  assert.equal(rendered.length,2);assert(messages[0].includes('latest draft'));
  // Deleting a card must not shift indices embedded in the surviving cards.
- context.confirm=()=>true;
+ context.confirm=()=>true;context.confirmDelete=async()=>true;
  let removed=false;
  context.document.getElementById=()=>({remove(){removed=true;}});
  context.document.querySelector=()=>null;
  context.closeSheet=()=>{};
  const deletion=context.deleteDraft({stopPropagation(){}},'upload_11111111',{textContent:'Delete listing',disabled:false});
+ await new Promise(resolve=>setTimeout(resolve,0)); // confirmation dialog resolves first
  pending.shift()({ok:true});await deletion;assert(removed);
  const next=context.openSheet(1);
  assert(calls.at(-1)[0].includes('upload_22222222'));

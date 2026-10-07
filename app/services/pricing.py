@@ -141,6 +141,8 @@ def _condition_percentile(condition_summary: str | None) -> float:
 
     if any(k in s for k in ("pristine", "mint", "new with tags", "deadstock", "bnwt")):
         return 0.92
+    if "new without tags" in s:
+        return 0.85
     if any(k in s for k in ("very good", "excellent", "like new")):
         return 0.75
     if any(k in s for k in ("good",)):
@@ -158,6 +160,58 @@ _PRICING_MODE_OFFSET: dict[str, float] = {
     "price": +0.10,    # top of band — maximise return
     "balanced": 0.0,   # no adjustment (default)
 }
+
+
+# Resale value relative to "Very good" used condition.
+_CONDITION_FACTOR: dict[str, float] = {
+    "New with tags": 1.30,
+    "New without tags": 1.15,
+    "Excellent": 1.05,
+    "Very good": 1.00,
+    "Good": 0.85,
+    "Satisfactory": 0.65,
+}
+
+# Half-width of the suggested range: tighter when the evidence is stronger.
+_RANGE_SPREAD = {"observed": 0.08, "reference": 0.10, "estimate": 0.15}
+
+
+def price_range(listing: dict) -> dict | None:
+    """A small suggested range around price_gbp plus a wider gauge scale.
+
+    The scale runs from "sells fast" (low) to "maximum return" (high); the
+    gauge needle sits at price_gbp. Never raises.
+    """
+    try:
+        price = float(listing.get("price_gbp"))
+    except (TypeError, ValueError):
+        return None
+    if price <= 0:
+        return None
+    evidence = listing.get("price_evidence") or {}
+    if evidence.get("confidence") == "observed_sample":
+        basis = "observed"
+    elif evidence.get("source") == "reference_memory":
+        basis = "reference"
+    else:
+        basis = "estimate"
+    spread = max(_RANGE_SPREAD[basis] * price, 2.0)
+    low, high = max(1, round(price - spread)), round(price + spread)
+    band = evidence.get("range_gbp") if basis == "reference" else None
+    if band and band[0] < band[1]:
+        scale_low, scale_high = min(float(band[0]), low), max(float(band[1]), high)
+    else:
+        # Anchor on the model's own price so condition/flaw adjustments visibly
+        # move the needle towards "max return" or "sells faster".
+        try:
+            anchor = float(listing.get("ai_price_gbp") or price)
+        except (TypeError, ValueError):
+            anchor = price
+        scale_low, scale_high = min(anchor * 0.6, low), max(anchor * 1.4, high)
+    pad = (scale_high - scale_low) * 0.1
+    scale_low, scale_high = max(0, round(scale_low - pad)), round(scale_high + pad)
+    return {"low": low, "high": high, "scale_low": scale_low, "scale_high": scale_high,
+            "position": round((price - scale_low) / (scale_high - scale_low), 3), "basis": basis}
 
 
 def apply_pricing(listing: dict, pricing_mode: str = "balanced") -> dict:
@@ -249,6 +303,23 @@ def _apply_pricing_inner(listing: dict, pricing_mode: str = "balanced") -> dict:
     if generic_premium:
         listing['price_evidence']['note'] = 'Provisional AI price: premium cloth/construction needs comparable-sales review.'
 
+    # ── 1.5. Condition change since the model priced it ───────────────────────
+    # A reference band already positions by condition; a bare AI price does not,
+    # so scale it when the condition now differs from the one it was priced at.
+    if not memory_entry and final_price is not None:
+        from app.services.condition import canonical_level
+        current = canonical_level(listing.get("condition_summary"))
+        priced_at = listing.get("ai_price_condition")
+        if not priced_at and current in ("New with tags", "New without tags"):
+            priced_at = "Excellent"  # older drafts: the writer only prices used levels
+        if priced_at in _CONDITION_FACTOR and current in _CONDITION_FACTOR and priced_at != current:
+            change = _CONDITION_FACTOR[current] / _CONDITION_FACTOR[priced_at]
+            adjusted = round(final_price * change, 0)
+            adjustments.append(f"condition {current} vs {priced_at} when priced "
+                               f"{'+' if change > 1 else '−'}{abs(round((change - 1) * 100))}% "
+                               f"(£{int(final_price)} → £{int(adjusted)})")
+            final_price = adjusted
+
     # ── 2. Flaws discount (-15%) ──────────────────────────────────────────────
     flaws = (listing.get("flaws_note") or "").strip()
     if flaws and final_price is not None:
@@ -299,6 +370,7 @@ def _apply_pricing_inner(listing: dict, pricing_mode: str = "balanced") -> dict:
     # else: leave price_gbp unchanged (AI value or None)
 
     listing["price_adjustments"] = adjustments
+    listing["price_range"] = price_range(listing)
 
     # ── 5. Profitability analysis (informational — never moves price_gbp) ─────
     _apply_profitability(listing, final_price)

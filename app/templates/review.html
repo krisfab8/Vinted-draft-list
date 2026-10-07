@@ -694,7 +694,8 @@
     <div class="field-edit-wrap" style="flex-shrink:0; min-width:0">
       <input class="field-input" id="f-price" type="number" step="0.5" min="0"
              value="{{ listing.price_gbp or '' }}" style="max-width:100px">
-      <button class="btn-save-field" onclick="saveField('price_gbp', parseFloat(document.getElementById('f-price').value))">Save</button>
+      <button class="btn-save-field" onclick="savePrice(parseFloat(document.getElementById('f-price').value))">Save</button>
+      <button class="btn-save-field" id="repriceBtn" onclick="repriceListing()" title="Recalculate the price from the current details">Reprice ↻</button>
     </div>
     {% if listing.ai_price_gbp is defined and listing.ai_price_gbp is not none and listing.ai_price_gbp != listing.price_gbp %}
       <span class="conf-badge conf-medium" title="AI suggested price">AI £{{ listing.ai_price_gbp | int }}</span>
@@ -704,11 +705,9 @@
         {%- if "loss" in (listing.pricing_flags or []) -%}loss{%- else -%}low margin{%- endif -%}
       </span>
     {% endif %}
-    {% if listing.price_adjustments and listing.price_adjustments | length > 0 %}
-      <div style="width:100%; padding-left:90px; margin-top:-2px;">
-        <span style="font-size:11px; color:var(--gray-5)">{{ listing.price_adjustments[0] }}</span>
-      </div>
-    {% endif %}
+    <div id="repriceNudge" hidden style="width:100%; font-size:12px; color:#b86a00; font-weight:600">Details changed — tap Reprice to update the price.</div>
+    <div id="priceProposal" hidden style="width:100%; padding:12px; border:1px solid var(--gray-3); border-radius:12px"></div>
+    <div id="priceGauge" style="width:100%"></div>
   </div>
 </div>
 
@@ -887,8 +886,56 @@
 {% endblock %}
 
 {% block scripts %}
+<script src="{{ url_for('static', filename='price_gauge.js') }}?v=1"></script>
 <script>
 const FOLDER = {{ folder | tojson }};
+const PRICE_RANGE = {{ (listing.price_range or none) | tojson }};
+const PRICE_REASONS = {{ (listing.price_adjustments or []) | tojson }};
+document.getElementById('priceGauge').innerHTML =
+  window.PriceGauge?.html(PRICE_RANGE, {{ listing.price_gbp | tojson }}, PRICE_REASONS) || '';
+
+async function savePrice(price) {
+  const resp = await fetch(`/listing/${encodeURIComponent(FOLDER)}`, {
+    method: 'PATCH', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({price_gbp: price}),
+  });
+  const data = await resp.json().catch(() => ({}));
+  if (!resp.ok) { showToast('Error: ' + (data.error || 'unknown')); return; }
+  showToast('Price saved');
+  document.getElementById('f-price').value = data.price_gbp;
+  document.getElementById('priceProposal').hidden = true;
+  document.getElementById('repriceNudge').hidden = true;
+  document.getElementById('priceGauge').innerHTML =
+    window.PriceGauge?.html(data.price_range, data.price_gbp, data.price_adjustments) || '';
+}
+
+async function repriceListing() {
+  const btn = document.getElementById('repriceBtn');
+  btn.disabled = true; btn.textContent = 'Checking…';
+  try {
+    const resp = await fetch(`/reprice/${encodeURIComponent(FOLDER)}`, {method: 'POST'});
+    const data = await resp.json().catch(() => ({}));
+    if (!resp.ok) throw new Error(data.error || 'Reprice failed');
+    const p = data.price_proposal || {};
+    const box = document.getElementById('priceProposal');
+    const same = Number(p.price_gbp) === Number(data.price_gbp);
+    box.innerHTML = `<strong>${same ? 'Price still looks right' : 'New suggestion'}: £${p.price_gbp}</strong>
+      ${window.PriceGauge?.html(p.range, p.price_gbp, p.adjustments) || ''}
+      ${same ? '' : `<div style="display:flex;gap:8px;margin-top:10px">
+        <button class="btn-save-field" onclick="savePrice(${Number(p.price_gbp)})">Use £${p.price_gbp}</button>
+        <button class="btn-save-field" onclick="document.getElementById('priceProposal').hidden=true">Keep £${data.price_gbp}</button></div>`}`;
+    box.hidden = false;
+    document.getElementById('repriceNudge').hidden = true;
+    if (same) document.getElementById('priceGauge').innerHTML = '';
+  } catch (error) {
+    showToast(error.message);
+  } finally {
+    btn.disabled = false; btn.textContent = 'Reprice ↻';
+  }
+}
+
+function nudgeReprice() {
+  document.getElementById('repriceNudge').hidden = false;
+}
 window.ItemState?.remember(FOLDER, {{ item_revision | tojson }});
 let _errorTags = {{ (listing.error_tags or []) | tojson }};
 
@@ -907,6 +954,7 @@ async function saveField(field, value) {
   });
   if (resp.ok) {
     showToast("Saved");
+    if (["brand", "materials", "item_type", "category", "normalized_size"].includes(field)) nudgeReprice();
   } else {
     const d = await resp.json().catch(() => ({}));
     showToast("Error: " + (d.error || "unknown"));
@@ -930,6 +978,7 @@ async function saveCondition() {
     const data = await resp.json();
     showToast("Saved");
     _updateConditionLineDisplay(data.condition_line);
+    nudgeReprice();
   } else {
     const d = await resp.json().catch(() => ({}));
     showToast("Error: " + (d.error || "unknown"));
@@ -948,6 +997,7 @@ async function saveFlaws() {
     const data = await resp.json();
     showToast("Saved");
     _updateConditionLineDisplay(data.condition_line);
+    nudgeReprice();
   } else {
     const d = await resp.json().catch(() => ({}));
     showToast("Error: " + (d.error || "unknown"));

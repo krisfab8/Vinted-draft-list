@@ -993,6 +993,8 @@ def reprice_listing(folder):
     existing['price_proposal'] = {
         'price_gbp': proposal.get('price_gbp'), 'evidence': proposal.get('price_evidence'),
         'adjustments': proposal.get('price_adjustments'),
+        'range': proposal.get('price_range'),
+        'previous_price_gbp': existing.get('price_gbp'),
         'suggested_at': datetime.now().isoformat(timespec='seconds'),
     }
     existing['sales_history'] = proposal.get('sales_history')
@@ -1236,6 +1238,9 @@ def review_listing_page(folder):
         return jsonify({"error": "listing not found"}), 404
     listing = json.loads(listing_path.read_text())
     listing["folder"] = safe_folder
+    if not listing.get("price_range"):
+        from app.services.pricing import price_range
+        listing["price_range"] = price_range(listing)  # display only; not saved
 
     # Collect photo filenames
     extensions = {".jpg", ".jpeg", ".png", ".webp"}
