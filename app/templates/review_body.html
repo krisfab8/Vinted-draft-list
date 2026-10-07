@@ -263,10 +263,9 @@
 </div>
 {% endif %}
 
-{% if listing.reanalysis_source %}
+{% if listing.reanalysis_baseline %}
 <div class="review-section">
   <div class="review-section-title">Fresh photo analysis</div>
-  <a href="/review/{{ listing.reanalysis_source }}" style="display:block;padding:0 16px 8px">Open original →</a>
   <div style="overflow-x:auto"><table style="width:100%;text-align:left;font-size:13px">
     <thead><tr><th>Detail</th><th>Previous listing</th><th>Fresh read</th></tr></thead>
     <tbody>{% for label, previous in listing.reanalysis_baseline.items() %}

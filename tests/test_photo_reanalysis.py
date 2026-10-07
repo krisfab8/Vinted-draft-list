@@ -31,28 +31,36 @@ def saved(tmp_path, monkeypatch):
     return tmp_path,source,old,pipeline,web.app.test_client()
 
 
-def test_fresh_analysis_clones_exact_slots_without_hints_and_preserves_source(saved):
+def test_fresh_analysis_replaces_the_listing_in_place(saved):
     root,source,old,pipeline,client=saved
-    original=(source/'listing.json').read_bytes()
+    listing=json.loads((source/'listing.json').read_text())
+    listing_state.write(source/'listing.json',dict(listing,draft_url='https://www.vinted.co.uk/items/1/edit'))
+    photos={role:(source/(role+'.jpg')).read_bytes() for role in ('front','brand','model_size','material','back')}
     nonce=str(uuid.uuid4())
     response=client.post('/reanalyze/'+source.name,json={'request_id':nonce})
     assert response.status_code==200
-    result=response.json;target=root/result['folder']
-    assert target!=source and (source/'listing.json').read_bytes()==original
-    assert result['normalized_size']=='L' and result['reanalysis_baseline']['Size']=='18 / L'
-    for role in ('front','brand','model_size','material','back'):
-        assert (target/(role+'.jpg')).read_bytes()==(source/(role+'.jpg')).read_bytes()
-    assert not (target/'contact.jpg').exists()
-    assert pipeline.call_args.args==(target,{})
+    result=response.json
+    # Same listing, new AI read; no second listing is left behind.
+    assert result['folder']==source.name and [p.name for p in root.iterdir() if p.name.startswith('upload_')]==[source.name]
+    saved_listing=json.loads((source/'listing.json').read_text())
+    assert saved_listing['title']=='Fresh photo result' and saved_listing['normalized_size']=='L'
+    assert result['reanalysis_baseline']['Size']=='18 / L'
+    # The draft link and buy price belong to the item, not the AI read.
+    assert saved_listing['draft_url']=='https://www.vinted.co.uk/items/1/edit' and saved_listing['buy_price_gbp']==5
+    for role,data in photos.items():
+        assert (source/(role+'.jpg')).read_bytes()==data
+    # The AI read the exact saved photo slots, without old corrections as hints.
+    analysed=pipeline.call_args.args[0]
+    assert analysed!=source and pipeline.call_args.args[1]=={} and not analysed.exists()
     assert pipeline.call_args.kwargs['buy_price_gbp']==5
     assert result['cost_tokens']=={'input':200,'output':60}
     repeated=client.post('/reanalyze/'+source.name,json={'request_id':nonce})
-    assert repeated.status_code==200 and repeated.json['folder']==target.name and pipeline.call_count==1
-    page=client.get('/review/'+target.name)
+    assert repeated.status_code==200 and repeated.json['folder']==source.name and pipeline.call_count==1
+    page=client.get('/review/'+source.name)
     assert page.status_code==200 and b'Fresh photo analysis' in page.data and b'Previous listing' in page.data
 
 
-def test_failed_paid_attempt_cannot_change_original_or_repeat_same_request(saved):
+def test_failed_paid_attempt_leaves_listing_unchanged_and_can_be_retried(saved):
     root,source,old,pipeline,client=saved
     original=(source/'listing.json').read_bytes()
     pipeline.side_effect=RuntimeError('private provider details')
@@ -60,8 +68,10 @@ def test_failed_paid_attempt_cannot_change_original_or_repeat_same_request(saved
     response=client.post('/reanalyze/'+source.name,json={'request_id':nonce})
     assert response.status_code==500 and 'private' not in response.json['error']
     assert (source/'listing.json').read_bytes()==original
-    assert client.post('/reanalyze/'+source.name,json={'request_id':nonce}).status_code==409
-    assert pipeline.call_count==1
+    assert [p.name for p in root.iterdir() if p.name.startswith('upload_')]==[source.name]
+    pipeline.side_effect=None
+    assert client.post('/reanalyze/'+source.name,json={'request_id':nonce}).status_code==200
+    assert pipeline.call_count==2
 
 
 def test_missing_photos_invalid_nonce_and_symlinks_never_start_ai(saved):

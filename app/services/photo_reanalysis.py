@@ -1,4 +1,4 @@
-"""Fresh, independent analysis copies using the exact saved photo bytes."""
+"""Fresh analysis of the exact saved photo bytes: run on a temporary copy, then replace the original."""
 import json
 import re
 import shutil
@@ -45,3 +45,21 @@ def baseline_fields(listing):
     return {'Brand': listing.get('brand') or '—', 'Size':size_text(listing) or '—',
             'Material':', '.join(listing.get('materials') or []) or '—',
             'Logo / print':detail(listing) or '—'}
+
+
+# Item lifecycle that belongs to the listing, not to the AI read: kept when the analysis is replaced.
+KEEP_FIELDS = ('draft_url', 'listed_date', 'buy_price_gbp')
+
+
+def promote(source, target, listing, baseline):
+    """Replace the original listing with the fresh analysis, then remove the temporary copy."""
+    for key in KEEP_FIELDS:
+        if baseline.get(key) is not None:
+            listing[key] = baseline[key]
+    for path in target.iterdir():
+        if path.is_file() and not path.is_symlink() and path.name not in {'listing.json', 'reanalysis.json', 'photo_roles.json'} \
+                and path.suffix.lower() not in {'.jpg', '.jpeg', '.png', '.webp'}:
+            shutil.copyfile(path, source/path.name)
+    listing_state.write(source/'listing.json', listing)
+    shutil.rmtree(target, ignore_errors=True)
+    return listing

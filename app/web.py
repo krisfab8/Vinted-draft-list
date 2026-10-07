@@ -10,6 +10,7 @@ POST /create-listing
 """
 import csv
 import json
+import shutil
 import threading
 import time
 import traceback
@@ -1071,7 +1072,8 @@ def reprice_listing(folder):
 
 @app.post("/reanalyze/<folder>")
 def reanalyze_listing(folder):
-    """Read saved photos afresh in an independent copy; never overwrite the source."""
+    """Read the saved photos afresh and replace the listing. The AI run happens on a temporary
+    copy first, so a failed or interrupted run never changes the original."""
     from app.services import photo_reanalysis, review_evidence
     body = request.get_json(silent=True) or {}
     if not isinstance(body, dict):
@@ -1079,20 +1081,22 @@ def reanalyze_listing(folder):
     try:
         source, target, target_folder, baseline, paths = photo_reanalysis.prepare(ITEMS_DIR, folder, body.get('request_id'))
         with listing_state.locked(ITEMS_DIR, target_folder):
+            # Same request again (double tap, retry): already applied, never pay twice.
+            current = json.loads((source/'listing.json').read_text())
+            if current.get('reanalysis_request') == target_folder:
+                return jsonify(dict(current, folder=folder)), 200
             if target.exists():
-                meta = json.loads((target/'reanalysis.json').read_text())
-                if meta.get('source') != folder:
-                    return jsonify(error='Analysis request belongs to another listing.'), 409
-                if not (target/'listing.json').is_file():
-                    return jsonify(error='This attempt did not complete. Start a new analysis; your original is unchanged.'), 409
-                result = json.loads((target/'listing.json').read_text())
-                return jsonify(dict(result, folder=target_folder)), 200
+                return jsonify(error='This analysis is already running or did not finish. Try again; your listing is unchanged.'), 409
             photo_reanalysis.copy_photos(source, target, folder, paths)
-            started = time.perf_counter()
-            listing, eu, wu, el, wl = pipeline_svc.run_pipeline(
-                target, {}, buy_price_gbp=baseline.get('buy_price_gbp'),
-                pricing_mode=profile_svc.load().get('pricing_mode', 'balanced'))
-            listing['reanalysis_source'] = folder
+            try:
+                started = time.perf_counter()
+                listing, eu, wu, el, wl = pipeline_svc.run_pipeline(
+                    target, {}, buy_price_gbp=baseline.get('buy_price_gbp'),
+                    pricing_mode=profile_svc.load().get('pricing_mode', 'balanced'))
+            except Exception:
+                shutil.rmtree(target, ignore_errors=True)
+                raise
+            listing['reanalysis_request'] = target_folder
             listing['reanalysis_baseline'] = photo_reanalysis.baseline_fields(baseline)
             listing['cost_gbp'] = (listing.get('run_stats') or {}).get('total_cost_gbp') \
                 or round((_calc_cost_usd(eu)+_calc_cost_usd(wu))*_USD_TO_GBP, 5)
@@ -1102,17 +1106,18 @@ def reanalyze_listing(folder):
             listing['cost_tokens'] = {'input':eu['input_tokens']+wu['input_tokens'], 'output':eu['output_tokens']+wu['output_tokens']}
             latency = round((time.perf_counter()-started)*1000)
             review_evidence.capture(target, listing, extract_log=el, write_log=wl, pipeline_latency_ms=latency)
-            listing_state.write(target/'listing.json', listing)
-            _log_cost(target_folder, eu, wu, listing)
-            _write_run_log(target_folder, el, wl, eu, wu, listing, latency)
-            _sync_item_status(target_folder, listing)
-            return jsonify(dict(listing, folder=target_folder)), 200
+            # The request already holds the original's lock (serialize_item_requests).
+            photo_reanalysis.promote(source, target, listing, json.loads((source/'listing.json').read_text()))
+            _log_cost(folder, eu, wu, listing)
+            _write_run_log(folder, el, wl, eu, wu, listing, latency)
+            _sync_item_status(folder, listing)
+            return jsonify(dict(listing, folder=folder)), 200
     except FileNotFoundError:
-        return jsonify(error='Saved listing or photos not found. Your original is unchanged.'), 404
+        return jsonify(error='Saved listing or photos not found. Your listing is unchanged.'), 404
     except ValueError as error:
         return jsonify(error=str(error)), 422
     except Exception:
-        return jsonify(error='Photo analysis failed. Your original listing is unchanged.'), 500
+        return jsonify(error='Photo analysis failed. Your listing is unchanged.'), 500
 
 
 @app.post("/regen/<folder>")

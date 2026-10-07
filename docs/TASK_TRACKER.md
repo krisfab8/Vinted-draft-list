@@ -289,3 +289,10 @@ Keep IDs stable. Do not rename an open task to hide scope. Split partial work in
 ## 2026-10-07 — Fresh CSS/JS after every deploy
 - Static URLs are versioned automatically by file modified time (url_defaults), replacing hand-written ?v= tags.
   Phones were keeping the old camera script (no version) and old studio.css (?v=1 never changed).
+
+## 2026-10-07 — "Analyse photos again" replaces the listing
+- Re-analysis runs on a temporary copy (a failure leaves the listing untouched), then the result replaces the
+  original listing in the same folder and the copy is deleted. No second listing is left behind.
+- Kept from the original: draft link, listed date, buy price; sales history is keyed by folder so it stays.
+- Same request twice (double tap/retry) returns the applied result without paying again; a failed run can be retried.
+- Review shows the "Fresh photo analysis" before/after table; the drafts sheet note reads "Fresh AI read · replaces this listing".
