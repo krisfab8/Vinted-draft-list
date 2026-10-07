@@ -213,3 +213,22 @@ header { background: var(--sn-bg); border-bottom: none; padding: calc(12px + env
 .ci-tile { border-radius: 22px; }
 .ci-tile.on { background: var(--brand-pale); border-color: var(--sn-text); color: var(--sn-text); }
 .ci-back { border-radius: 999px; }
+
+/* Device-backup status sits under the app name instead of below the page. */
+.logo-sub { display: block; font-size: 11px; font-weight: 600; color: var(--sn-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 52vw; margin-top: 1px; }
+.logo-sub:empty { display: none; }
+#draft-backup-status { padding: 0 !important; font-size: 11px !important; text-align: left; }
+/* Upload is one fixed screen: no page scroll until a result is showing. */
+.tab-upload .private-test-note { display: none; }
+body.tab-upload:has(#resultCard:empty):has(#reviewCard:empty) { height: 100dvh; overflow: hidden; padding-bottom: 0; display: flex; flex-direction: column; }
+body.tab-upload:has(#resultCard:empty):has(#reviewCard:empty) main.page-upload { flex: 1; min-height: 0; padding-bottom: calc(92px + env(safe-area-inset-bottom)); }
+body.tab-upload:has(#resultCard:empty):has(#reviewCard:empty) .page-upload .photo-section { min-height: 0; }
+body.tab-upload:has(#resultCard:empty):has(#reviewCard:empty) .page-upload .photo-grid { max-height: none; min-height: 0; }
+@media (max-height: 700px) { .sn-title { font-size: 36px; } .sn-hero { margin: 4px 0 12px; } }
+body.tab-upload:has(#resultCard:empty):has(#reviewCard:empty) .page-upload .photo-grid:has(.add-more-btn:only-child) .add-more-btn { min-height: 0; }
+body.tab-upload main.page-upload { width: 100%; min-width: 0; }
+body.tab-upload:has(#resultCard:empty):has(#reviewCard:empty) .page-upload .upload-card { min-height: 0; }
+.sn-buy input { width: 100%; }
+.page-upload .photo-mode button { min-width: 0; padding: 0 14px; }
+.sn-streak.met { background: var(--sn-pop); border-color: var(--sn-pop); }
+.sn-streak.met small { color: var(--sn-text); }

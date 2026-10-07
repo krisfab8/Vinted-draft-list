@@ -229,3 +229,13 @@ Keep IDs stable. Do not rename an open task to hide scope. Split partial work in
   lime Create listing (sheen when ready, fills while writing, burst + count +1 on success).
 - Drafts/Sold: fewer words (count is just a number, "Search", short empty states, "Vinted not connected").
 - Camera intro panels use the same colours.
+
+## 2026-10-07 — No-scroll upload, onboarding
+- Upload never scrolls (until a result is showing): device-backup status moved under the app name, preview note hidden on Upload,
+  layout fits 667–915px tall phones.
+- Onboarding at /welcome (first visit redirects there): welcome → name → how you sell → items a week → Vinted experience →
+  pricing style → email (+ optional tips opt-in) → "Your plan" (daily goal, camera mode, pricing). Saved via POST /api/onboarding
+  (validated) into data/user_profile.json; reseller → Pro camera, others → Guided. PATCH /api/profile can no longer set name/email.
+- Profile is backed up to B2 (profile/user_profile.json) and restored after restarts; the phone also keeps a copy and restores it quietly.
+- Upload count shows today / daily goal; chip turns lime when met. Animation placeholders marked "ANIM" for the gamification pass.
+- Colours are tokens at the top of studio.css (--sn-*) so a natural palette can be swapped in one place.

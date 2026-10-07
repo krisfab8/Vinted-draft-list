@@ -192,3 +192,29 @@ with tempfile.TemporaryDirectory() as tmp, moto.mock_aws():
     result = subprocess.run([sys.executable, "-c", script], capture_output=True, text=True, env=env,
                             cwd=os.path.dirname(os.path.dirname(os.path.abspath(__file__))), timeout=120)
     assert result.returncode == 0 and "ok" in result.stdout, result.stderr[-3000:]
+
+
+def test_onboarding_profile_survives_a_wiped_server(s3, tmp_path):
+    first = tmp_path / "before"
+    (first / "items").mkdir(parents=True)
+    profile = first / "user_profile.json"
+    profile.write_text(json.dumps({"name": "Kris", "email": "k@example.com"}))
+    store_for(s3, first / "items", profile_path=profile).sync()
+
+    second = tmp_path / "after"
+    restored = second / "data" / "user_profile.json"
+    store = store_for(s3, second / "items", profile_path=restored)
+    store.restore_all()
+    assert json.loads(restored.read_text())["name"] == "Kris"
+    assert store.status["last_error"] is None
+
+    # A profile already saved on this server is never overwritten by the stored copy.
+    restored.write_text(json.dumps({"name": "Newer"}))
+    store_for(s3, second / "items", profile_path=restored).restore_all()
+    assert json.loads(restored.read_text())["name"] == "Newer"
+
+
+def test_no_stored_profile_is_not_an_error(s3, tmp_path):
+    store = store_for(s3, tmp_path / "items", profile_path=tmp_path / "user_profile.json")
+    store.restore_all()
+    assert store.status["last_error"] is None and not (tmp_path / "user_profile.json").exists()

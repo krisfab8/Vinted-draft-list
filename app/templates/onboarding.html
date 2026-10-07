@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#F5F5F7">
+  <title>Welcome · Vinted Lister</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='studio.css') }}?v=2">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; }
+    body { padding: 0; overflow: hidden; -webkit-font-smoothing: antialiased; }
+    .ob { height: 100dvh; max-width: 480px; margin: 0 auto; display: flex; flex-direction: column;
+          padding: calc(16px + env(safe-area-inset-top)) 20px calc(20px + env(safe-area-inset-bottom)); }
+    .ob-top { display: flex; align-items: center; gap: 14px; height: 44px; }
+    .ob-top[hidden] { display: none; }
+    .ob-back { width: 44px; height: 44px; border-radius: 22px; border: 1px solid var(--sn-line); background: var(--sn-card);
+               display: grid; place-items: center; cursor: pointer; color: var(--sn-text); flex-shrink: 0; }
+    .ob-track { flex: 1; height: 14px; border-radius: 7px; background: var(--sn-line); overflow: hidden; }
+    .ob-fill { height: 100%; border-radius: 7px; background: var(--sn-pop); width: 0; position: relative;
+               transition: width .5s cubic-bezier(.3,.9,.3,1.15); }
+    .ob-fill::after { content: ''; position: absolute; left: 8px; right: 8px; top: 3px; height: 3px; border-radius: 2px; background: rgba(255,255,255,.55); }
+    .ob-screen { flex: 1; min-height: 0; display: flex; flex-direction: column; padding-top: 22px; }
+    .ob-screen.enter { animation: obEnter .45s cubic-bezier(.2,.9,.3,1.05) both; }
+    .ob-screen.enter.back { animation-name: obEnterBack; }
+    @keyframes obEnter { from { opacity: 0; transform: translateX(28px); } to { opacity: 1; transform: none; } }
+    @keyframes obEnterBack { from { opacity: 0; transform: translateX(-28px); } to { opacity: 1; transform: none; } }
+
+    /* Mascot asks the question (Duolingo-style). ANIM: float + blink are placeholders for richer motion. */
+    .ob-ask { display: flex; align-items: center; gap: 12px; margin-bottom: 22px; }
+    .ob-mascot { flex-shrink: 0; animation: snFloat 3.2s ease-in-out infinite; }
+    .ob-mascot .eyes { transform-origin: 195px 380px; animation: obBlink 4s infinite; }
+    @keyframes obBlink { 0%, 92%, 100% { transform: scaleY(1); } 95% { transform: scaleY(.1); } }
+    .ob-bubble { position: relative; flex: 1; background: var(--sn-card); border: 1px solid var(--sn-line); border-radius: 20px;
+                 padding: 14px 16px; font-size: 20px; font-weight: 800; letter-spacing: -.02em; line-height: 1.2; }
+    .ob-bubble::before { content: ''; position: absolute; left: -8px; top: 50%; width: 14px; height: 14px; margin-top: -7px;
+                         background: var(--sn-card); border-left: 1px solid var(--sn-line); border-bottom: 1px solid var(--sn-line); transform: rotate(45deg); }
+    .ob-options { display: flex; flex-direction: column; gap: 10px; }
+    .ob-option { display: flex; align-items: center; gap: 14px; width: 100%; text-align: left; padding: 14px; border-radius: 22px;
+                 border: 2px solid var(--sn-line); background: var(--sn-card); cursor: pointer; font: inherit; color: var(--sn-text);
+                 transition: border-color .2s, background .2s, transform .15s; }
+    .ob-option:active { transform: scale(.98); }
+    .ob-option[aria-checked="true"] { border-color: var(--sn-text); background: var(--brand-pale); }
+    .ob-icon { width: 52px; height: 52px; border-radius: 16px; background: var(--sn-bg); display: grid; place-items: center; flex-shrink: 0; font-size: 18px; font-weight: 800; }
+    .ob-option[aria-checked="true"] .ob-icon { background: var(--sn-card); }
+    .ob-text { flex: 1; display: flex; flex-direction: column; gap: 2px; }
+    .ob-text b { font-size: 17px; font-weight: 800; }
+    .ob-text small { font-size: 14px; color: var(--sn-muted); font-weight: 600; }
+    .ob-tick { width: 26px; height: 26px; border-radius: 13px; border: 2px solid var(--sn-line2); flex-shrink: 0; display: grid; place-items: center; }
+    .ob-option[aria-checked="true"] .ob-tick { border: none; background: var(--sn-text); animation: snPop .45s cubic-bezier(.2,.9,.3,1.3) both; }
+    .ob-tick svg { display: none; }
+    .ob-option[aria-checked="true"] .ob-tick svg { display: block; }
+    .ob-field { width: 100%; height: 60px; border-radius: 18px; border: 2px solid var(--sn-line); background: var(--sn-card);
+                padding: 0 18px; font: inherit; font-size: 19px; font-weight: 700; color: var(--sn-text); outline: none; }
+    .ob-field:focus { border-color: var(--sn-text); }
+    .ob-check { display: flex; align-items: center; gap: 12px; margin-top: 14px; font-size: 15px; font-weight: 600; color: var(--gray-7); cursor: pointer; }
+    .ob-check input { width: 22px; height: 22px; accent-color: #1D1D1F; }
+    .ob-note { margin-top: 10px; font-size: 13px; color: var(--sn-muted); font-weight: 600; }
+    .ob-error { margin-top: 12px; color: var(--sn-red); font-size: 14px; font-weight: 700; min-height: 18px; }
+    .ob-grow { flex: 1; }
+    .ob-cta { height: 58px; border: none; border-radius: 999px; background: var(--sn-pop); color: var(--sn-text); font: inherit;
+              font-size: 17px; font-weight: 800; cursor: pointer; position: relative; overflow: hidden; flex-shrink: 0; transition: background .2s, color .2s; }
+    .ob-cta:disabled { background: var(--sn-line); color: var(--sn-muted); cursor: not-allowed; }
+    .ob-cta:not(:disabled)::after { content: ''; position: absolute; top: 0; left: 0; width: 60px; height: 100%; background: rgba(255,255,255,.5); animation: snSheen 2.6s ease-in-out infinite; }
+    .ob-sub { margin-top: 10px; text-align: center; font-size: 13px; color: var(--sn-muted); font-weight: 600; }
+
+    /* Welcome */
+    .ob-hello { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 18px; }
+    .ob-hello h1 { font-size: 46px; line-height: .98; font-weight: 800; letter-spacing: -.045em; }
+    .ob-hello h1 span { color: var(--sn-muted); }
+    .ob-hello h1 i { font-style: normal; color: var(--sn-pop-deep); }
+    .ob-hello p { font-size: 17px; color: var(--gray-7); font-weight: 600; max-width: 300px; }
+    .ob-brand { font-size: 13px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: var(--sn-muted); }
+
+    /* Plan reveal. ANIM: ring fill + flame are placeholders for the gamification pass. */
+    .ob-plan { display: flex; flex-direction: column; gap: 10px; }
+    .ob-goal { display: flex; align-items: center; gap: 16px; padding: 16px; border-radius: 24px; background: var(--sn-text); color: #fff; }
+    .ob-goal-ring circle.on { stroke-dasharray: 0 164; animation: obRing 1.1s cubic-bezier(.3,.8,.3,1) .3s forwards; }
+    @keyframes obRing { to { stroke-dasharray: var(--arc) 164; } }
+    .ob-goal b { font-size: 22px; font-weight: 800; letter-spacing: -.02em; display: block; }
+    .ob-goal small { color: #AEAEB2; font-size: 14px; font-weight: 600; }
+    .ob-plan-row { display: flex; align-items: center; gap: 14px; padding: 14px; border-radius: 22px; background: var(--sn-card); border: 1px solid var(--sn-line); animation: snIn .5s ease-out both; }
+    .ob-plan-row b { font-size: 16px; font-weight: 800; display: block; }
+    .ob-plan-row small { color: var(--sn-muted); font-size: 13px; font-weight: 600; }
+    @media (max-height: 700px) { .ob-bubble { font-size: 18px; } .ob-option { padding: 10px 12px; } .ob-icon { width: 44px; height: 44px; } .ob-hello h1 { font-size: 38px; } }
+    @media (prefers-reduced-motion: reduce) { .ob-screen.enter, .ob-mascot, .ob-mascot .eyes, .ob-cta::after, .ob-goal-ring circle.on { animation: none; } .ob-goal-ring circle.on { stroke-dasharray: var(--arc) 164; } }
+  </style>
+</head>
+<body>
+<main class="ob">
+  <div class="ob-top" id="obTop" hidden>
+    <button type="button" class="ob-back" id="obBack" aria-label="Back">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg>
+    </button>
+    <div class="ob-track" role="progressbar" aria-label="Setup progress" aria-valuemin="0" aria-valuemax="100" id="obTrack"><div class="ob-fill" id="obFill"></div></div>
+  </div>
+  <section class="ob-screen" id="obScreen" aria-live="polite"></section>
+</main>
+
+<script>
+(() => {
+  const ME = {{ {"name": profile.get("name") or "", "email": profile.get("email") or ""}|tojson }};
+  const mascot = (size = 64) => `<svg class="ob-mascot" width="${size}" height="${size + 4}" viewBox="24 176 342 415" aria-hidden="true">
+    <path d="M140 196l-96 54 34 88 44-17v250h146V321l44 17 34-88-96-54c-10 25-37 42-55 42s-45-17-55-42z" fill="#F1FAD8" stroke="#1D1D1F" stroke-width="14" stroke-linejoin="round"/>
+    <path d="M140 196l-96 54 34 88 44-17v250h146V321l44 17 34-88-96-54c-10 25-37 42-55 42s-45-17-55-42z" fill="none" stroke="#9BC21C" stroke-width="6" stroke-dasharray="18 14" stroke-linejoin="round" transform="translate(195 384) scale(0.86) translate(-195 -384)"/>
+    <g class="eyes"><circle cx="165" cy="380" r="15" fill="#1D1D1F"/><circle cx="225" cy="380" r="15" fill="#1D1D1F"/><circle cx="170" cy="374" r="5" fill="#fff"/><circle cx="230" cy="374" r="5" fill="#fff"/></g>
+    <path d="M168 428c16 18 42 18 56 0" fill="none" stroke="#1D1D1F" stroke-width="11" stroke-linecap="round"/></svg>`;
+  const tick = '<span class="ob-tick"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#C6F432" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-10"/></svg></span>';
+  const icon = path => `<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#1D1D1F" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${path}</svg>`;
+  const ICONS = {
+    shirt: '<path d="M8 3L3 6l2 4 2-1v11h10V9l2 1 2-4-5-3c-.5 1.5-2 2.5-4 2.5S8.5 4.5 8 3z" stroke-dasharray="3 2"/>',
+    tag: '<path d="M3 12V4h8l10 10-8 8z"/><circle cx="7.5" cy="8.5" r="1.5"/>',
+    stack: '<rect x="3" y="8" width="13" height="13" rx="2"/><path d="M8 8V5a2 2 0 012-2h9a2 2 0 012 2v9a2 2 0 01-2 2h-3"/>',
+    seed: '<path d="M12 21v-8M12 13c0-4 3-7 7-7 0 4-3 7-7 7zM12 13c0-3-2-5-5-5 0 3 2 5 5 5z"/>',
+    star: '<path d="M12 3l2.6 5.6 6.1.7-4.5 4.2 1.2 6L12 16.6 6.6 19.5l1.2-6L3.3 9.3l6.1-.7z"/>',
+    bolt: '<path d="M13 2L5 14h6l-1 8 8-12h-6l1-8z"/>',
+    scale: '<path d="M12 3v18M5 7h14M5 7l-3 7a4 4 0 006 0zM19 7l-3 7a4 4 0 006 0z"/>',
+    gem: '<path d="M6 3h12l3 6-9 12L3 9z"/><path d="M3 9h18M9 3l3 18 3-18"/>',
+  };
+  const answers = {name: ME.name, email: ME.email, marketing_opt_in: false, intent: null, volume: null,
+                   vinted_experience: null, pricing_mode: null};
+  const choice = (key, ask, options) => ({key, ask, options});
+  const STEPS = [
+    {kind: 'welcome'},
+    {kind: 'name', ask: "Hi! What's your name?"},
+    choice('intent', 'How do you sell?', [
+      ['casual', 'Clearing my wardrobe', 'Now and then', 'shirt'],
+      ['mixed', 'Side hustle', 'Most weeks', 'tag'],
+      ['reseller', 'Reseller', 'Buying to sell', 'stack']]),
+    choice('volume', 'How many items a week?', [
+      ['low', '1–5', 'Casual', '1'], ['medium', '5–20', 'Regular', '5+'], ['high', '20+', 'Serious', '20+']]),
+    choice('vinted_experience', 'How well do you know Vinted?', [
+      ['new', "I'm new", 'Show me the ropes', 'seed'], ['occasional', 'Sold a few', 'Getting the hang of it', 'tag'],
+      ['experienced', 'Sold loads', 'Keep it fast', 'star']]),
+    choice('pricing_mode', 'What matters most?', [
+      ['speed', 'Sell fast', 'Price to move quickly', 'bolt'], ['balanced', 'Balanced', 'Fair price, fair speed', 'scale'],
+      ['price', 'Best price', 'Hold out for more', 'gem']]),
+    {kind: 'email', ask: 'Last thing: your email?'},
+    {kind: 'plan'},
+  ];
+  const GOAL = {low: 1, medium: 3, high: 6};
+  const LABELS = {speed: 'Sell fast', balanced: 'Balanced', price: 'Best price'};
+  const screen = document.getElementById('obScreen'), top = document.getElementById('obTop');
+  const fill = document.getElementById('obFill'), track = document.getElementById('obTrack');
+  let index = 0;
+  const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const photoMode = () => answers.intent === 'reseller' ? 'pro' : 'guided';
+  const firstName = () => answers.name.split(' ')[0];
+
+  function render(direction = 1) {
+    const step = STEPS[index];
+    top.hidden = step.kind === 'welcome';
+    const pct = Math.round(index / (STEPS.length - 1) * 100);
+    fill.style.width = `${Math.max(4, pct)}%`; track.setAttribute('aria-valuenow', String(pct));
+    let html = '';
+    if (step.kind === 'welcome') {
+      html = `<div class="ob-hello">${mascot(120)}<div class="ob-brand">Vinted Lister</div>
+        <h1>Photos in.<br><span>Listings out<i>.</i></span></h1><p>Ready-to-post Vinted drafts from your photos in seconds.</p></div>
+        <button type="button" class="ob-cta" data-next>Get started</button><div class="ob-sub">Takes under a minute</div>`;
+    } else if (step.kind === 'name') {
+      html = `<div class="ob-ask">${mascot()}<div class="ob-bubble">${step.ask}</div></div>
+        <label class="ob-note" for="obName" style="margin:0 0 8px">Your name</label>
+        <input class="ob-field" id="obName" autocomplete="given-name" maxlength="40" value="${esc(answers.name)}" placeholder="First name">
+        <div class="ob-grow"></div><button type="button" class="ob-cta" data-next>Continue</button>`;
+    } else if (step.kind === 'email') {
+      html = `<div class="ob-ask">${mascot()}<div class="ob-bubble">${step.ask}</div></div>
+        <label class="ob-note" for="obEmail" style="margin:0 0 8px">Email</label>
+        <input class="ob-field" id="obEmail" type="email" autocomplete="email" inputmode="email" maxlength="254" value="${esc(answers.email)}" placeholder="you@example.com">
+        <label class="ob-check"><input type="checkbox" id="obOptIn" ${answers.marketing_opt_in ? 'checked' : ''}>Send me tips and updates</label>
+        <div class="ob-note">For your account. No spam.</div><div class="ob-error" id="obError" role="alert"></div>
+        <div class="ob-grow"></div><button type="button" class="ob-cta" data-next>Continue</button>`;
+    } else if (step.kind === 'plan') {
+      const goal = GOAL[answers.volume] || 1, arc = Math.round(164 * Math.min(1, 1 / goal));
+      html = `<div class="ob-ask">${mascot()}<div class="ob-bubble">Your plan, ${esc(firstName())}!</div></div>
+        <div class="ob-plan">
+          <div class="ob-goal">
+            <svg class="ob-goal-ring" width="64" height="64" viewBox="0 0 64 64" aria-hidden="true"><circle cx="32" cy="32" r="26" fill="none" stroke="#3A3A3C" stroke-width="7"/><circle class="on" cx="32" cy="32" r="26" fill="none" stroke="#C6F432" stroke-width="7" stroke-linecap="round" transform="rotate(-90 32 32)" style="--arc:${arc}"/></svg>
+            <div><b>${goal} a day</b><small>Daily goal · build a streak</small></div>
+          </div>
+          <div class="ob-plan-row" style="animation-delay:.15s"><span class="ob-icon">${icon(photoMode() === 'pro' ? ICONS.stack : ICONS.shirt)}</span><div><b>${photoMode() === 'pro' ? 'Pro camera' : 'Guided photos'}</b><small>${photoMode() === 'pro' ? 'Fast shots, sharpness checks' : 'Step by step, shoots when sharp'}</small></div></div>
+          <div class="ob-plan-row" style="animation-delay:.3s"><span class="ob-icon">${icon(ICONS[{speed:'bolt',balanced:'scale',price:'gem'}[answers.pricing_mode] || 'scale'])}</span><div><b>${LABELS[answers.pricing_mode] || 'Balanced'}</b><small>Pricing style · change any time</small></div></div>
+        </div>
+        <div class="ob-error" id="obError" role="alert"></div>
+        <div class="ob-grow"></div><button type="button" class="ob-cta" data-next>Start listing</button>`;
+    } else {
+      html = `<div class="ob-ask">${mascot()}<div class="ob-bubble">${step.ask}</div></div>
+        <div class="ob-options" role="radiogroup" aria-label="${esc(step.ask)}">
+        ${step.options.map(([value, label, sub, art]) => `<button type="button" class="ob-option" role="radio" aria-checked="${answers[step.key] === value}" data-value="${value}">
+          <span class="ob-icon">${ICONS[art] ? icon(ICONS[art]) : esc(art)}</span><span class="ob-text"><b>${esc(label)}</b><small>${esc(sub)}</small></span>${tick}</button>`).join('')}
+        </div><div class="ob-grow"></div><button type="button" class="ob-cta" data-next>Continue</button>`;
+    }
+    screen.innerHTML = html;
+    screen.classList.remove('enter', 'back'); void screen.offsetWidth;
+    screen.classList.add('enter'); if (direction < 0) screen.classList.add('back');
+    const field = screen.querySelector('.ob-field');
+    if (field) { field.addEventListener('input', update); setTimeout(() => field.focus(), 350); }
+    update();
+  }
+  function valid() {
+    const step = STEPS[index];
+    if (step.kind === 'name') return !!document.getElementById('obName').value.trim();
+    if (step.kind === 'email') return /^[^@\s]+@[^@\s]+\.[A-Za-z]{2,}$/.test(document.getElementById('obEmail').value.trim());
+    if (step.key) return !!answers[step.key];
+    return true;
+  }
+  function update() { const cta = screen.querySelector('[data-next]'); if (cta) cta.disabled = !valid(); }
+  async function next() {
+    const step = STEPS[index];
+    if (!valid()) return;
+    if (step.kind === 'name') answers.name = document.getElementById('obName').value.trim().replace(/\s+/g, ' ');
+    if (step.kind === 'email') { answers.email = document.getElementById('obEmail').value.trim(); answers.marketing_opt_in = document.getElementById('obOptIn').checked; }
+    if (step.kind === 'plan') return finish();
+    index++; render(1);
+  }
+  async function finish() {
+    const cta = screen.querySelector('[data-next]'); cta.disabled = true; cta.textContent = 'Setting up…';
+    const body = {...answers, photo_mode: photoMode()};
+    try {
+      const response = await fetch('/api/onboarding', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body)});
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error || 'Could not save. Try again.');
+      try { localStorage.setItem('onboarding', JSON.stringify(body)); localStorage.setItem('photoMode', body.photo_mode); } catch (_) {}
+      burst(cta);
+      setTimeout(() => location.replace('/'), 900);
+    } catch (error) {
+      document.getElementById('obError').textContent = error.message;
+      cta.disabled = false; cta.textContent = 'Start listing';
+    }
+  }
+  function burst(from) {
+    if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    const box = from.getBoundingClientRect(), colours = ['#C6F432', '#1D1D1F', '#FF9F0A', '#C6F432', '#86868B'];
+    for (let i = 0; i < 22; i++) {
+      const bit = document.createElement('span'), angle = (i / 22) * Math.PI * 2, dist = 90 + (i % 3) * 45;
+      bit.className = 'sn-burst-bit';
+      bit.style.cssText = `left:${box.left + box.width / 2}px;top:${box.top + box.height / 2}px;--dx:${Math.round(Math.cos(angle) * dist * 1.5)}px;--dy:${Math.round(Math.sin(angle) * dist - 60)}px;--rot:${(i * 47) % 360}deg;background:${colours[i % 5]};border-radius:${i % 2 ? '2px' : '50%'}`;
+      document.body.appendChild(bit); setTimeout(() => bit.remove(), 1200);
+    }
+  }
+  screen.addEventListener('click', event => {
+    const option = event.target.closest('.ob-option');
+    if (option) {
+      answers[STEPS[index].key] = option.dataset.value;
+      screen.querySelectorAll('.ob-option').forEach(o => o.setAttribute('aria-checked', String(o === option)));
+      update(); return;
+    }
+    if (event.target.closest('[data-next]')) next();
+  });
+  screen.addEventListener('keydown', event => { if (event.key === 'Enter' && event.target.matches('.ob-field')) next(); });
+  document.getElementById('obBack').addEventListener('click', () => { if (index > 0) { index--; render(-1); } });
+  render();
+})();
+</script>
+</body>
+</html>

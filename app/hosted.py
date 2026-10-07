@@ -48,7 +48,9 @@ def _start_cloud_store():
         web._sync_item_status(folder, listing)
 
     try:
-        return cloud_store.from_environment(web.ITEMS_DIR, on_restored=status_after_restore)
+        from app.services import user_profile
+        return cloud_store.from_environment(web.ITEMS_DIR, on_restored=status_after_restore,
+                                            profile_path=user_profile._PATH.resolve())
     except Exception as error:
         cloud_store.log.error("Cloud storage failed to start (%s)", type(error).__name__)
         return None

@@ -2,6 +2,20 @@
 {% block title %}New Listing — Vinted Lister{% endblock %}
 
 {% block head %}
+<script>
+  // First visit: onboarding. If this server lost the profile (restart) but the phone
+  // remembers it, restore it quietly instead of asking again.
+  const onboarded = {{ 'true' if onboarded else 'false' }};
+  if (!onboarded) {
+    let saved = null;
+    try { saved = JSON.parse(localStorage.getItem("onboarding") || "null"); } catch (_) {}
+    if (saved && saved.name && saved.email) {
+      fetch("/api/onboarding", {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify(saved)}).catch(() => {});
+    } else {
+      location.replace("/welcome");
+    }
+  }
+</script>
 <style>
   /* ══════════════════════════════════════
      DODIS COLOUR SYSTEM (upload screen)
@@ -1399,9 +1413,9 @@
 <!-- Page heading -->
 <div class="sn-hero">
   <h1 class="sn-title">Snap it.<br><span>List it<i>.</i></span></h1>
-  <div class="sn-streak" id="snStreak" aria-label="Listed today: {{ today_count or 0 }}">
+  <div class="sn-streak{% if (today_count or 0) >= daily_goal %} met{% endif %}" id="snStreak" data-goal="{{ daily_goal }}" aria-label="Listed today: {{ today_count or 0 }} of {{ daily_goal }}">
     <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2c1 4 6 6 6 12a6 6 0 01-12 0c0-3 2-5 3-6 0 2 1 3 2 3 0-4 0-6 1-9z" fill="#FF9F0A"/><path d="M12 12c2 2 3 3 3 5a3 3 0 01-6 0c0-2 2-3 3-5z" fill="#FFD60A"/></svg>
-    <b id="snStreakCount">{{ today_count or 0 }}</b><small>today</small>
+    <b id="snStreakCount">{{ today_count or 0 }}</b><small>/{{ daily_goal }} today</small>
   </div>
 </div>
 
@@ -1569,7 +1583,9 @@
       count.classList.remove("flip"); void count.offsetWidth; count.classList.add("flip");
       const plus = document.createElement("span"); plus.className = "plus"; plus.textContent = "+1";
       streak.appendChild(plus); setTimeout(() => plus.remove(), 1500);
-      streak.setAttribute("aria-label", `Listed today: ${count.textContent}`);
+      streak.setAttribute("aria-label", `Listed today: ${count.textContent} of ${streak.dataset.goal}`);
+      // ANIM placeholder: goal reached gets its own celebration in the gamification pass.
+      streak.classList.toggle("met", parseInt(count.textContent, 10) >= parseInt(streak.dataset.goal, 10));
     }
   }
 

@@ -21,6 +21,7 @@ from app.services import item_backup
 log = logging.getLogger("cloud_store")
 
 PREFIX = "items/"
+PROFILE_KEY = "profile/user_profile.json"  # onboarding answers (name, email, preferences)
 REQUIRED = ("B2_KEY_ID", "B2_APP_KEY", "B2_BUCKET", "B2_ENDPOINT")
 SYNC_INTERVAL_SECONDS = 60
 DEBOUNCE_SECONDS = 2
@@ -72,11 +73,13 @@ def _signature(folder_path):
 
 
 class CloudStore:
-    def __init__(self, client, bucket, items_dir, on_restored=None):
+    def __init__(self, client, bucket, items_dir, on_restored=None, profile_path=None):
         self.client = client
         self.bucket = bucket
         self.items_dir = Path(items_dir)
         self.on_restored = on_restored
+        self.profile_path = Path(profile_path) if profile_path else None
+        self._profile_sig = None
         self._known = {}  # folder -> signature last uploaded or restored
         self._lock = threading.Lock()
         self._wake = threading.Event()
@@ -128,8 +131,42 @@ class CloudStore:
                 except Exception as error:
                     self._fail(f"restore {folder}", error)
             self.status["restored"] += len(restored)
+            self._restore_profile()
         log.warning("Cloud storage: %d stored drafts, %d restored", len(remote), len(restored))
         return restored
+
+    def _restore_profile(self):
+        """Bring back onboarding answers; never overwrite a profile saved on this server."""
+        if not self.profile_path or self.profile_path.exists():
+            return
+        try:
+            body = self.client.get_object(Bucket=self.bucket, Key=PROFILE_KEY)["Body"].read()
+            if not isinstance(json.loads(body), dict):
+                raise ValueError("stored profile is not an object")
+            self.profile_path.parent.mkdir(parents=True, exist_ok=True)
+            self.profile_path.write_bytes(body)
+            self._profile_sig = self._profile_signature()
+        except Exception as error:
+            if "NoSuchKey" not in f"{type(error).__name__} {error}":
+                self._fail("restore profile", error)
+
+    def _profile_signature(self):
+        stat = self.profile_path.stat()
+        return (stat.st_size, stat.st_mtime_ns)
+
+    def _sync_profile(self):
+        if not self.profile_path or not self.profile_path.is_file():
+            return
+        try:
+            signature = self._profile_signature()
+            if signature == self._profile_sig:
+                return
+            body = self.profile_path.read_bytes()
+            json.loads(body)  # skip a half-written save
+            self.client.put_object(Bucket=self.bucket, Key=PROFILE_KEY, Body=body, ContentType="application/json")
+            self._profile_sig = signature
+        except Exception as error:
+            self._fail("upload profile", error)
 
     def sync(self):
         """Upload changed items; delete remote copies of items deleted here."""
@@ -155,6 +192,7 @@ class CloudStore:
                     self.status["deleted"] += 1
                 except Exception as error:
                     self._fail(f"delete {folder}", error)
+            self._sync_profile()
 
     def request_sync(self):
         self._wake.set()
@@ -177,7 +215,7 @@ class CloudStore:
         log.error("Cloud storage: %s", message)
 
 
-def from_environment(items_dir, on_restored=None):
+def from_environment(items_dir, on_restored=None, profile_path=None):
     """Return a started CloudStore, or None when B2 is not configured."""
     missing = missing_settings()
     if missing:
@@ -186,7 +224,7 @@ def from_environment(items_dir, on_restored=None):
         else:
             log.warning("Cloud storage not configured; drafts are lost when the server restarts")
         return None
-    store = CloudStore(make_client(), os.environ["B2_BUCKET"].strip(), items_dir, on_restored)
+    store = CloudStore(make_client(), os.environ["B2_BUCKET"].strip(), items_dir, on_restored, profile_path)
     store.restore_all()
     store.sync()
     store.start()

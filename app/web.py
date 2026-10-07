@@ -392,7 +392,25 @@ def index():
         draft_count=_draft_count(),
         profile=profile,
         is_reseller=profile_svc.is_reseller(profile),
+        onboarded=bool(profile.get("onboarded_at")),
+        daily_goal=profile_svc.daily_goal(profile),
     )
+
+
+@app.get("/welcome")
+def welcome_page():
+    """First-run onboarding: a few taps, then name and email."""
+    return render_template("onboarding.html", profile=profile_svc.load())
+
+
+@app.post("/api/onboarding")
+def save_onboarding():
+    try:
+        profile = profile_svc.onboard(request.get_json(silent=True))
+    except ValueError as error:
+        return jsonify(error=str(error)), 422
+    return jsonify(name=profile["name"], photo_mode=profile["photo_mode"],
+                   daily_goal=profile_svc.daily_goal(profile))
 
 
 @app.after_request
@@ -1505,7 +1523,9 @@ def update_profile():
     Only recognised keys (from DEFAULTS) are accepted; unknown keys are ignored."""
     updates = request.json or {}
     profile = profile_svc.load()
-    profile.update({k: v for k, v in updates.items() if k in profile_svc.DEFAULTS})
+    # Identity fields change only through validated onboarding.
+    profile.update({k: v for k, v in updates.items()
+                    if k in profile_svc.DEFAULTS and k not in {"name", "email", "onboarded_at", "marketing_opt_in"}})
     profile_svc.save(profile)
     return jsonify(profile)
 
