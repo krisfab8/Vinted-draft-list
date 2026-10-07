@@ -2,11 +2,11 @@
 {% block title %}New Listing — Vinted Lister{% endblock %}
 
 {% block head %}
+<meta name="onboarded" content="{{ 'yes' if onboarded else 'no' }}">
 <script>
   // First visit: onboarding. If this server lost the profile (restart) but the phone
   // remembers it, restore it quietly instead of asking again.
-  const onboarded = {{ 'true' if onboarded else 'false' }};
-  if (!onboarded) {
+  if (document.querySelector('meta[name="onboarded"]').content !== "yes") {
     let saved = null;
     try { saved = JSON.parse(localStorage.getItem("onboarding") || "null"); } catch (_) {}
     if (saved && saved.name && saved.email) {

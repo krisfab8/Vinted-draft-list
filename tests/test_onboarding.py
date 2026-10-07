@@ -50,7 +50,7 @@ def test_profile_patch_cannot_set_identity(profile_file):
 def test_upload_page_sends_new_users_to_welcome(profile_file, monkeypatch, tmp_path):
     monkeypatch.setattr(web, "ITEMS_DIR", tmp_path / "items")
     client = web.app.test_client()
-    assert "const onboarded = false;" in client.get("/").get_data(as_text=True)
+    assert '<meta name="onboarded" content="no">' in client.get("/").get_data(as_text=True)
     assert client.get("/welcome").status_code == 200
     client.post("/api/onboarding", json=ANSWERS)
-    assert "const onboarded = true;" in client.get("/").get_data(as_text=True)
+    assert '<meta name="onboarded" content="yes">' in client.get("/").get_data(as_text=True)
