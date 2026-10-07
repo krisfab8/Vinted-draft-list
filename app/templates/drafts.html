@@ -103,22 +103,16 @@
 
   .btn-delete-draft:hover { background: rgba(220,40,40,0.85); }
 
-  /* Long-press edit mode: cards jiggle and show a remove button */
+  /* Long-press one card: only that card jiggles and shows a remove button */
   .draft-card { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
   .draft-card img { -webkit-user-drag: none; }
   .card-remove { width: 30px; height: 30px; font-size: 15px; background: rgba(0,0,0,0.7); }
-  body:not(.edit-mode) .card-remove { display: none; }
-  body.edit-mode .draft-card { animation: card-jiggle 0.26s ease-in-out infinite alternate; }
-  body.edit-mode .draft-card:nth-child(2n) { animation-delay: -0.13s; }
-  body.edit-mode .draft-card:active { transform: none; }
+  .draft-card:not(.editing) .card-remove { display: none; }
+  .draft-card.editing { animation: card-jiggle 0.26s ease-in-out infinite alternate; }
+  .draft-card.editing:active { transform: none; }
   @keyframes card-jiggle { from { transform: rotate(-1.1deg); } to { transform: rotate(1.1deg); } }
   @media (prefers-reduced-motion: reduce) {
-    body.edit-mode .draft-card { animation: none; outline: 2px dashed var(--gray-3); }
-  }
-  .edit-done {
-    position: fixed; top: 12px; right: 16px; z-index: 50; padding: 8px 18px;
-    border: none; border-radius: 999px; background: var(--brand); color: #fff;
-    font: inherit; font-weight: 700; box-shadow: var(--shadow-md);
+    .draft-card.editing { animation: none; outline: 2px dashed var(--gray-3); }
   }
   .confirm-overlay {
     position: fixed; inset: 0; z-index: 10000; background: rgba(0,0,0,0.45);
@@ -701,7 +695,6 @@
   </div>
 {% endif %}
 
-<button type="button" class="edit-done" id="editDone" hidden onclick="exitEditMode()">Done</button>
 <div class="confirm-overlay" id="confirmDelete" hidden role="dialog" aria-modal="true" aria-labelledby="confirmDeleteTitle">
   <div class="confirm-box">
     <div class="confirm-title" id="confirmDeleteTitle">Delete this listing?</div>
@@ -801,7 +794,9 @@ function esc(s) {
 }
 
 async function openSheet(idx) {
-  if (editMode || suppressOpen) { suppressOpen = false; return; }
+  // The click that ends a long press (or a tap that left edit mode) opens nothing.
+  if (suppressOpen) { suppressOpen = false; return; }
+  if (editingCard) { stopEditing(); return; }
   const cached = LISTINGS[idx];
   if (!cached?.folder) return;
   const folder = cached.folder;
@@ -994,43 +989,47 @@ async function deleteDraft(e, folder, btn) {
   btn.disabled = false;
 }
 
-// ── Delete: long-press a card to enter edit mode, or "Delete listing" in the sheet ──
+// ── Delete: long-press one card to show its ✕, or "Delete listing" in the sheet ──
+// Tapping anywhere else, answering the dialog or deleting returns to normal.
 
-let editMode = false, suppressOpen = false, pressTimer = null, pressAt = null;
+let editingCard = null, suppressOpen = false, pressTimer = null, pressAt = null;
 
-function enterEditMode() {
-  if (editMode || !document.querySelector('.card-remove')) return;
-  editMode = true;
-  document.body.classList.add('edit-mode');
-  document.getElementById('editDone').hidden = false;
+function startEditing(card) {
+  if (!card.querySelector('.card-remove')) return;  // sold items cannot be deleted
+  stopEditing();
+  editingCard = card;
+  card.classList.add('editing');
   navigator.vibrate?.(15);
 }
 
-function exitEditMode() {
-  editMode = false;
-  document.body.classList.remove('edit-mode');
-  document.getElementById('editDone').hidden = true;
+function stopEditing() {
+  editingCard?.classList.remove('editing');
+  editingCard = null;
 }
 
 function cancelPress() { clearTimeout(pressTimer); pressTimer = null; }
 
 document.addEventListener('pointerdown', e => {
   suppressOpen = false;
+  if (e.target.closest('.confirm-overlay')) return;
   const card = e.target.closest('.draft-card');
-  if (!card) {
-    if (editMode && !e.target.closest('.confirm-overlay, .edit-done')) exitEditMode();
+  if (editingCard) {
+    if (card === editingCard && e.target.closest('.card-remove')) return;
+    // Any other tap only leaves edit mode; it must not also open a draft.
+    suppressOpen = !!card;
+    stopEditing();
     return;
   }
-  if (editMode || e.button > 0 || e.target.closest('.card-remove')) return;
+  if (!card || e.button > 0) return;
   pressAt = [e.clientX, e.clientY];
-  pressTimer = setTimeout(() => { pressTimer = null; suppressOpen = true; enterEditMode(); }, 500);
+  pressTimer = setTimeout(() => { pressTimer = null; suppressOpen = true; startEditing(card); }, 500);
 });
 document.addEventListener('pointermove', e => {
   if (pressTimer && Math.hypot(e.clientX - pressAt[0], e.clientY - pressAt[1]) > 10) cancelPress();
 });
 ['pointerup', 'pointercancel'].forEach(type => document.addEventListener(type, cancelPress));
 document.addEventListener('contextmenu', e => { if (e.target.closest('.draft-card')) e.preventDefault(); });
-document.addEventListener('keydown', e => { if (e.key === 'Escape' && editMode) exitEditMode(); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape') stopEditing(); });
 
 function confirmDelete(title) {
   const overlay = document.getElementById('confirmDelete');
@@ -1059,14 +1058,15 @@ async function removeListing(folder) {
   const n = LISTINGS.filter(item => !item._deleted).length;
   const badge = document.querySelector(".drafts-count-badge");
   if (badge) badge.textContent = `${n} item${n !== 1 ? "s" : ""}`;
-  if (!document.querySelector('.card-remove')) exitEditMode();
   return true;
 }
 
 async function askDelete(e, folder) {
   e.stopPropagation();
   const item = LISTINGS.find(l => l.folder === folder);
-  if (!await confirmDelete(item?.title)) return;
+  const confirmed = await confirmDelete(item?.title);
+  stopEditing();
+  if (!confirmed) return;
   try {
     showToast(await removeListing(folder) ? 'Listing deleted' : 'Delete failed — try again');
   } catch { showToast('Delete failed — check your connection'); }
