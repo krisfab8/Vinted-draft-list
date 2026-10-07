@@ -275,3 +275,8 @@ Keep IDs stable. Do not rename an open task to hide scope. Split partial work in
 - The last photo pops into the bottom-left (in place of the gallery button) as the camera moves to the next step.
 - Label steps: tapping the shutter waits up to 2.5s for a sharp frame ("Focusing…"); still blurry → Retake / Use anyway.
   Garment shots are kept and flagged rather than interrupting. Continuous autofocus requested where supported.
+
+## 2026-10-07 — Small fixes
+- Reprice shows one dial: the proposal replaces the current dial until Use/Keep.
+- Drafts chip reads "14 drafts"; red needs-a-check dots removed from cards (premium star stays).
+- Upload "Details" is a labelled pill (pencil + Details) instead of a bare sliders icon; the sheet closes on swipe-down.

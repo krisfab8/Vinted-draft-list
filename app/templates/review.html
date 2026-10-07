@@ -536,6 +536,12 @@ async function savePrice(price) {
   document.getElementById('repriceNudge').hidden = true;
   document.getElementById('priceGauge').innerHTML =
     window.PriceGauge?.html(data.price_range, data.price_gbp, data.price_adjustments) || '';
+  document.getElementById('priceGauge').hidden = false;
+}
+// One dial at a time: the proposal replaces the current dial until it is used or dismissed.
+function keepPrice() {
+  document.getElementById('priceProposal').hidden = true;
+  document.getElementById('priceGauge').hidden = false;
 }
 
 async function repriceListing() {
@@ -551,10 +557,10 @@ async function repriceListing() {
     box.innerHTML = `${window.PriceGauge?.html(p.range, p.price_gbp, p.adjustments) || ''}
       ${same ? '<p style="text-align:center;font-size:13px;color:var(--gray-7);margin:8px 0 0">Matches your current price</p>' : `<div style="display:flex;gap:8px;margin-top:10px">
         <button class="btn-save-field" onclick="savePrice(${Number(p.price_gbp)})">Use £${p.price_gbp}</button>
-        <button class="btn-save-field" onclick="document.getElementById('priceProposal').hidden=true">Keep £${data.price_gbp}</button></div>`}`;
+        <button class="btn-save-field" onclick="keepPrice()">Keep £${data.price_gbp}</button></div>`}`;
     box.hidden = false;
     document.getElementById('repriceNudge').hidden = true;
-    if (same) document.getElementById('priceGauge').innerHTML = '';
+    document.getElementById('priceGauge').hidden = true;
   } catch (error) {
     showToast(error.message);
   } finally {

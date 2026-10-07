@@ -603,7 +603,7 @@
   </form>
   {% else %}
   <h1 class="sn-title">Drafts.<br><span id="review-count-badge">{{ '%d to check'|format(review_count) if review_count else 'All good' }}<i>.</i></span></h1>
-  {% if listings %}<div class="sn-streak drafts-count-badge" aria-label="{{ listings|length }} item{{ 's' if listings|length != 1 }}">{{ listings|length }}</div>{% endif %}
+  {% if listings %}<div class="sn-streak drafts-count-badge" aria-label="{{ listings|length }} draft{{ 's' if listings|length != 1 }}">{{ listings|length }} draft{{ 's' if listings|length != 1 }}</div>{% endif %}
   {% endif %}
 </div>
 
@@ -666,11 +666,6 @@
     <div class="draft-card" id="card-{{ item.folder }}" data-folder="{{ item.folder }}" data-status="{{ item.inventory_status }}" data-search="{{ ((item.brand or '') ~ ' ' ~ (item.title or '') ~ ' ' ~ (item.normalized_size or ''))|lower }}" role="button" tabindex="0" aria-label="View {{ item.title or 'listing' }}" onclick="openSheet({{ loop.index0 }})" onkeydown="if(event.target===this &amp;&amp; (event.key==='Enter' || event.key===' ')){event.preventDefault();openSheet({{ loop.index0 }});}">
       <div class="draft-thumb">
         {% if item.inventory_status == 'sold' %}<div class="sold-tag">SOLD</div>{% endif %}
-        {% if item.inventory_status != 'sold' and item.draft_error and not item.draft_url %}
-          <div class="status-dot error" title="Draft failed — open to check"></div>
-        {% elif item.inventory_status != 'sold' and item.warnings %}
-          <div class="status-dot review" title="Needs a check"></div>
-        {% endif %}
         {% if item.thumbnail_url %}
           <img src="{{ item.thumbnail_url }}" alt="{{ item.title }}" loading="lazy" onerror="this.hidden=true;this.nextElementSibling.hidden=false">
           <div class="draft-thumb-placeholder" hidden role="img" aria-label="Photo unavailable"><img src="/static/upload-art.svg" alt=""></div>
@@ -1121,7 +1116,7 @@ async function removeListing(folder) {
   if (idx !== -1) LISTINGS[idx]._deleted = true;
   const n = LISTINGS.filter(item => !item._deleted).length;
   const badge = document.querySelector(".drafts-count-badge");
-  if (badge) badge.textContent = String(n);
+  if (badge) badge.textContent = `${n} draft${n !== 1 ? "s" : ""}`;
   return true;
 }
 

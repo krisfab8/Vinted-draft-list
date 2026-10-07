@@ -118,16 +118,16 @@ header { background: var(--sn-bg); border-bottom: none; padding: calc(12px + env
 .page-upload .slot-role-label select { min-height: 30px; font-size: 12px; border-radius: 999px; padding: 3px 8px; font-weight: 700; }
 .page-upload .slot-move-btn, .page-upload .slot-remove-btn { width: 32px; height: 32px; top: 5px; border-radius: 16px; }
 .page-upload .slot-remove-btn { right: 5px; } .page-upload .slot-move-btn { right: 41px; }
-.sn-controls { display: flex; gap: 10px; align-items: center; }
+.sn-controls { display: flex; gap: 8px; align-items: center; }
 .page-upload .photo-mode { margin: 0; padding: 4px; border-radius: 999px; background: var(--sn-card); border: 1px solid var(--sn-line); position: relative; }
 .page-upload .photo-mode button { position: relative; z-index: 1; height: 42px; min-width: 70px; padding: 0 12px; border-radius: 999px; font-size: 15px; font-weight: 700; color: var(--sn-muted); transition: color .3s, background .3s; }
 .page-upload .photo-mode button.on { background: var(--sn-text); color: #fff; box-shadow: none; }
-.sn-buy { flex: 1; min-width: 0; height: 52px; border-radius: 999px; background: var(--sn-card); border: 1px solid var(--sn-line); display: flex; align-items: center; gap: 6px; padding: 0 16px; }
+.sn-buy { flex: 1; min-width: 0; height: 52px; border-radius: 999px; background: var(--sn-card); border: 1px solid var(--sn-line); display: flex; align-items: center; gap: 4px; padding: 0 12px; min-width: 76px; }
 .sn-buy span { font-size: 16px; font-weight: 800; color: var(--sn-muted); }
 .sn-buy input { all: unset; flex: 1; min-width: 0; font-size: 16px; font-weight: 700; color: var(--sn-text); }
 .sn-buy input::placeholder { color: var(--sn-muted); font-weight: 600; }
-.sn-details-btn { position: relative; width: 52px; height: 52px; flex-shrink: 0; border-radius: 26px; background: var(--sn-card); border: 1px solid var(--sn-line); display: grid; place-items: center; }
-.sn-details-btn i { position: absolute; top: 9px; right: 9px; width: 9px; height: 9px; border-radius: 5px; background: var(--sn-pop-deep); border: 2px solid #fff; }
+.sn-details-btn { position: relative; height: 52px; flex-shrink: 0; border-radius: 26px; background: var(--sn-card); border: 1px solid var(--sn-line); display: flex; align-items: center; gap: 6px; padding: 0 14px 0 12px; font: inherit; font-size: 15px; font-weight: 700; color: var(--sn-text); }
+.sn-details-btn i { position: absolute; top: 6px; right: 6px; width: 9px; height: 9px; border-radius: 5px; background: var(--sn-pop-deep); border: 2px solid #fff; }
 .page-upload .btn-submit { position: relative; overflow: hidden; min-height: 58px; margin: 0; font-size: 17px; display: flex; align-items: center; justify-content: center; }
 .page-upload .btn-submit .btn-label { display: flex; width: 100%; align-items: center; justify-content: space-between; padding: 0 8px 0 10px; }
 .page-upload .btn-submit.ready { animation: snBreathe 2.4s ease-in-out infinite; }
@@ -229,7 +229,7 @@ body.tab-upload:has(#resultCard:empty):has(#reviewCard:empty) .page-upload .phot
 body.tab-upload main.page-upload { width: 100%; min-width: 0; }
 body.tab-upload:has(#resultCard:empty):has(#reviewCard:empty) .page-upload .upload-card { min-height: 0; }
 .sn-buy input { width: 100%; }
-.page-upload .photo-mode button { min-width: 0; padding: 0 14px; }
+.page-upload .photo-mode button { min-width: 0; padding: 0 12px; }
 .sn-streak.met { background: var(--sn-pop); border-color: var(--sn-pop); }
 .sn-streak.met small { color: var(--sn-text); }
 .sn-style { display: flex; flex-direction: column; gap: 6px; font-size: 13px; font-weight: 700; color: var(--gray-7); }
