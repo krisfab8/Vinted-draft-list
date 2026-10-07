@@ -122,3 +122,16 @@ def test_run_stats_split_time_and_cost_by_stage():
     assert [s["name"] for s in stats["stages"]] == ["Reading photos", "Writing listing", "Web price search", "Pricing"]
     assert stats["stages"][2]["searches"] == 2 and stats["stages"][2]["ms"] == 8500
     assert stats["total_cost_gbp"] == 0.032 and stats["total_ms"] == 15010
+
+
+def test_stats_line_is_one_readable_log_line():
+    from app.services.pipeline import _run_stats, stats_line
+    calls = [{"cost_gbp": 0.0101, "input_tokens": 10167, "output_tokens": 517, "model": "haiku",
+              "cache_read_input_tokens": 0},
+             {"cost_gbp": 0.0021, "input_tokens": 2000, "output_tokens": 300, "model": "haiku"}]
+    marks = [("Reading photos", 0.0, 0), ("Writing listing", 13.9, 1), ("Pricing", 16.1, 2), ("end", 16.1, 2)]
+    line = stats_line("upload_ab12", _run_stats(marks, calls, "now"), {"price_gbp": 35})
+    assert "\n" not in line
+    assert line.startswith("Analysis stats [upload_ab12]: 1.22p | 16.1s | Reading photos 13.9s 1.01p "
+                           "(10167 in/517 out, cached 0) | Writing listing 2.2s 0.21p")
+    assert line.endswith("| Pricing 0.0s | models haiku | price £35")

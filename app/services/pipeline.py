@@ -65,6 +65,7 @@ def run_pipeline(
     pricing.apply_pricing(listing, pricing_mode=pricing_mode)
     marks.append(("end", time.perf_counter(), len(run_calls)))
     listing["run_stats"] = _run_stats(marks, run_calls, datetime.now(timezone.utc).isoformat(timespec="seconds"))
+    print(stats_line(Path(item_path).name, listing["run_stats"], listing), flush=True)
     _release_memory()
     if extract_log.get("reread_errors"):
         listing.setdefault("warnings", []).append("reread_failed")
@@ -109,6 +110,26 @@ def _run_stats(marks, calls, finished_at):
             "total_ms": sum(s["ms"] for s in stages),
             "total_cost_gbp": round(sum(s["cost_gbp"] for s in stages), 5),
             "cost_complete": all(c.get("cost_gbp") is not None for c in calls)}
+
+
+def stats_line(folder, stats, listing=None):
+    """One greppable log line per analysis ("Analysis stats …") for the Render logs."""
+    listing = listing or {}
+    parts = [f"{stats['total_cost_gbp'] * 100:.2f}p", f"{stats['total_ms'] / 1000:.1f}s"]
+    for s in stats["stages"]:
+        detail = f"{s['name']} {s['ms'] / 1000:.1f}s"
+        if s["calls"]:
+            detail += (f" {s['cost_gbp'] * 100:.2f}p ({s['input_tokens']} in/{s['output_tokens']} out,"
+                       f" cached {s['cached_tokens']})")
+        if s["searches"]:
+            detail += f" {s['searches']} searches"
+        parts.append(detail)
+    models = sorted({m for s in stats["stages"] for m in s["models"]})
+    if models:
+        parts.append("models " + ",".join(models))
+    if listing.get("price_gbp") is not None:
+        parts.append(f"price £{listing['price_gbp']}")
+    return f"Analysis stats [{folder}]: " + " | ".join(parts)
 
 
 # ── Hint reconstruction ───────────────────────────────────────────────────────
