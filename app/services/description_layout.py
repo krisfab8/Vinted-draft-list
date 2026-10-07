@@ -66,15 +66,21 @@ def apply(listing):
 def keyword_terms(listing):
     """Every tag word (any confidence) plus clearly read logo/print words.
 
+    A hang-tag name like "Color Wave" may come back as the tag colour or model
+    name rather than a keyword, so those count as tag words too.
+
     Uncertain logo readings stay out: a misread club or company name is worse
     than none (see GARMENT_TEXT_20261006.md).
     """
     from app.services.garment_text import normalize
     terms, seen = [], set()
     for term in [*(listing.get('tag_keywords') or []),
+                 listing.get('colour_from_tag'), listing.get('model_name'),
                  *(value['text'] for value in normalize(listing.get('garment_text'))
                    if value['confidence'] == 'high')]:
-        term = re.sub(r'\s+', ' ', str(term)).strip().rstrip('.')
+        if not isinstance(term, str):
+            continue
+        term = re.sub(r'\s+', ' ', term).strip().rstrip('.')
         if term and term.casefold() not in seen:
             seen.add(term.casefold())
             terms.append(term)

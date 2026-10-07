@@ -59,3 +59,33 @@ def ensure_title(listing, evidence=None):
     else:
         listing.setdefault('warnings', []).append('premium_title_needs_review')
     return listing
+
+
+# Care/handling wording on a tag is not a selling point for the title.
+_NOT_TITLE_WORDS = re.compile(r'wash|dry clean|iron|bleach|tumble|^size\b|made in', re.I)
+
+
+def ensure_tag_terms(listing, item, limit=2, max_length=120):
+    """Put clearly read tag names ("Summer Comfort") in the title after the brand.
+
+    Only for generated copy; caller protects seller-edited titles. Skips
+    uncertain readings and anything that would push the title past max_length.
+    """
+    if item.get('tag_keywords_confidence') != 'high' or 'tag_keywords' in (item.get('low_confidence_fields') or []):
+        return listing
+    title = listing.get('title') or ''
+    brand = str(listing.get('brand') or '')
+    added = 0
+    for term in item.get('tag_keywords') or []:
+        term = re.sub(r'\s+', ' ', str(term)).strip()
+        if added >= limit or not term or _NOT_TITLE_WORDS.search(term) or tokens(term) <= tokens(title):
+            continue
+        if brand and title.lower().startswith(brand.lower()):
+            candidate = f'{title[:len(brand)]} {term}{title[len(brand):]}'
+        else:
+            candidate = f'{title} {term}'.strip()
+        if len(candidate) <= max_length:
+            title = candidate
+            added += 1
+    listing['title'] = title
+    return listing

@@ -80,3 +80,30 @@ def test_full_finalize_keeps_tag_word_and_new_with_tags():
     assert result["condition_summary"].startswith("New with tags")
     assert "Color Wave" in result["description"]
     assert "New with original tags attached." in result["description"]
+
+
+def test_tag_colour_or_model_name_reading_reaches_keywords():
+    item = listing(colour_from_tag="Color Wave", model_name="E4")
+    item["description"] = "Peter Millar E4 polo.\n\nKeywords: Peter Millar polo."
+    description_layout.apply(item)
+    assert item["description"].endswith("Keywords: Peter Millar polo, Color Wave.")
+
+
+def test_clear_tag_names_go_in_title_after_brand():
+    from app.services.premium_features import ensure_tag_terms
+    result = {"brand": "Peter Millar", "title": "Peter Millar E4 Performance Polo Shirt Mens Multicoloured S"}
+    item = {"tag_keywords": ["E4 Performance", "Summer Comfort", "Machine Washable"],
+            "tag_keywords_confidence": "high"}
+    ensure_tag_terms(result, item)
+    assert result["title"] == "Peter Millar Summer Comfort E4 Performance Polo Shirt Mens Multicoloured S"
+
+
+def test_uncertain_or_too_long_tag_names_stay_out_of_title():
+    from app.services.premium_features import ensure_tag_terms
+    title = "Peter Millar Polo Shirt Mens S"
+    result = {"brand": "Peter Millar", "title": title}
+    ensure_tag_terms(result, {"tag_keywords": ["Color Wave"], "tag_keywords_confidence": "low"})
+    assert result["title"] == title
+    ensure_tag_terms(result, {"tag_keywords": ["Summer Comfort"], "tag_keywords_confidence": "high"},
+                     max_length=len(title) + 5)
+    assert result["title"] == title

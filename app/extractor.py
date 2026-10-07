@@ -170,7 +170,7 @@ Rules:
   * Collection/range names that appear as standalone words on separate tabs or in prominent positions on the brand label (e.g. "TRAVELLER", "BLACK LABEL", "BLUE LINE") — these are search terms buyers use.
   * Fabric quality designations that appear on the material or brand label (e.g. "Super 120s", "Super 110s", "VBC 130s") — these are valuable for quality buyers.
   * Special fabric treatments or technologies (e.g. "Water Resistant", "Stretch", "Performance", "Machine Washable").
-  * Product line, style, technology or colourway names printed on hang/swing tags (e.g. "Color Wave") — record the exact words even if you do not know what they mean.
+  * Product line, style, technology or colourway names printed on hang/swing tags (e.g. "Color Wave") — record the exact words in tag_keywords even if you do not know what they mean, and even if you also record them as colour_from_tag or model_name.
   * If you can clearly read a term: tag_keywords_confidence = "high". If partially visible or inferred: "low".
   * tag_keywords_confidence = "high" means terms may go in the title or description body; "low" means keywords section only.
 - PATTERN: assess the fabric/body pattern from the front photo.
