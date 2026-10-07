@@ -129,6 +129,7 @@ def test_sold_page_uses_actual_prices_and_moves_items_from_drafts(tmp_path,monke
     html=page.get_data(as_text=True)
     assert 'class="sold-tag">SOLD' in html and '£47.5' in html and 'Bought for £8' in html
     assert 'href="/sold"' in html and 'btn-delete-draft" onclick' not in html
+    assert 'class="sn-stats"' in html and 'id="sales-month"' in html and 'Sold.<br>' in html
     assert 'card-upload_11111111' not in client.get('/drafts').get_data(as_text=True)
     assert web._draft_count()==0
     assert client.get('/stats').status_code==200

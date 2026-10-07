@@ -563,7 +563,13 @@ def upload_listing():
 @app.get("/drafts")
 def drafts_page():
     listings = [item for item in _get_all_listings() if item['inventory_status'] != 'sold']
-    return render_template("drafts.html", listings=listings, draft_count=len(listings), active_tab="drafts")
+    try:
+        folders = {item['folder'] for item in listings}
+        review_count = sum(folder in folders for folder in item_store.get_items_needing_review())
+    except Exception:
+        review_count = 0
+    return render_template("drafts.html", listings=listings, draft_count=len(listings), active_tab="drafts",
+                           review_count=review_count)
 
 
 @app.get("/sold")
@@ -578,9 +584,14 @@ def sold_page():
     sold = sorted((item for item in listings if item['inventory_status'] == 'sold'
                    and (item['outcome'].get('sold_date') or '').startswith(summary['month']+'-')),
                   key=lambda item: item['outcome'].get('sold_date') or '', reverse=True)
+    import calendar
+    year, month = (int(part) for part in summary['month'].split('-'))
+    today = sales_history.today()
     return render_template("drafts.html", listings=sold, sold_mode=True, sale_summary=summary,
                            draft_count=sum(item['inventory_status'] != 'sold' for item in listings),
-                           active_tab="sold")
+                           active_tab="sold", month_is_current=(year, month) == (today.year, today.month),
+                           month_name=calendar.month_name[month] + ('' if year == today.year else f' {year}'),
+                           month_short=calendar.month_abbr[month])
 
 
 @app.get("/connect")

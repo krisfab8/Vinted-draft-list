@@ -107,7 +107,9 @@ def test_inventory_and_sale_revision_refresh_without_analysis(item):
         published_date=published,sold_date=(sales_history.today()-timedelta(days=20)).isoformat(),sold_price_gbp=75))
     assert sale.status_code == 200 and sale.headers['X-Item-Revision'] != revision
     assert client.get('/api/listings').json[0]['inventory_status'] == 'sold'
-    assert 'Live / unsold' in client.get('/drafts').text
+    drafts_html = client.get('/drafts').text
+    assert 'Live / unsold' in drafts_html and 'class="inventory-toolbar sn-search"' in drafts_html
+    assert 'Drafts.<br>' in drafts_html and 'Vinted not connected' not in drafts_html
     listing = client.patch('/listing/'+folder.name,json={'colour':'Blue'})
     assert listing.status_code == 200 and item_store.get_status(folder.name) == 'sold'
 

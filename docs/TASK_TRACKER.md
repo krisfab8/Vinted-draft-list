@@ -257,3 +257,13 @@ Keep IDs stable. Do not rename an open task to hide scope. Split partial work in
 - Gender ("For") and Category are now editable selects; category list comes from CATEGORY_NAV, filtered by gender.
 - /settings: name, email, tips opt-in (POST /api/profile/identity, validated), pricing style, items a week (daily goal),
   camera mode, help notes, Vinted connection, redo welcome. Header avatar (initial) links there.
+
+## 2026-10-07 — Drafts & Sold match Upload
+- Upload: sized to the real visible height (in-app browser tabs report 100dvh too tall, hiding Create under the nav).
+  Chip reads "15 today ✓" once the daily goal is met.
+- Drafts/Sold use the Upload hero: "Drafts. 12 to check." with a count chip; "Sold. £54 so far." with a month chip.
+  Removed refresh icons (pages reload when revisited), grey counts, the "Vinted not connected" banner (header pill covers it)
+  and "Private preview" on every page.
+- Drafts: one search pill with a filter icon (lime when filtering); cards show brand, then "type · size · age";
+  premium is a small black star, needs-a-check is a red dot.
+- Sold: white chart card (black line, lime fill); profit/margin/return as one row of three numbers.

@@ -593,30 +593,22 @@
 {% endblock %}
 
 {% block content %}
-<!-- ── Vinted not-connected note ── -->
-<div class="auth-note" id="auth-note">
-  <span>Vinted not connected</span>
-  <a href="/connect">Connect</a>
-</div>
-
-<div class="drafts-heading">
-  <div class="inventory-heading-title">
-    <div class="page-title" style="margin-bottom:0">{{ 'Sold' if sold_mode else 'Drafts' }}</div>
-    <button type="button" onclick="location.reload()" aria-label="Refresh items" title="Refresh items" class="refresh-items">↻</button>
-    <span id="review-count-badge" style="display:none;background:var(--gold-bg);color:#b86a00;border:1px solid rgba(184,106,0,0.2);font-size:11px;font-weight:700;padding:3px 10px;border-radius:var(--r-pill)"></span>
-  </div>
-  {% if listings %}
-    <div class="drafts-count-badge" aria-label="{{ listings|length }} item{{ 's' if listings|length != 1 }}">{{ listings|length }}</div>
+<div class="sn-hero inv-hero">
+  {% if sold_mode %}
+  <h1 class="sn-title">Sold.<br><span>£{{ '%.0f'|format(sale_summary.revenue_gbp) if sale_summary.revenue_gbp == sale_summary.revenue_gbp|round(0) else '%.2f'|format(sale_summary.revenue_gbp) }} {{ 'so far' if month_is_current else 'in ' ~ month_short }}<i>.</i></span></h1>
+  <form action="/sold" method="get" class="sn-streak sn-month">
+    <span>{{ month_name }}</span><svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M2.5 4.5L6 8l3.5-3.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    <input id="sales-month" name="month" type="month" value="{{ sale_summary.month }}" onchange="this.form.requestSubmit()" onclick="try{this.showPicker()}catch(_){}" aria-label="Choose sales month">
+    <noscript><button type="submit">Show month</button></noscript>
+  </form>
+  {% else %}
+  <h1 class="sn-title">Drafts.<br><span id="review-count-badge">{{ '%d to check'|format(review_count) if review_count else 'All good' }}<i>.</i></span></h1>
+  {% if listings %}<div class="sn-streak drafts-count-badge" aria-label="{{ listings|length }} item{{ 's' if listings|length != 1 }}">{{ listings|length }}</div>{% endif %}
   {% endif %}
 </div>
 
 {% if sold_mode %}
 <section class="sales-overview" aria-label="Monthly sales summary">
-  <form action="/sold" method="get" class="sales-month">
-    <label for="sales-month">Your month</label>
-    <input id="sales-month" name="month" type="month" value="{{ sale_summary.month }}" onchange="this.form.requestSubmit()" aria-label="Choose sales month">
-    <noscript><button type="submit">Show month</button></noscript>
-  </form>
   <div class="visual-sales-grid">
     <div class="sales-trend-card" data-sales="{{ sale_summary.revenue_gbp }}" data-profit="{{ sale_summary.gross_profit_gbp if sale_summary.gross_profit_gbp is not none else '' }}">
       <div class="trend-top"><span class="trend-label" id="trend-label">Sales</span><div class="chart-switch" aria-label="Chart metric"><button type="button" class="selected" aria-pressed="true" onclick="switchSalesChart('sales',this)">Sales</button><button type="button" aria-pressed="false" onclick="switchSalesChart('profit',this)">Profit</button></div></div>
@@ -640,34 +632,27 @@
       </div>
       {% endfor %}
     </div>
-    <div class="profit-visual-card">
+    <div class="sn-stats" aria-label="Profit summary, before fees, for sales with known buy prices">
       {% set margin = sale_summary.profit_margin_percent %}
-      <div class="profit-ring-wrap">
-        <div class="profit-ring {{ 'unknown' if margin is none else 'loss' if margin < 0 else '' }}" role="img" aria-label="{{ 'Profit margin unknown: purchase costs are missing' if margin is none else 'Loss before fees £%.2f'|format(-sale_summary.gross_profit_gbp) if margin < 0 else 'Profit %.1f%% and purchase costs %.1f%% of sales with known costs'|format(margin,100-margin) }}" style="--share:{{ [100,[0,margin or 0]|max]|min }}%">
-          <div><strong>{{ '—' if margin is none else '£%.0f'|format(-sale_summary.gross_profit_gbp) if margin < 0 else '%.0f%%'|format(margin) }}</strong><span>{{ 'No costs yet' if margin is none else 'Loss' if margin < 0 else 'Profit margin' }}</span></div>
-        </div>
-        <div class="ring-legend"><span><i></i>Profit</span><span><i></i>Buy cost</span></div>
-      </div>
-      <div class="profit-mini-metrics">
-        <div><span>Profit <small>before fees</small></span><strong>{{ '£%.2f'|format(sale_summary.gross_profit_gbp) if sale_summary.gross_profit_gbp is not none else '—' }}</strong></div>
-        <div class="profit-secondary"><span>Avg. profit</span><strong>{{ '£%.2f'|format(sale_summary.average_profit_gbp) if sale_summary.average_profit_gbp is not none else '—' }}</strong></div>
-        <div class="profit-secondary"><span>Return on cost</span><strong>{{ '%.0f%%'|format(sale_summary.return_on_cost_percent) if sale_summary.return_on_cost_percent is not none else '—' }}</strong></div>
-      </div>
+      <div><strong>{{ '£%.0f'|format(sale_summary.gross_profit_gbp) if sale_summary.gross_profit_gbp is not none else '—' }}</strong><span>Profit</span></div>
+      <div><strong>{{ '%.0f%%'|format(margin) if margin is not none else '—' }}</strong><span>Margin</span></div>
+      <div><strong>{{ '%.0f%%'|format(sale_summary.return_on_cost_percent) if sale_summary.return_on_cost_percent is not none else '—' }}</strong><span>Return</span></div>
     </div>
   </div>
-  <details class="metric-explainer"><summary>{{ sale_summary.known_cost_count }}/{{ sale_summary.sold_count }} costs · Details</summary><p>Profit and the ring use sales with known purchase costs, before fees and seller-paid postage. Unknown costs are excluded. Return on cost is profit divided by purchase costs. The ring shows a loss separately when costs exceed sales.</p>
-    <table class="chart-data"><caption>Daily recorded sales</caption><thead><tr><th>Day</th><th>Sales</th><th>Profit before fees</th></tr></thead><tbody>{% for day in sale_summary.daily %}<tr><td>{{ day.day }}</td><td>£{{ '%.2f'|format(day.sales_gbp) }}</td><td>{{ '£%.2f'|format(day.profit_gbp) if day.profit_gbp is not none else '—' }}</td></tr>{% endfor %}</tbody></table>
-  </details>
 </section>
 {% endif %}
-<div class="inventory-toolbar">
-  <input id="inventory-search" type="search" placeholder="Search" aria-label="Search inventory" oninput="filterInventory()" style="flex:1;min-width:180px;padding:10px;border:1px solid var(--gray-3);border-radius:12px">
-  <select {% if sold_mode %}hidden{% endif %} id="inventory-status" aria-label="Filter inventory by status" onchange="filterInventory()" style="padding:10px;border:1px solid var(--gray-3);border-radius:12px">
-    <option value="all">All items</option><option value="draft">Drafts</option><option value="listed">Live / unsold</option>
-    <option value="withdrawn">Withdrawn</option><option value="returned">Returned</option>
-  </select>
+<div class="inventory-toolbar sn-search">
+  <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7" fill="none" stroke="currentColor" stroke-width="2"/><path d="M20 20l-4-4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+  <input id="inventory-search" type="search" placeholder="Search" aria-label="Search inventory" oninput="filterInventory()">
+  <label class="sn-filter" {% if sold_mode %}hidden{% endif %}>
+    <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M7 12h10M10 17h4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+    <select {% if sold_mode %}hidden{% endif %} id="inventory-status" aria-label="Filter inventory by status" onchange="filterInventory()">
+      <option value="all">All items</option><option value="draft">Drafts</option><option value="listed">Live / unsold</option>
+      <option value="withdrawn">Withdrawn</option><option value="returned">Returned</option>
+    </select>
+  </label>
 </div>
-<p id="inventory-filter-count" role="status" style="font-size:13px"></p>
+<p id="inventory-filter-count" role="status" class="sn-filter-count"></p>
 {% if not listings %}
   <div class="empty-state">
     <div class="empty-icon">👕</div>
@@ -682,9 +667,9 @@
       <div class="draft-thumb">
         {% if item.inventory_status == 'sold' %}<div class="sold-tag">SOLD</div>{% endif %}
         {% if item.inventory_status != 'sold' and item.draft_error and not item.draft_url %}
-          <div class="status-dot error" title="Draft creation failed — open to review"></div>
+          <div class="status-dot error" title="Draft failed — open to check"></div>
         {% elif item.inventory_status != 'sold' and item.warnings %}
-          <div class="status-dot review" title="Needs review"></div>
+          <div class="status-dot review" title="Needs a check"></div>
         {% endif %}
         {% if item.thumbnail_url %}
           <img src="{{ item.thumbnail_url }}" alt="{{ item.title }}" loading="lazy" onerror="this.hidden=true;this.nextElementSibling.hidden=false">
@@ -694,20 +679,18 @@
         {% endif %}
         {% if item.inventory_status != 'sold' %}<button type="button" class="btn-delete-draft card-remove" aria-label="Delete {{ item.title or 'listing' }}" onclick="askDelete(event, this.closest('.draft-card').dataset.folder)">✕</button>{% endif %}
         <div class="draft-price-badge">£{{ item.outcome.sold_price_gbp if item.inventory_status == 'sold' else item.price_gbp }}</div>
-        {% if item.premium and item.inventory_status != 'sold' %}<div class="draft-premium-tag">★ Premium</div>{% endif %}
+        {% if item.premium and item.inventory_status != 'sold' %}<div class="draft-premium-tag" title="Premium" aria-label="Premium">★</div>{% endif %}
       </div>
       <div class="draft-info">
         <div class="draft-brand">{{ item.brand or "Unknown" }}</div>
         {% if not sold_mode %}<div class="inventory-chip">{{ 'Live' if item.inventory_status == 'listed' else item.inventory_status|capitalize }}</div>{% endif %}
-        <div class="draft-title-text">{{ item.title }}</div>
-        {% if sold_mode and item.outcome.buy_price_gbp is not none %}<div class="sale-note" style="margin-top:6px">Bought for £{{ item.outcome.buy_price_gbp }}{% if item.outcome.profit_gbp is not none %} · Profit £{{ item.outcome.profit_gbp }}{% endif %}</div>{% endif %}
-        <div class="draft-footer">
-          {% set card_date = (item.outcome.sold_date if sold_mode else ((item.run_stats or {}).finished_at or item.listed_date)) or '' %}
-          <div class="draft-date-text" data-date="{{ card_date }}" title="{{ card_date[:10] }}">{{ card_date[8:10] ~ '/' ~ card_date[5:7] if card_date else '' }}</div>
-          {% if item.normalized_size or item.tagged_size %}
-            <div class="draft-size-pill">{{ item.normalized_size or item.tagged_size }}</div>
-          {% endif %}
+        {% set card_date = (item.outcome.sold_date if sold_mode else ((item.run_stats or {}).finished_at or item.listed_date)) or '' %}
+        <div class="draft-meta">
+          {%- if item.item_type %}<span>{{ item.item_type|capitalize }}</span>{% endif -%}
+          {%- if item.normalized_size or item.tagged_size %}<span>{{ item.normalized_size or item.tagged_size }}</span>{% endif -%}
+          <span class="draft-date-text" data-date="{{ card_date }}" title="{{ card_date[:10] }}">{{ card_date[8:10] ~ '/' ~ card_date[5:7] if card_date else '' }}</span>
         </div>
+        {% if sold_mode and item.outcome.buy_price_gbp is not none %}<div class="sale-note">Bought for £{{ item.outcome.buy_price_gbp }}{% if item.outcome.profit_gbp is not none %} · Profit £{{ item.outcome.profit_gbp }}{% endif %}</div>{% endif %}
       </div>
     </div>
     {% endfor %}
@@ -762,7 +745,7 @@ async function checkAuthOnLoad() {
     const data = await resp.json();
     if (data.logged_in !== "likely") {
       _authOk = false;
-      document.getElementById("auth-note").classList.add("visible");
+      document.getElementById("auth-note")?.classList.add("visible");
     }
   } catch (_) { /* network error — don't block UI */ }
 }
@@ -790,7 +773,9 @@ function filterInventory() {
     card.style.display = show ? '' : 'none';
     if (show) visible++;
   });
-  document.getElementById('inventory-filter-count').textContent = visible+' matching item'+(visible===1?'':'s');
+  const filtering = query || status !== 'all';
+  document.querySelector('.sn-filter')?.classList.toggle('on', status !== 'all');
+  document.getElementById('inventory-filter-count').textContent = filtering ? visible+' matching item'+(visible===1?'':'s') : '';
 }
 
 let currentFolder = null;
@@ -1136,7 +1121,7 @@ async function removeListing(folder) {
   if (idx !== -1) LISTINGS[idx]._deleted = true;
   const n = LISTINGS.filter(item => !item._deleted).length;
   const badge = document.querySelector(".drafts-count-badge");
-  if (badge) badge.textContent = `${n} item${n !== 1 ? "s" : ""}`;
+  if (badge) badge.textContent = String(n);
   return true;
 }
 
@@ -1247,7 +1232,7 @@ async function createDraftFromSheet(folder) {
       if (idx !== -1) LISTINGS[idx].draft_url = data.draft_url;
     } else if (resp.status === 401 && data.code === "VINTED_AUTH_EXPIRED") {
       _authOk = false;
-      document.getElementById("auth-note").classList.add("visible");
+      document.getElementById("auth-note")?.classList.add("visible");
       btn.outerHTML = `<a class="btn-draft-disabled" href="/connect" style="text-align:center;text-decoration:none">Connect Vinted →</a>`;
     } else {
       wrap.insertAdjacentHTML("beforebegin",
@@ -1261,23 +1246,10 @@ async function createDraftFromSheet(folder) {
   }
 }
 
-async function loadReviewCount() {
-  try {
-    const resp = await fetch("/api/listings/review-queue");
-    if (!resp.ok) return;
-    const folders = await resp.json();
-    if (!folders.length) return;
-    const badge = document.getElementById("review-count-badge");
-    if (badge) {
-      badge.textContent = `${folders.length} to review`;
-      badge.style.display = "inline-block";
-    }
-  } catch (_) { /* non-fatal */ }
-}
-
 document.addEventListener("DOMContentLoaded", () => {
   if (location.pathname !== '/sold') checkAuthOnLoad();
-  if (location.pathname !== '/sold') loadReviewCount();
+  // Pages refresh themselves: coming back via the back button reloads fresh data.
+  window.addEventListener("pageshow", e => { if (e.persisted) location.reload(); });
 });
 </script>
 {% endblock %}
