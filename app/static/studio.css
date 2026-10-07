@@ -373,3 +373,10 @@ body.tab-upload:has(#resultCard:empty):has(#reviewCard:empty) .page-upload .uplo
 .ci-tile .ci-sub { margin-top: -6px; padding: 0 6px; font-size: 10.5px; line-height: 1.25; font-weight: 600; color: var(--sn-muted); text-align: center; }
 /* Create listing only appears once photos are added (the camera's Analyse also creates it). */
 .page-upload .btn-submit:not(.ready) { display: none; }
+/* Camera panels: 2 wide cards that fill a phone screen (pick, shot list, done). */
+.ci-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.ci-tile { aspect-ratio: 1.3; gap: 6px; font-size: 16px; }
+.ci-tile svg { width: 48px; height: 48px; }
+.ci-tile .ci-sub { margin-top: -2px; font-size: 12px; }
+.ci-tile .ci-num { font-size: 13px; }
+.ci-photo { aspect-ratio: 1.3; }
