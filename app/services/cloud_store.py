@@ -22,6 +22,7 @@ log = logging.getLogger("cloud_store")
 
 PREFIX = "items/"
 PROFILE_KEY = "profile/user_profile.json"  # onboarding answers (name, email, preferences)
+REMOVED_KEY = "profile/removed_items.json"  # items removed on purpose; must survive restarts
 REQUIRED = ("B2_KEY_ID", "B2_APP_KEY", "B2_BUCKET", "B2_ENDPOINT")
 SYNC_INTERVAL_SECONDS = 60
 DEBOUNCE_SECONDS = 2
@@ -118,8 +119,17 @@ class CloudStore:
                 self._fail("list bucket", error)
                 return restored
             local = self._local_folders()
+            from app.services import removed_items
+            self._restore_removed()
             for folder in remote:
                 if folder in local:
+                    continue
+                if removed_items.contains(folder):
+                    # Removed on purpose: drop the stale cloud copy instead of restoring it.
+                    try:
+                        self.client.delete_object(Bucket=self.bucket, Key=_key(folder))
+                    except Exception as error:
+                        self._fail(f"delete {folder}", error)
                     continue
                 try:
                     body = self.client.get_object(Bucket=self.bucket, Key=_key(folder))["Body"].read()
@@ -154,6 +164,47 @@ class CloudStore:
         stat = self.profile_path.stat()
         return (stat.st_size, stat.st_mtime_ns)
 
+    def _restore_removed(self):
+        """Merge the stored "removed on purpose" list into the local one (a restart wipes disk)."""
+        from app.services import removed_items
+        try:
+            body = self.client.get_object(Bucket=self.bucket, Key=REMOVED_KEY)["Body"].read()
+            stored = json.loads(body)
+            if isinstance(stored, list):
+                removed_items.add(*(str(f) for f in stored))
+        except Exception as error:
+            if "NoSuchKey" not in type(error).__name__ and "NoSuchKey" not in str(error) and "404" not in str(error):
+                self._fail("restore removed list", error)
+        self._removed_sig = self._removed_signature()
+
+    def _removed_signature(self):
+        from app.services import removed_items
+        try:
+            return removed_items.PATH.read_bytes()
+        except OSError:
+            return None
+
+    def _sync_removed(self):
+        from app.services import removed_items
+        signature = self._removed_signature()
+        if signature is None or signature == getattr(self, "_removed_sig", None):
+            return
+        try:
+            self.client.put_object(Bucket=self.bucket, Key=REMOVED_KEY, Body=signature,
+                                   ContentType="application/json")
+            self._removed_sig = signature
+        except Exception as error:
+            self._fail("upload removed list", error)
+
+    def delete_profile(self):
+        """Delete my data: remove the stored profile copy too."""
+        with self._lock:
+            try:
+                self.client.delete_object(Bucket=self.bucket, Key=PROFILE_KEY)
+                self._profile_sig = None
+            except Exception as error:
+                self._fail("delete profile", error)
+
     def _sync_profile(self):
         if not self.profile_path or not self.profile_path.is_file():
             return
@@ -178,9 +229,9 @@ class CloudStore:
                     if self._known.get(folder) == signature:
                         continue
                     json.loads((path / "listing.json").read_text())  # skip half-written saves
-                    data = item_backup.export(self.items_dir, folder)
-                    self.client.put_object(Bucket=self.bucket, Key=_key(folder), Body=data,
-                                           ContentType="application/zip")
+                    with item_backup.export_file(self.items_dir, folder) as data:
+                        self.client.put_object(Bucket=self.bucket, Key=_key(folder), Body=data,
+                                               ContentType="application/zip")
                     self._known[folder] = signature
                     self.status["uploaded"] += 1
                 except Exception as error:
@@ -193,6 +244,7 @@ class CloudStore:
                 except Exception as error:
                     self._fail(f"delete {folder}", error)
             self._sync_profile()
+            self._sync_removed()
 
     def request_sync(self):
         self._wake.set()

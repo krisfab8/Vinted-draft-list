@@ -2,13 +2,16 @@
 
 Not a multi-user beta. Browser automation is deliberately unavailable here.
 """
+import hashlib
 import hmac
 import json
 import os
 import re
+import time
+from datetime import timedelta
 from urllib.parse import urlsplit
 
-from flask import jsonify, request
+from flask import jsonify, redirect, render_template, request, session
 from werkzeug.exceptions import HTTPException
 
 from app import config
@@ -17,6 +20,22 @@ from app.web import app
 _FOLDER = re.compile(r"^[A-Za-z0-9_][A-Za-z0-9_.-]{0,127}$")
 _BROWSER_ROUTES = {"/create-draft", "/edit-draft", "/login/start", "/login/save"}
 _GENERATION_ROUTES = {"/upload", "/create-listing"}
+# Reachable without signing in: the sign-in page itself, health checks, styles/scripts, privacy note.
+_PUBLIC = {"/health", "/signin", "/privacy", "/manifest.json", "/favicon.ico"}
+_SIGNIN_LIMIT, _SIGNIN_WINDOW = 8, 300   # attempts per IP per 5 minutes
+_signin_attempts: dict[str, list[float]] = {}
+
+
+def _safe_next(target):
+    """Only redirect back to a path on this site."""
+    return target if isinstance(target, str) and target.startswith("/") and not target.startswith("//") else "/"
+
+
+def _rate_limited(ip):
+    now = time.time()
+    recent = [t for t in _signin_attempts.get(ip, []) if now - t < _SIGNIN_WINDOW]
+    _signin_attempts[ip] = recent
+    return len(recent) >= _SIGNIN_LIMIT
 
 
 def valid_folder(folder):
@@ -56,13 +75,41 @@ def _start_cloud_store():
         return None
 
 
+def _tidy_duplicates(cloud):
+    """Merge copies left by the old "Analyse photos again"; never block startup on it."""
+    from app import web
+    from app.services import removed_items
+    try:
+        result = removed_items.merge_retests(web.ITEMS_DIR)
+        for folder in result["merged"]:
+            web._sync_item_status(folder, json.loads((web.ITEMS_DIR / folder / "listing.json").read_text()))
+        if result["removed"]:
+            app.logger.warning("Tidied %d duplicate listings (%d merged)", len(result["removed"]), len(result["merged"]))
+            if cloud:
+                cloud.request_sync()
+    except Exception as error:
+        app.logger.error("Duplicate tidy-up failed (%s)", type(error).__name__)
+
+
 def create_app():
     username = os.getenv("APP_USERNAME", "kristian")
     password = os.getenv("APP_PASSWORD", "")
     if len(password) < 6:
         raise RuntimeError("Hosted test requires APP_PASSWORD of at least 6 characters")
     app.config["HOSTED_TEST"] = True
+    # Session cookie for the sign-in page. Changing APP_PASSWORD signs everyone out.
+    app.secret_key = os.getenv("SECRET_KEY") or hmac.new(password.encode(), b"vinted-session", hashlib.sha256).hexdigest()
+    app.config.update(SESSION_COOKIE_SECURE=os.getenv("SESSION_COOKIE_SECURE", "1") == "1",
+                      SESSION_COOKIE_HTTPONLY=True, SESSION_COOKIE_SAMESITE="Lax",
+                      PERMANENT_SESSION_LIFETIME=timedelta(days=30))
+    session_token = hmac.new(password.encode(), username.encode(), hashlib.sha256).hexdigest()
+
+    def credentials_ok(name, secret):
+        return hmac.compare_digest((name or "").encode(), username.encode()) \
+            and hmac.compare_digest((secret or "").encode(), password.encode())
     cloud = _start_cloud_store()
+    app.extensions["cloud_store"] = cloud
+    _tidy_duplicates(cloud)
 
     @app.get("/api/provider-status")
     def api_provider_status():
@@ -74,18 +121,43 @@ def create_app():
                        openai_key_configured=bool(config.OPENAI_API_KEY),
                        cloud_storage=cloud.status if cloud else {"enabled": False})
 
+    @app.route("/signin", methods=["GET", "POST"])
+    def signin():
+        error = None
+        if request.method == "POST":
+            ip = request.headers.get("X-Forwarded-For", request.remote_addr or "").split(",")[0].strip()
+            if _rate_limited(ip):
+                error = "Too many tries. Wait a few minutes."
+            elif credentials_ok(request.form.get("username", "").strip(), request.form.get("password", "")):
+                session.clear()
+                session["auth"] = session_token
+                session.permanent = True
+                return redirect(_safe_next(request.args.get("next")))
+            else:
+                _signin_attempts.setdefault(ip, []).append(time.time())
+                error = "That username or password isn't right."
+        return render_template("signin.html", error=error), (401 if error else 200)
+
+    @app.post("/signout")
+    def signout():
+        session.clear()
+        return redirect("/signin")
+
     @app.before_request
     def protect_test_app():
-        if request.path == "/health" and request.method == "GET":
+        if request.path in _PUBLIC or request.path.startswith("/static/"):
+            if request.method not in {"GET", "HEAD"} and request.path == "/signin":
+                origin = request.headers.get("Origin")
+                if origin and urlsplit(origin).netloc != request.host:
+                    return jsonify(error="Cross-site request rejected"), 403
             return None
         auth = request.authorization
-        if not auth or auth.type != "basic" or not (
-            hmac.compare_digest((auth.username or "").encode(), username.encode())
-            and hmac.compare_digest((auth.password or "").encode(), password.encode())
-        ):
-            return jsonify(error="Sign in to this private test"), 401, {
-                "WWW-Authenticate": 'Basic realm="Vinted private test", charset="UTF-8"'
-            }
+        signed_in = hmac.compare_digest(str(session.get("auth", "")).encode(), session_token.encode())
+        if not signed_in and not (auth and auth.type == "basic" and credentials_ok(auth.username, auth.password)):
+            # Pages go to the sign-in screen; app requests get a plain 401.
+            if request.method == "GET" and "text/html" in request.headers.get("Accept", ""):
+                return redirect("/signin?next=" + request.full_path.rstrip("?"))
+            return jsonify(error="Sign in to this private test"), 401
         if request.method not in {"GET", "HEAD", "OPTIONS"}:
             origin = request.headers.get("Origin")
             if (origin and urlsplit(origin).netloc != request.host) or request.headers.get("Sec-Fetch-Site") == "cross-site":

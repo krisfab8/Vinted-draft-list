@@ -19,7 +19,7 @@ from collections import Counter
 from datetime import datetime
 from pathlib import Path
 
-from flask import Flask, g, jsonify, render_template, request, send_from_directory
+from flask import Flask, g, jsonify, redirect, render_template, request, send_from_directory, url_for
 
 from app.config import ITEMS_DIR, ROOT
 from app import extractor, listing_writer, run_logger
@@ -629,9 +629,22 @@ def stats_page():
                            draft_count=len(listings), active_tab="stats")
 
 
+def _backup_revision(folder: Path) -> str:
+    """Changes whenever any file in the item folder changes (cheap: file sizes and times only)."""
+    try:
+        files = sorted((f.name, f.stat().st_size, f.stat().st_mtime_ns) for f in folder.iterdir() if f.is_file())
+    except OSError:
+        return ""
+    import hashlib
+    return hashlib.sha1(repr(files).encode()).hexdigest()[:16]
+
+
 @app.get("/api/listings")
 def api_listings():
-    return jsonify(_get_all_listings())
+    listings = _get_all_listings()
+    for listing in listings:
+        listing["backup_revision"] = _backup_revision(ITEMS_DIR / listing["folder"])
+    return jsonify(listings)
 
 
 @app.get("/api/categories")
@@ -1223,6 +1236,8 @@ def delete_listing(folder):
         shutil.rmtree(item_path)
     except Exception:
         return jsonify({"error": traceback.format_exc()}), 500
+    from app.services import removed_items
+    removed_items.add(safe_folder)   # phones and cloud copies must not bring it back
     return jsonify({"deleted": safe_folder}), 200
 
 
@@ -1470,20 +1485,24 @@ def export_private_backup():
     if selected and item_backup.FOLDER.fullmatch(selected) and not (ITEMS_DIR / selected / "listing.json").is_file():
         return jsonify(error="Listing not found"), 404
     try:
-        data=item_backup.export(ITEMS_DIR, request.args.get("folder"))
+        spool=item_backup.export_file(ITEMS_DIR, request.args.get("folder"))
     except (ValueError,OSError):
         return jsonify(error="Could not export backup."),422
-    return app.response_class(data,mimetype="application/zip",headers={
-        "Content-Disposition":"attachment; filename=Vinted-Listings-Backup.zip"})
+    from flask import send_file
+    return send_file(spool, mimetype="application/zip", as_attachment=True,
+                     download_name="Vinted-Listings-Backup.zip")
 
 
 @app.post("/api/private/restore-backup")
 def restore_private_backup():
     if not app.config.get("HOSTED_TEST"):
         return jsonify(error="Private hosted restore only"), 503
-    from app.services import item_backup
+    from app.services import item_backup, removed_items
+    data = request.get_data()
+    if any(removed_items.contains(folder) for folder in item_backup.folders_in(data)):
+        return jsonify(error="This listing was removed.", code="REMOVED"), 410
     try:
-        folders = item_backup.restore(request.get_data(), ITEMS_DIR)
+        folders = item_backup.restore(data, ITEMS_DIR)
         for folder in folders:
             listing=json.loads((ITEMS_DIR/folder/"listing.json").read_text())
             _sync_item_status(folder,listing)
@@ -1615,6 +1634,27 @@ def update_profile():
         profile[key] = value
     profile_svc.save(profile)
     return jsonify(profile)
+
+
+@app.get("/privacy")
+def privacy_page():
+    return render_template("privacy.html")
+
+
+@app.get("/favicon.ico")
+def favicon():
+    return redirect(url_for("static", filename="brand-mark.svg"))
+
+
+@app.post("/api/account/delete-data")
+def delete_my_data():
+    """Settings → Delete my data. Needs the word DELETE typed, so it can't happen by accident."""
+    body = request.get_json(silent=True) or {}
+    if not isinstance(body, dict) or str(body.get("confirm", "")).strip().upper() != "DELETE":
+        return jsonify(error='Type DELETE to confirm.'), 422
+    from app.services import account_data
+    result = account_data.wipe(ITEMS_DIR, app.extensions.get("cloud_store"))
+    return jsonify(deleted=True, **result)
 
 
 @app.get("/health")

@@ -18,11 +18,11 @@ function setup(serverItems, cached, options={}) {
   }};
   const fetch=async (url,opts={})=>{
     calls.push([url,opts.method||'GET']);
-    if(url==='/api/listings')return {ok:true,json:async()=>[...server.values()]};
+    if(url==='/api/listings')return {ok:true,json:async()=>[...server.values()].map(item=>({...item,backup_revision:options.revisions?.[item.folder]}))};
     if(url==='/api/sales/backup')return {ok:true,json:async()=>[]};
     if(url==='/api/sales/restore')return {ok:true,json:async()=>({restored:0})};
     if(url.startsWith('/api/private/backup?'))return {ok:!options.failBackup,blob:async()=> 'latest:'+url.split('=')[1]};
-    if(url==='/api/private/restore-backup'){server.set(opts.body,{folder:opts.body});return {ok:true};}
+    if(url==='/api/private/restore-backup'){if(options.removed?.includes(opts.body))return {ok:false,status:410};server.set(opts.body,{folder:opts.body});return {ok:true};}
     if(opts.method==='DELETE'){server.delete(url.split('/')[2]);return {ok:true};}
     if(opts.method==='PATCH')return {ok:true};
     if(url.endsWith('/outcome') && opts.method==='POST')return {ok:true};
@@ -66,5 +66,11 @@ function setup(serverItems, cached, options={}) {
   assert(freshRun.calls.filter(([url])=>url==='/api/private/backup?folder='+fresh).length>=2);
   await freshRun.ctx.window.fetch('/listing/'+fresh,{method:'DELETE'}); await freshRun.ctx.window.DraftArchive.flush();
   assert.equal(freshRun.state.get(fresh).deleted,true);
+  // Unchanged items are not downloaded again; items removed on the server are forgotten here.
+  const quiet=setup([existing],[{folder:existing,blob:'cached',revision:'r1'},{folder:'upload_55555555',blob:'upload_55555555'}],
+                    {revisions:{[existing]:'r1'},removed:['upload_55555555']});
+  await quiet.ctx.window.DraftArchive.ready;
+  assert(!quiet.calls.some(([url])=>url==='/api/private/backup?folder='+existing));
+  assert.equal(quiet.state.get('upload_55555555').deleted,true);assert(!quiet.server.has('upload_55555555'));
   console.log('Archive recovery, server-edit precedence, delete tombstones and failure visibility passed');
 })().catch(error=>{console.error(error);process.exit(1)});

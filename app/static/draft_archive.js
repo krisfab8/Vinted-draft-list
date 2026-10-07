@@ -25,11 +25,11 @@
       tx.onerror = tx.onabort = () => reject(tx.error || new Error('Backup failed'));
     });
   }
-  async function save(folder) {
+  async function save(folder, revision) {
     const response = await nativeFetch('/api/private/backup?folder=' + encodeURIComponent(folder));
     if (!response.ok) throw new Error('Backup download failed');
     const blob = await response.blob();
-    await transaction('readwrite', store => store.put({folder, blob, savedAt:Date.now()}));
+    await transaction('readwrite', store => store.put({folder, blob, revision, savedAt:Date.now()}));
     notice('Backed up on this device');
   }
   async function saveSales() {
@@ -65,13 +65,22 @@
         const result = await nativeFetch('/api/private/restore-backup', {
           method:'POST', headers:{'Content-Type':'application/zip'}, body:item.blob
         });
+        if (result.status === 410) {
+          // The server removed it on purpose (cleanup or delete-my-data): forget it here too.
+          await transaction('readwrite', store => store.put({folder:item.folder,deleted:true,savedAt:Date.now()}));
+          continue;
+        }
         if (!result.ok) {
           // Another tab may have restored it. Never overwrite the server copy.
           const exists = await nativeFetch('/listing/' + encodeURIComponent(item.folder));
           if (!exists.ok) throw new Error('Draft restoration failed');
         } else restored++;
       }
-      for (const item of listings) await save(item.folder);
+      // Only download items that changed since this device last saved them.
+      const savedRevision = new Map(saved.map(item => [item.folder, item.revision]));
+      for (const item of listings) {
+        if (!item.backup_revision || savedRevision.get(item.folder) !== item.backup_revision) await save(item.folder, item.backup_revision);
+      }
       await saveSales();
       if (saved.length || listings.length) notice('Backed up on this device');
       if (restored && ['/drafts','/sold'].includes(location.pathname)) location.reload();

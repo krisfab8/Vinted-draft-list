@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#F5F5F7">
+  <title>Privacy · Vinted Lister</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='studio.css') }}">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { min-height: 100dvh; display: flex; flex-direction: column; padding: calc(48px + env(safe-area-inset-top)) 24px 32px; max-width: 440px; margin: 0 auto; }
+    .si-logo { width: 56px; height: 56px; border-radius: 16px; margin-bottom: 28px; }
+    .si-form { display: flex; flex-direction: column; gap: 12px; margin-top: 28px; }
+    .si-form label { display: flex; flex-direction: column; gap: 6px; font-size: 13px; font-weight: 700; color: var(--sn-muted); }
+    .si-form input { height: 54px; border-radius: 16px; border: 1px solid var(--sn-line); background: var(--sn-card); padding: 0 16px; font: inherit; font-size: 17px; font-weight: 600; color: var(--sn-text); }
+    .si-form input:focus { outline: 2px solid var(--sn-text); outline-offset: 1px; }
+    .si-form button { margin-top: 8px; height: 58px; border: 0; border-radius: 999px; background: var(--sn-pop); color: var(--sn-text); font: inherit; font-size: 17px; font-weight: 800; }
+    .si-error { background: #FFEDEC; color: #B3261E; border-radius: 14px; padding: 12px 14px; font-size: 14px; font-weight: 700; }
+    .si-foot { margin-top: auto; padding-top: 24px; font-size: 13px; color: var(--sn-muted); text-align: center; }
+    .si-foot a { color: inherit; }
+  </style>
+</head>
+<body>
+  <img class="si-logo" src="{{ url_for('static', filename='brand-mark.svg') }}" alt="">
+  <h1 class="sn-title">Privacy<span>.</span></h1>
+  <div class="pv">
+    <h2>What's stored</h2>
+    <p>Your item photos, the listings made from them, prices, sales you record, and your name, email and app preferences.</p>
+    <h2>Where</h2>
+    <p>On the app's server and in a private cloud backup (Backblaze B2), so drafts survive restarts. Your phone also keeps a backup copy in this browser.</p>
+    <h2>Who sees it</h2>
+    <p>Only you. Photos are sent to an AI provider (OpenAI or Anthropic) just to read labels and write the listing. Nothing is sold or used for ads.</p>
+    <h2>Deleting it</h2>
+    <p>Settings → Delete my data removes every listing, photo, sale and your profile, from the server, the cloud backup and this phone.</p>
+  </div>
+  <p class="si-foot"><a href="/">Back to the app</a></p>
+  <style>
+    .pv { margin-top: 24px; display: flex; flex-direction: column; gap: 6px; }
+    .pv h2 { font-size: 15px; font-weight: 800; margin-top: 14px; }
+    .pv p { font-size: 15px; line-height: 1.5; color: var(--gray-7, #48484A); }
+  </style>
+</body>
+</html>

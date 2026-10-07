@@ -64,6 +64,23 @@
   <a href="/welcome" class="st-link"><span>Redo the welcome</span><b>›</b></a>
 </section>
 
+<section class="rv-card st-links" aria-label="Account and privacy">
+  <a href="/privacy" class="st-link"><span>Privacy</span><b>›</b></a>
+  {% if hosted_test %}<form method="post" action="/signout" class="st-link-form"><button type="submit" class="st-link"><span>Sign out</span><b>›</b></button></form>{% endif %}
+  <button type="button" class="st-link st-danger" id="st-delete"><span>Delete my data</span><b>›</b></button>
+</section>
+
+<dialog class="sn-sheet st-confirm" id="st-delete-sheet" aria-labelledby="st-delete-title">
+  <form method="dialog">
+    <div class="sn-grab"></div>
+    <h2 id="st-delete-title">Delete everything?</h2>
+    <p>Every listing, photo, sale and your profile will be removed from the server, the cloud backup and this phone. This can't be undone.</p>
+    <label>Type DELETE to confirm<input id="st-delete-word" autocomplete="off" autocapitalize="characters"></label>
+    <button type="button" class="st-danger-btn" id="st-delete-go" disabled>Delete my data</button>
+    <button value="cancel" class="st-cancel">Cancel</button>
+  </form>
+</dialog>
+
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 {% endblock %}
 
@@ -118,6 +135,24 @@
   }
   form.addEventListener("change", saveIdentity);
   form.addEventListener("submit", event => { event.preventDefault(); saveIdentity(); });
+  const sheet = document.getElementById("st-delete-sheet"), word = document.getElementById("st-delete-word"),
+        go = document.getElementById("st-delete-go");
+  document.getElementById("st-delete").addEventListener("click", () => { word.value = ""; go.disabled = true; sheet.showModal(); });
+  word.addEventListener("input", () => { go.disabled = word.value.trim().toUpperCase() !== "DELETE"; });
+  go.addEventListener("click", async () => {
+    go.disabled = true; go.textContent = "Deleting…";
+    try {
+      const r = await fetch("/api/account/delete-data", {method: "POST", headers: {"Content-Type": "application/json"},
+                                                         body: JSON.stringify({confirm: word.value})});
+      if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || "Could not delete");
+      // This phone's copies too: device backup and remembered settings.
+      try { indexedDB.deleteDatabase("vinted-draft-backups"); } catch (_) {}
+      try { localStorage.clear(); } catch (_) {}
+      location.href = "/welcome";
+    } catch (error) {
+      go.textContent = "Delete my data"; go.disabled = false; toast(error.message);
+    }
+  });
   fetch("/auth/status").then(r => r.json()).then(d => {
     document.getElementById("st-vinted").textContent = d.logged_in === "likely" ? "Connected" : "Connect";
   }).catch(() => {});

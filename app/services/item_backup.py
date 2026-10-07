@@ -13,6 +13,16 @@ FOLDER = re.compile(r'upload_(?:[a-f0-9]{8}|retest_[a-f0-9]{32})')
 PHOTO = re.compile(r'(?:front|brand|model_size|material|back|extra_\d{2}|measure_(?:pit_to_pit|length|sleeve))\.(?:jpg|jpeg|png|webp)')
 
 
+def folders_in(data):
+    """Item folders named inside a backup zip (empty if it isn't one)."""
+    try:
+        with zipfile.ZipFile(io.BytesIO(data)) as archive:
+            return {name.split('/')[1] for name in archive.namelist()
+                    if name.startswith('items/') and name.count('/') == 2}
+    except zipfile.BadZipFile:
+        return set()
+
+
 def restore(data, items_dir):
     if len(data) > 30*1024*1024:
         raise ValueError('Backup too large.')
@@ -95,7 +105,24 @@ def restore(data, items_dir):
 
 
 def export(items_dir, selected_folder=None):
-    output=io.BytesIO()
+    with export_file(items_dir, selected_folder) as spool:
+        return spool.read()
+
+
+def export_file(items_dir, selected_folder=None):
+    """The backup zip in a temporary file (kept in memory only while small), rewound.
+    Photos are stored as-is: JPEGs don't compress, so deflating them only costs CPU."""
+    output=tempfile.SpooledTemporaryFile(max_size=1024*1024)
+    try:
+        _write_zip(output, items_dir, selected_folder)
+    except BaseException:
+        output.close()
+        raise
+    output.seek(0)
+    return output
+
+
+def _write_zip(output, items_dir, selected_folder):
     total=0
     with zipfile.ZipFile(output,'w',zipfile.ZIP_DEFLATED) as archive:
         if selected_folder is not None and not FOLDER.fullmatch(selected_folder):
@@ -112,7 +139,8 @@ def export(items_dir, selected_folder=None):
                 total+=file.stat().st_size
                 if total>100*1024*1024:
                     raise ValueError('Backup too large; export fewer items.')
-                archive.write(file,'items/'+folder.name+'/'+file.name)
+                archive.write(file,'items/'+folder.name+'/'+file.name,
+                              compress_type=zipfile.ZIP_STORED if PHOTO.fullmatch(file.name) else zipfile.ZIP_DEFLATED)
         events = model_usage.read_events()
         if selected_folder:
             events = [event for event in events if event.get('item') == selected_folder]
@@ -121,4 +149,3 @@ def export(items_dir, selected_folder=None):
         rows = sales_history.read_all()
         if selected_folder: rows = [row for row in rows if row['folder'] == selected_folder]
         archive.writestr('sales_history.json', json.dumps(rows))
-    return output.getvalue()

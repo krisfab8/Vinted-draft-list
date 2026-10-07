@@ -34,6 +34,8 @@ def prepare_storage(root, storage):
 
 if __name__ == "__main__":
     os.environ.setdefault("ENABLE_SINGLE_PASS", "0")
+    # Image and OCR work fragments memory; fewer malloc arenas keep the 512 MB box steady.
+    os.environ.setdefault("MALLOC_ARENA_MAX", "2")
     os.umask(0o077)
     root = Path(__file__).resolve().parent.parent
     os.chdir(root)
@@ -49,5 +51,7 @@ if __name__ == "__main__":
     os.execvp("gunicorn", [
         "gunicorn", "app.hosted:create_app()", "--bind", f"0.0.0.0:{os.getenv('PORT', '10000')}",
         "--workers", "1", "--threads", "1", "--timeout", "240",
+        # Restart the worker between requests every few hundred requests so memory returns to baseline.
+        "--max-requests", "400", "--max-requests-jitter", "50",
         "--access-logfile", "-", "--error-logfile", "-",
     ])

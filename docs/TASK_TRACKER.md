@@ -314,3 +314,18 @@ Keep IDs stable. Do not rename an open task to hide scope. Split partial work in
   Cards show ★ +15 or 🔥 +25.
 - Fixes: today's count used file times (a backup restore made everything "today" → "17 today"); now uses saved
   creation time. Deleting a draft updates the bottom-bar count. Re-analysis keeps the original creation day.
+
+## 2026-10-07 — MVP hardening: memory, duplicates, sign-in & privacy
+- Memory (Render 512 MB; hourly peaks were 360–410 MB): the phone backup re-downloaded a zip of every
+  listing on every page load — now only changed items (listings carry `backup_revision`). Backup zips are
+  streamed from a temp file (not built twice in memory) and photos are stored, not re-compressed.
+  Server: MALLOC_ARENA_MAX=2 and the worker restarts every ~400 requests to return memory.
+- Duplicates: deliberate removals are recorded (data/removed_items.json, also kept in B2) so phone backups
+  and cloud copies can't bring them back (restore answers 410; the phone then forgets the item).
+  On startup, copies left by the old "Analyse photos again" are merged: the fresh read replaces the original
+  unless the original had seller edits, a Vinted draft or a sale (then the original stays).
+- Sign-in: a proper sign-in page with a 30-day session cookie replaces the browser password pop-up
+  (Basic auth still accepted). Sign-in attempts are rate-limited. Settings has Sign out.
+- Privacy: /privacy note; Settings → Delete my data (type DELETE) removes listings, photos, sales, profile
+  and logs from the server, cloud backup and the phone. /favicon.ico no longer errors.
+- Not yet: separate data per person (needed before inviting other sellers) — planned as its own job.
