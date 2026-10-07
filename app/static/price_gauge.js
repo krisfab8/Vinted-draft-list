@@ -3,7 +3,7 @@
    PriceGauge.html(range, price, reasons) returns markup; no network calls. */
 (() => {
   const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-  const W = 220, H = 128, CX = 110, CY = 112, R = 88;
+  const W = 300, H = 140, CX = 150, CY = 124, R = 88;
   const point = (p, r = R) => {
     const a = Math.PI * (1 - Math.min(1, Math.max(0, p)));
     return [CX + r * Math.cos(a), CY - r * Math.sin(a)];
@@ -33,6 +33,13 @@
         </linearGradient></defs>
         <path d="${arc(0, 1)}" fill="none" stroke="url(#${id})" stroke-width="14" stroke-linecap="round" opacity=".35"/>
         <path d="${arc(at(range.low), at(range.high))}" fill="none" stroke="url(#${id})" stroke-width="14"/>
+        ${[range.low, range.high].map(v => {
+          // Price labels just outside the arc at each end of the suggested range.
+          const [tx, ty] = point(at(v), R + 22), [ox, oy] = point(at(v), R + 9), [ix, iy] = point(at(v), R - 9);
+          const anchor = tx < CX - 8 ? 'end' : tx > CX + 8 ? 'start' : 'middle';
+          return `<line x1="${ix.toFixed(1)}" y1="${iy.toFixed(1)}" x2="${ox.toFixed(1)}" y2="${oy.toFixed(1)}" stroke="currentColor" stroke-width="2"/>
+            <text x="${tx.toFixed(1)}" y="${(ty + 4).toFixed(1)}" text-anchor="${anchor}" font-size="13" font-weight="700" fill="currentColor">£${esc(v)}</text>`;
+        }).join('')}
         <line x1="${CX}" y1="${CY}" x2="${nx.toFixed(1)}" y2="${ny.toFixed(1)}" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>
         <circle cx="${CX}" cy="${CY}" r="6" fill="currentColor"/>
       </svg>
@@ -45,9 +52,9 @@
 
   const style = document.createElement('style');
   style.textContent = `
-    .price-gauge{width:100%;max-width:300px;margin:6px auto 0;text-align:center;color:var(--black,#222)}
+    .price-gauge{width:100%;max-width:340px;margin:6px auto 0;text-align:center;color:var(--black,#222)}
     .price-gauge svg{width:100%;height:auto;display:block}
-    .price-gauge-ends{display:flex;justify-content:space-between;font-size:11px;line-height:1.3;color:var(--gray-7,#666);margin-top:-4px}
+    .price-gauge-ends{display:flex;justify-content:space-between;padding:0 8%;font-size:11px;line-height:1.3;color:var(--gray-7,#666);margin-top:-4px}
     .price-gauge-main{font-size:22px;font-weight:800;margin-top:6px}
     .price-gauge-main span{display:block;font-size:13px;font-weight:600;color:var(--gray-7,#666)}
     .price-gauge-basis{font-size:12px;color:var(--gray-7,#666);margin-top:4px}
