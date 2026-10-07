@@ -1334,6 +1334,14 @@
   .camera-ghost svg { width:100%; height:100%; }
   .camera-ghost[hidden], .camera-example[hidden], .camera-quality[hidden], .camera-hint[hidden], .camera-dots[hidden], .camera-skip[hidden], .camera-intro[hidden], .camera-review[hidden], .camera-photos[hidden], .camera-done[hidden] { display:none; }
   .camera-ghost path { transition: stroke .2s; }
+  .camera-ghost { transition: opacity .6s ease; }
+  .camera-ghost.faded { opacity:0; }
+  .camera-last { grid-column:1; grid-row:1; width:52px; height:52px; border-radius:14px; overflow:hidden; border:2px solid #fff; background:#2A2F36; box-shadow:0 4px 14px rgba(0,0,0,.35); }
+  .camera-last[hidden] { display:none; }
+  .camera-last img { width:100%; height:100%; object-fit:cover; display:block; }
+  .camera-last.pop { animation: lastPop .45s cubic-bezier(.2,.9,.3,1.3) both; }
+  @keyframes lastPop { from { transform: scale(1.6) translateY(-30px); opacity:.2; } to { transform:none; opacity:1; } }
+  @media (prefers-reduced-motion: reduce) { .camera-ghost { transition:none; } .camera-last.pop { animation:none; } }
   .camera-example { display:flex; flex-direction:column; align-items:center; gap:6px; }
   .camera-example-art { width:60px; height:74px; border-radius:12px; background:#2A2F36; border:3px solid #fff; box-sizing:border-box; display:grid; place-items:center; box-shadow:0 6px 16px rgba(0,0,0,.25); }
   .camera-example span { font-size:11px; font-weight:800; color:#0F172A; background:#fff; border-radius:6px; padding:2px 7px; }
@@ -1513,9 +1521,9 @@
             <rect width="390" height="844" fill="#fff"/><path id="cameraMaskOutFill" fill="#000"/><path id="cameraMaskOutEdge" fill="none" stroke="#000" stroke-width="14" stroke-linejoin="round"/>
           </mask>
         </defs>
-        <path id="cameraGhostFill" fill="#fff" fill-opacity=".28" stroke="#fff" stroke-width="3" stroke-linejoin="round"/>
+        <path id="cameraGhostFill" fill="none" stroke="none"/>
         <path id="cameraGhostStitch" fill="none" stroke="#fff" stroke-width="18" stroke-dasharray="7 6" stroke-linejoin="round" mask="url(#ghostMaskIn)"/>
-        <path id="cameraGhostExtra" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" opacity=".85"/>
+        <path id="cameraGhostExtra" fill="none" stroke="#fff" stroke-width="2.5" stroke-dasharray="7 6" stroke-linecap="round" stroke-linejoin="round" opacity=".85"/>
       </svg>
     </div>
     <div class="camera-top">
@@ -1534,6 +1542,7 @@
       <button type="button" id="cameraNative" class="camera-native" hidden>Open phone camera</button>
       <div id="cameraPhotos" class="camera-photos" aria-label="Added photos"></div>
       <div class="camera-controls">
+        <div id="cameraLast" class="camera-last" hidden aria-label="Last photo taken"></div>
         <button type="button" id="cameraGallery" class="camera-icon" aria-label="Choose photos from gallery"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8" cy="8" r="1"/><path d="m3 17 6-6 4 4 3-3 5 5"/></svg></button>
         <button type="button" id="cameraShutter" class="camera-shutter" aria-label="Take photo" disabled><span></span></button>
         <button type="button" id="cameraFlip" class="camera-icon" aria-label="Switch camera"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 10a9 9 0 0 1 16-4M21 14A9 9 0 0 1 5 18M19 2v4h-4M5 22v-4h4"/></svg></button>

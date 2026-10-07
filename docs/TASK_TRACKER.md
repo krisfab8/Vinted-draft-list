@@ -267,3 +267,11 @@ Keep IDs stable. Do not rename an open task to hide scope. Split partial work in
 - Drafts: one search pill with a filter icon (lime when filtering); cards show brand, then "type · size · age";
   premium is a small black star, needs-a-check is a red dot.
 - Sold: white chart card (black line, lime fill); profit/margin/return as one row of three numbers.
+
+## 2026-10-07 — Guided camera: manual shots, fading outline
+- Guided camera never shoots by itself (it used to fire after 3 steady ticks, photographing anything).
+- Each step shows the stitched outline + "Photograph the top about this size" (labels: "Care label, in focus")
+  for 2s, then fades so the item is visible. Outline is stitch only: no solid edge, no shaded middle.
+- The last photo pops into the bottom-left (in place of the gallery button) as the camera moves to the next step.
+- Label steps: tapping the shutter waits up to 2.5s for a sharp frame ("Focusing…"); still blurry → Retake / Use anyway.
+  Garment shots are kept and flagged rather than interrupting. Continuous autofocus requested where supported.

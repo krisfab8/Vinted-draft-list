@@ -1,6 +1,7 @@
 /* Browser camera: no photos leave the device until the listing is submitted.
    Modes (options.getMode): 'free' (default, original behaviour), 'guided' (one
-   stitched ghost shape per step, shoots itself when sharp, retake when blurry) and
+   stitched ghost shape per step that shows the size then fades; the operator always
+   presses the shutter; label shots wait for focus, retake when blurry) and
    'pro' (stitched frame, live quality dots, manual shots). Quality checks run on
    the phone via window.PhotoQuality; missing it, guided/pro still work manually. */
 const CAMERA_SHAPES = {
@@ -21,6 +22,10 @@ const CAMERA_SHAPES = {
   care: {label: 'Care label', d: 'M136 190h118a8 8 0 018 8v424a8 8 0 01-8 8H136a8 8 0 01-8-8V198a8 8 0 018-8z', extra: 'M155 260h80M155 300h80M155 340h50M155 400h80', label_: true},
   frame: {label: '', d: 'M44 150h302a16 16 0 0116 16v290a16 16 0 01-16 16H44a16 16 0 01-16-16V166a16 16 0 0116-16z', extra: ''},
 };
+const CAMERA_NOUNS = {top: 'top', long: 'top', coat: 'coat', trousers: 'trousers', shorts: 'shorts', dress: 'dress',
+                      shoes: 'shoes', hat: 'hat', other: 'item'};
+const CAMERA_LABEL_HINTS = {brand: 'Brand label, in focus', size: 'Size label, in focus', care: 'Care label, in focus'};
+const GUIDE_SHOW_MS = 2000, FOCUS_WAIT_MS = 2500;
 const CAMERA_GARMENTS = ['top', 'long', 'coat', 'trousers', 'shorts', 'dress', 'shoes', 'hat', 'other'];
 
 function cameraSteps(shape) {
@@ -55,7 +60,8 @@ function createPhotoCamera({getPhotos, addPhotos, removePhoto, pickGallery, pick
   let thumbnailUrls = [], resumeOnVisible = false, torchOn = false;
   // Guided/pro state.
   let shape = 'top', steps = cameraSteps('top'), stepIndex = 0, extraStep = false;
-  let qualityTimer = null, previousGrey = null, okStreak = 0, ticks = 0, autoArmed = true, qualityCanvas = null;
+  let qualityTimer = null, previousGrey = null, ticks = 0, qualityCanvas = null, lastGrade = null;
+  let guideTimer = null, guideShowing = false, focusWait = null;
   let review = null, panelUrls = [];
   const debug = typeof location !== 'undefined' && /[?&]camdebug=1/.test(location.search || '');
   const mode = () => { const m = getMode(); return m === 'guided' || m === 'pro' ? m : 'free'; };
@@ -91,6 +97,13 @@ function createPhotoCamera({getPhotos, addPhotos, removePhoto, pickGallery, pick
       strip.appendChild(thumb);
     });
     strip.scrollLeft = strip.scrollWidth;
+    // Guided: the photo just taken sits bottom-left, in place of the gallery button.
+    const last = el('cameraLast'), showLast = mode() === 'guided' && files.length > 0;
+    if (last) {
+      last.hidden = !showLast;
+      if (showLast) last.innerHTML = `<img src="${thumbnailUrls[thumbnailUrls.length - 1]}" alt="Last photo">`;
+    }
+    el('cameraGallery').hidden = showLast;
     el('cameraDone').textContent = files.length ? `Done · ${files.length}` : 'Done';
     el('cameraShutter').disabled = busy || !stream || !video.videoWidth || files.length >= 20;
     if (files.length >= 20) message('20 photos added. Remove a photo to take another.');
@@ -113,7 +126,6 @@ function createPhotoCamera({getPhotos, addPhotos, removePhoto, pickGallery, pick
     // Stitch runs parallel to the edge: inside garments, just outside labels.
     ['cameraMaskInFill', 'cameraMaskInEdge', 'cameraMaskOutFill', 'cameraMaskOutEdge'].forEach(id => el(id)?.setAttribute('d', d));
     stitch.setAttribute('mask', s.label_ ? 'url(#ghostMaskOut)' : 'url(#ghostMaskIn)');
-    fill.setAttribute('fill-opacity', step.ghost === 'frame' || s.label_ ? '0.06' : '0.28');
     if (el('cameraStep')) el('cameraStep').textContent = step.label;
     const example = el('cameraExample');
     if (example) {
@@ -130,12 +142,31 @@ function createPhotoCamera({getPhotos, addPhotos, removePhoto, pickGallery, pick
     if (el('cameraQuality')) el('cameraQuality').hidden = mode() !== 'pro';
     el('cameraPhotos').hidden = mode() === 'guided';
     el('cameraDone').hidden = mode() === 'guided';
-    showState('start', {hint: mode() === 'guided' ? 'Fit the outline' : ''});
+    clearGuideTimer();
+    ghost.classList?.toggle?.('faded', false);
+    guideShowing = mode() === 'guided';
+    showState('start', {hint: guideShowing ? guideHint(step) : ''});
+    // Guided: show the size for a moment, then get out of the way so the item is visible.
+    if (guideShowing) guideTimer = setTimeout(() => {
+      guideShowing = false; guideTimer = null;
+      ghost.classList?.toggle?.('faded', true);
+      if (!focusWait) showState(lastGrade ? stateFor(lastGrade, currentStep()) : 'start', {hint: lastGrade ? hintFor(lastGrade, currentStep()) : ''});
+    }, GUIDE_SHOW_MS);
   }
+  function clearGuideTimer() { if (guideTimer) clearTimeout(guideTimer); guideTimer = null; }
+  function guideHint(step) {
+    if (step.kind === 'label') return CAMERA_LABEL_HINTS[step.ghost] || 'Label, in focus';
+    if (extraStep) return 'Get close to the flaw';
+    return `Photograph the ${CAMERA_NOUNS[shape] || 'item'} about this size`;
+  }
+  // Labels must be sharp; for garments only bad light is worth interrupting for.
+  function matters(g, step) { return step.kind === 'label' ? g.ok : g.light !== 'bad'; }
+  function stateFor(g, step) { return matters(g, step) ? 'ok' : 'fix'; }
+  function hintFor(g, step) { return matters(g, step) ? '' : g.hint; }
   // state: 'start' (white), 'ok' (green), 'fix' (amber)
   function showState(state, {hint = '', checks = null} = {}) {
     const colour = state === 'ok' ? '#22C55E' : state === 'fix' ? '#F59E0B' : '#FFFFFF';
-    ['cameraGhostFill', 'cameraGhostStitch', 'cameraGhostExtra'].forEach(id => el(id)?.setAttribute('stroke', colour));
+    ['cameraGhostStitch', 'cameraGhostExtra'].forEach(id => el(id)?.setAttribute('stroke', colour));
     const hintEl = el('cameraHint');
     if (hintEl) {
       hintEl.hidden = !hint;
@@ -152,9 +183,12 @@ function createPhotoCamera({getPhotos, addPhotos, removePhoto, pickGallery, pick
   }
 
   /* ── Live quality loop ── */
-  function stopQuality() { if (qualityTimer) clearInterval(qualityTimer); qualityTimer = null; previousGrey = null; okStreak = 0; ticks = 0; }
+  function stopQuality() {
+    if (qualityTimer) clearInterval(qualityTimer); qualityTimer = null; previousGrey = null; ticks = 0; lastGrade = null;
+    if (focusWait) focusWait.done();
+  }
   function startQuality() {
-    stopQuality(); autoArmed = true;
+    stopQuality();
     if (mode() === 'free' || !quality()) return;
     qualityTimer = setInterval(tick, 250);
   }
@@ -168,15 +202,31 @@ function createPhotoCamera({getPhotos, addPhotos, removePhoto, pickGallery, pick
     } catch (_) { return; }
     previousGrey = m.grey; ticks++;
     const g = q.grade(m, step.kind);
-    // A short settling time after each step before judging or auto-shooting.
-    const settling = ticks < 4;
-    showState(settling ? 'start' : g.ok ? 'ok' : 'fix',
-      {hint: settling ? (mode() === 'guided' ? 'Fit the outline' : '') : (mode() === 'guided' || !g.ok ? g.hint : ''), checks: g});
     if (debug) message(`sharp ${m.sharpness.toFixed(0)} · light ${m.brightness.toFixed(0)} · glare ${(m.glare * 100).toFixed(1)}% · move ${m.motion == null ? '-' : m.motion.toFixed(1)}`);
-    if (mode() !== 'guided' || settling) return;
-    okStreak = g.ok ? okStreak + 1 : 0;
-    el('cameraShutter').classList?.toggle?.('arming', okStreak > 0);
-    if (okStreak >= 3 && autoArmed) { autoArmed = false; capture(); }
+    // A short settling time after each step before judging.
+    if (ticks < 4) return;
+    lastGrade = g;
+    if (focusWait && g.ok) return focusWait.done();
+    if (mode() === 'pro') return showState(g.ok ? 'ok' : 'fix', {hint: g.ok ? '' : g.hint, checks: g});
+    if (guideShowing || focusWait) return;
+    showState(stateFor(g, step), {hint: hintFor(g, step), checks: g});
+  }
+  // Guided label shots: wait (briefly) for a sharp frame before taking the photo.
+  function waitForFocus() {
+    if (mode() !== 'guided' || currentStep().kind !== 'label' || !qualityTimer || (lastGrade && lastGrade.ok)) return null;
+    return new Promise(resolve => {
+      const timer = setTimeout(() => focusWait && focusWait.done(), FOCUS_WAIT_MS);
+      focusWait = {done() { clearTimeout(timer); focusWait = null; el('cameraShutter').classList?.toggle?.('arming', false); resolve(); }};
+      el('cameraShutter').classList?.toggle?.('arming', true);
+      showState('start', {hint: 'Focusing…'});
+    });
+  }
+  async function shoot() {
+    if (!stream || busy || focusWait || review) return;
+    const request = generation, wait = waitForFocus();
+    if (!wait) return capture();
+    await wait;
+    if (dialog.open && request === generation) await capture();
   }
 
   async function start() {
@@ -196,6 +246,9 @@ function createPhotoCamera({getPhotos, addPhotos, removePhoto, pickGallery, pick
       if (!dialog.open || request !== generation) return;
       const capabilities = next.getVideoTracks()[0].getCapabilities?.() || {};
       el('cameraTorch').hidden = !capabilities.torch;
+      if ((capabilities.focusMode || []).includes('continuous')) {
+        next.getVideoTracks()[0].applyConstraints?.({advanced: [{focusMode: 'continuous'}]})?.catch?.(() => {});
+      }
       message(''); refresh(); startQuality();
     } catch (error) {
       if (!dialog.open || request !== generation) return;
@@ -207,7 +260,7 @@ function createPhotoCamera({getPhotos, addPhotos, removePhoto, pickGallery, pick
     }
   }
   function close() {
-    resumeOnVisible = false; stop(); hidePanels();
+    resumeOnVisible = false; stop(); clearGuideTimer(); hidePanels();
     thumbnailUrls.forEach(url => URL.revokeObjectURL(url)); thumbnailUrls = [];
     document.body.style.overflow = previousOverflow;
     if (dialog.open) dialog.close();
@@ -243,15 +296,19 @@ function createPhotoCamera({getPhotos, addPhotos, removePhoto, pickGallery, pick
       const blob = await new Promise((resolve, reject) => canvas.toBlob(b => b ? resolve(b) : reject(new Error('encode')), 'image/jpeg', .92));
       if (!dialog.open || request !== generation) return;
       const file = new File([blob], `camera-${Date.now()}.jpg`, {type:'image/jpeg'});
-      if (mode() === 'guided' && result && !result.ok) { showReview(file, result, step); return; }
+      // Guided: a blurry label is worth a retake; garments are kept (flagged) to stay fast.
+      if (mode() === 'guided' && result && !result.ok && step.kind === 'label') { showReview(file, result, step); return; }
       accept(file, result, step);
     } catch (_) { if (dialog.open && request === generation) message('Photo could not be taken. Please try again.'); }
-    finally { busy = false; el('cameraShutter').classList?.toggle?.('arming', false); if (dialog.open) refresh(); }
+    finally { busy = false; if (dialog.open) refresh(); }
   }
   function accept(file, result, step) {
     if (mode() === 'guided') {
       addPhotos([file], step.role);
       noteQuality(file, result);
+      refresh();
+      const last = el('cameraLast');
+      if (last) { last.classList?.remove?.('pop'); void last.offsetWidth; last.classList?.add?.('pop'); }
       advance();
     } else {
       addPhotos([file]);
@@ -370,7 +427,7 @@ function createPhotoCamera({getPhotos, addPhotos, removePhoto, pickGallery, pick
   }
 
   el('cameraClose').onclick = close; el('cameraDone').onclick = close;
-  el('cameraShutter').onclick = capture;
+  el('cameraShutter').onclick = shoot;
   el('cameraFlip').onclick = () => { if (!busy) { facing = facing === 'environment' ? 'user' : 'environment'; start(); } };
   el('cameraGallery').onclick = pickGallery;
   el('cameraNative').onclick = pickNativeCamera;
@@ -383,7 +440,7 @@ function createPhotoCamera({getPhotos, addPhotos, removePhoto, pickGallery, pick
   };
   if (el('cameraIntro')) el('cameraIntro').addEventListener('click', onIntroClick);
   if (el('cameraSkip')) el('cameraSkip').onclick = skip;
-  if (el('cameraReviewRetake')) el('cameraReviewRetake').onclick = () => { el('cameraReview').hidden = true; review = null; autoArmed = true; startQuality(); };
+  if (el('cameraReviewRetake')) el('cameraReviewRetake').onclick = () => { el('cameraReview').hidden = true; review = null; startQuality(); };
   if (el('cameraReviewKeep')) el('cameraReviewKeep').onclick = () => {
     const pending = review; el('cameraReview').hidden = true; review = null;
     if (pending) accept(pending.file, pending.result, pending.step);
