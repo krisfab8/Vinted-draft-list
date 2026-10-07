@@ -362,6 +362,19 @@
 
   .sheet-close:hover { background: var(--gray-2); }
 
+  .sheet-reprice {
+    border: 1px solid var(--gray-3); background: var(--white); color: var(--brand);
+    border-radius: 999px; padding: 6px 14px; font: inherit; font-size: 14px; font-weight: 700; cursor: pointer;
+  }
+  .sheet-reprice:disabled { opacity: .6; }
+  .sheet-proposal { margin: 0 20px; padding: 14px; border: 1px solid var(--gray-3); border-radius: 14px; }
+  .sheet-proposal-actions { display: flex; gap: 8px; margin-top: 10px; }
+  .sheet-proposal-actions button {
+    flex: 1; padding: 10px; border-radius: 10px; border: 1px solid var(--gray-3);
+    background: var(--white); color: var(--black); font: inherit; font-weight: 700; cursor: pointer;
+  }
+  .sheet-proposal-actions .use { background: var(--brand); border-color: var(--brand); color: #fff; }
+
   .sheet-body {
     padding: 20px 20px 32px;
   }
@@ -716,11 +729,15 @@
     <div class="sheet-handle"></div>
     <div class="sheet-header">
       <div style="flex:1;min-width:0">
-        <div class="sheet-price-num" id="sheetPrice"></div>
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+          <div class="sheet-price-num" id="sheetPrice"></div>
+          <button type="button" class="sheet-reprice" id="sheetReprice" onclick="repriceFromSheet(this)" hidden>Reprice ↻</button>
+        </div>
         <div class="sheet-title-str" id="sheetTitle"></div>
       </div>
       <button class="sheet-close" aria-label="Close listing" onclick="closeSheet()">✕</button>
     </div>
+    <div class="sheet-proposal" id="sheetProposal" hidden></div>
     <div class="sheet-body" id="sheetBody"></div>
   </div>
 </div>
@@ -728,6 +745,7 @@
 
 {% block scripts %}
 <script src="{{ url_for('static',filename='sales_charts.js') }}"></script>
+<script src="{{ url_for('static',filename='price_gauge.js') }}?v=1"></script>
 <script>
 const LISTINGS = {{ listings | tojson }};
 
@@ -821,6 +839,10 @@ function renderSheet(idx) {
   currentFolder = item.folder || null;
 
   document.getElementById("sheetPrice").textContent = `£${item.outcome?.status === 'sold' ? item.outcome.sold_price_gbp : item.price_gbp || "?"}`;
+  const repriceBtn = document.getElementById("sheetReprice");
+  repriceBtn.hidden = !item.folder || item.outcome?.status === 'sold';
+  repriceBtn.disabled = false; repriceBtn.textContent = 'Reprice ↻';
+  document.getElementById("sheetProposal").hidden = true;
   document.getElementById("sheetTitle").textContent = item.title || "";
 
   const mats = (item.materials || [])
@@ -906,7 +928,7 @@ function renderSheet(idx) {
     ${item.category ? `<div class="sheet-category">📂 ${esc(item.category).replace(/ &gt; /g, ' › ')}</div>` : ""}
     ${item.outcome?.status === 'sold' ? '' : draftBtn}
     ${item.folder ? `<button type="button" class="btn-sheet-edit" onclick="reanalyzeSavedPhotos('${esc(item.folder)}',this)">Analyse photos again</button><p style="font-size:12px;color:var(--muted)">New AI analysis · original kept</p>` : ''}
-    ${item.folder && item.outcome?.status !== 'sold' ? `<a class="btn-sheet-edit" href="/?edit=${esc(item.folder)}" aria-label="Edit listing">✎ Edit</a>` : ""}
+    ${item.folder && item.outcome?.status !== 'sold' ? `<a class="btn-sheet-edit" href="/review/${encodeURIComponent(item.folder)}" aria-label="Edit listing">✎ Edit details</a>` : ""}
     ${item.folder && item.outcome?.status !== 'sold' ? `<button type="button" class="delete-listing" onclick="deleteDraft(event,'${esc(item.folder)}',this)">Delete listing</button>` : ''}
     ${item.sales_history?.sample_count ? `<details style="margin-top:16px"><summary>Your matching sales · ${esc(item.sales_history.sample_count)}</summary>
       <p>${item.sales_history.median_gbp == null ? 'At least 3 recent matching sales needed for a price.' : `Median accepted price £${esc(item.sales_history.median_gbp)} · Average £${esc(item.sales_history.mean_gbp)}`}</p>
@@ -1113,6 +1135,51 @@ async function askDelete(e, folder) {
   try {
     showToast(await removeListing(folder) ? 'Listing deleted' : 'Delete failed — try again');
   } catch { showToast('Delete failed — check your connection'); }
+}
+
+// ── Reprice from the draft sheet ──
+async function repriceFromSheet(btn) {
+  const folder = currentFolder;
+  if (!folder || btn.disabled) return;
+  btn.disabled = true; btn.textContent = 'Checking…';
+  const box = document.getElementById('sheetProposal');
+  try {
+    const resp = await fetch('/reprice/' + encodeURIComponent(folder), {method: 'POST'});
+    const data = await resp.json().catch(() => ({error: 'The server was busy or restarting. Wait a minute, then try again.'}));
+    if (!resp.ok) throw new Error(data.error || 'Reprice failed');
+    if (currentFolder !== folder) return;
+    const p = data.price_proposal || {};
+    const same = Number(p.price_gbp) === Number(data.price_gbp);
+    box.innerHTML = `<strong>${same ? 'Price still looks right' : 'Suggested'}: £${esc(p.price_gbp)}</strong>
+      ${window.PriceGauge?.html(p.range, p.price_gbp, p.adjustments) || ''}
+      ${same ? '' : `<div class="sheet-proposal-actions">
+        <button type="button" class="use" onclick="useSheetPrice(${Number(p.price_gbp)})">Use £${esc(p.price_gbp)}</button>
+        <button type="button" onclick="document.getElementById('sheetProposal').hidden=true">Keep £${esc(data.price_gbp)}</button></div>`}`;
+    box.hidden = false;
+    box.scrollIntoView({block: 'nearest', behavior: 'smooth'});
+  } catch (error) {
+    showToast(error.message);
+  } finally {
+    btn.disabled = false; btn.textContent = 'Reprice ↻';
+  }
+}
+
+async function useSheetPrice(price) {
+  const folder = currentFolder;
+  if (!folder) return;
+  try {
+    const resp = await fetch('/listing/' + encodeURIComponent(folder), {
+      method: 'PATCH', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({price_gbp: price})});
+    const data = await resp.json().catch(() => ({error: 'The server was busy or restarting. Wait a minute, then try again.'}));
+    if (!resp.ok) throw new Error(data.error || 'Could not save the price');
+    const idx = LISTINGS.findIndex(l => l.folder === folder);
+    if (idx !== -1) LISTINGS[idx] = {...LISTINGS[idx], ...data};
+    document.getElementById('sheetPrice').textContent = `£${data.price_gbp}`;
+    const badge = document.querySelector(`#card-${CSS.escape(folder)} .draft-price-badge`);
+    if (badge) badge.textContent = `£${data.price_gbp}`;
+    document.getElementById('sheetProposal').hidden = true;
+    showToast(`Price set to £${data.price_gbp}`);
+  } catch (error) { showToast(error.message); }
 }
 
 async function fixGraphicConflict(folder, isGraphic) {
