@@ -102,7 +102,7 @@ Return a JSON object with these fields:
   "brand_candidates": ["only populate if brand_confidence is medium or low — 2-3 plausible alternative readings, e.g. [\"Hackett\", \"Hackitt\"]"],
   "sub_brand": "string or null — a secondary brand or product line printed separately on the same label or on an inner tab (e.g. 'Polo' for Polo Ralph Lauren, 'Sport' for Hugo Boss Sport, 'Black Label'). Null if no secondary name present.",
   "model_name": "string or null — the style/model/fit name if visible on tag (e.g. 'Brentwood', 'Lennon', 'Slim'). Separate from brand.",
-  "item_type": "string (e.g. wax jacket, lambswool jumper, wool trousers)",
+  "item_type": "string (e.g. wax jacket, lambswool jumper, wool trousers). A short-sleeved knit top with a collar (with or without a button placket), including golf/performance tops, is a 'polo shirt' — not 'shirt' or 't-shirt'.",
   "tagged_size": "string — EXACTLY as printed on tag (e.g. '52', 'W32 L32', 'C42', '12', 'M'). Never convert or interpret.",
   "normalized_size": "string — For trousers/jeans/shorts: look for BOTH waist and leg length on the tag and format as 'W32 L32'. If only one number is visible, record that. For suit/blazer sizes: keep bare EU numbers as-is (e.g. '54'). If already in UK format with R/L/S suffix (e.g. '44R'), keep as-is. For knitwear/shirts with EU numbers, keep as-is. For S/M/L/XL, keep as-is. For shoes: keep the size EXACTLY as printed — if the tag shows both EU and UK (e.g. 'EU 43 / UK 9'), record the UK number only (e.g. '9'). If only EU is shown, record it as-is (e.g. '43') — conversion happens downstream.",
   "trouser_waist": "string or null — for trousers/jeans/shorts only: waist measurement in inches as on tag (e.g. '32', '34'). Null for all other items including shoes.",
@@ -269,6 +269,25 @@ def _infer_gender_confidence(result: dict) -> str:
     if any(w in kws for w in ("women", "ladies", "womens", "wmn", "woman")):
         return "high"
     return "medium"
+
+
+_POLO_BRANDS = {"peter millar", "galvin green", "greyson", "g/fore", "j.lindeberg", "kjus", "rlx",
+                "castore", "footjoy", "under armour", "puma golf", "adidas golf", "nike golf"}
+_WOVEN_SHIRT_WORDS = ("button-down", "button down", "oxford", "dress", "flannel", "hawaiian",
+                      "linen", "denim", "overshirt", "camp collar", "long-sleeve", "long sleeve")
+
+
+def _normalise_polo(result: dict) -> None:
+    """Golf brands' short-sleeve "shirts" are polos; the model calls the same
+    Peter Millar polo "striped shirt" or "performance short-sleeve shirt"."""
+    item_type = (result.get("item_type") or "").lower()
+    brand = (result.get("brand") or "").lower()
+    if "polo" in item_type or brand not in _POLO_BRANDS or "shirt" not in item_type and "top" not in item_type:
+        return
+    if any(word in item_type for word in _WOVEN_SHIRT_WORDS):
+        return
+    result["item_type_model"] = result.get("item_type")
+    result["item_type"] = "polo shirt"
 
 
 def _flag_unsupported_womens(result: dict, hints: dict | None) -> None:
@@ -1302,6 +1321,7 @@ def extract(item_folder: str | Path, hints: dict | None = None, *, single_pass: 
     result["model_confidence"] = model_conf
     result["gender_confidence"] = _infer_gender_confidence(result)
     _flag_unsupported_womens(result, hints)
+    _normalise_polo(result)
 
     # Brand alias application — auto-correct low-confidence brands from operator memory
     if result.get("brand_confidence") == "low":

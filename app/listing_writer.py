@@ -1188,6 +1188,11 @@ def finalize_listing(listing: dict, item: dict, hints: dict | None = None) -> di
     from app.services import premium_features
     premium_features.ensure_title(listing, item)
     premium_features.ensure_tag_terms(listing, item)
+    # A polo filed under Shirts > Plain or T-shirts is hard for buyers to find.
+    if (listing.get("item_type") or "").lower() == "polo shirt" and listing.get("gender") == "men's" \
+            and not listing.get("category_locked") and listing.get("category") != "Men > Polo Shirts":
+        listing["category_model"] = listing.get("category")
+        listing["category"] = "Men > Polo Shirts"
     if item.get('colour_from_tag'):
         listing.setdefault('colour_from_tag', item['colour_from_tag'])
     from app.services import description_layout

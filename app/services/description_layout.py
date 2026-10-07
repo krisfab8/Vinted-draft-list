@@ -2,7 +2,22 @@
 import re
 
 
+_LETTER_SIZES = {"XXS": "Extra Extra Small", "XS": "Extra Small", "S": "Small", "M": "Medium",
+                 "L": "Large", "XL": "Extra Large", "XXL": "Extra Extra Large", "2XL": "Extra Extra Large",
+                 "XXXL": "3XL", "3XL": "3XL"}
+
+
+def _spell(size):
+    """'S' reads as 'S / Small' so buyers scanning the description can't misread it."""
+    word = _LETTER_SIZES.get(str(size or '').strip().upper())
+    return f"{size} / {word}" if word and word != str(size).strip().upper() else size
+
+
 def size_text(listing):
+    return _spell(_size_text(listing))
+
+
+def _size_text(listing):
     tagged = str(listing.get('tagged_size') or '').strip()
     normalized = str(listing.get('normalized_size') or '').strip()
     if tagged and normalized and tagged != normalized:
