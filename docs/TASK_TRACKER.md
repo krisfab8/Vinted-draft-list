@@ -285,3 +285,7 @@ Keep IDs stable. Do not rename an open task to hide scope. Split partial work in
 - "What is it?" is 7 groups (Tops, Coats, Bottoms, Dresses, Shoes, Hats, Other) with a short subtitle; one tap picks (no Next).
 - Each group has its own 5 shots: clothes = front, back, brand, size, care label; shoes = left, right, sole, size tag, logo;
   hats = front, back, brim, inside, logo; other = front, back, side, logo, tag. Sole/brim/side use the extra photo slot.
+
+## 2026-10-07 — Fresh CSS/JS after every deploy
+- Static URLs are versioned automatically by file modified time (url_defaults), replacing hand-written ?v= tags.
+  Phones were keeping the old camera script (no version) and old studio.css (?v=1 never changed).

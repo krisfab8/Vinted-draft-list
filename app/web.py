@@ -647,6 +647,16 @@ def serve_item_photo(folder, filename):
 
 # ── Helpers ────────────────────────────────────────────────────────────────
 
+@app.url_defaults
+def _static_version(endpoint, values):
+    """Static URLs carry the file's modified time, so phones fetch new CSS/JS after every deploy."""
+    if endpoint == "static" and "filename" in values and "v" not in values:
+        try:
+            values["v"] = int((Path(app.static_folder) / values["filename"]).stat().st_mtime)
+        except OSError:
+            pass
+
+
 @app.context_processor
 def _nav_counts():
     """Red counts on the bottom bar (drafts, sold this month) and today's listings."""
