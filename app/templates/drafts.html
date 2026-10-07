@@ -812,7 +812,7 @@ async function openSheet(idx) {
     if (currentFolder !== folder) return;
     LISTINGS[idx] = {...cached, ...fresh};
     renderSheet(idx);
-  } catch (_) { showToast('Could not load the latest draft. Tap refresh and try again.'); }
+  } catch (_) { showToast('Could not load this draft — the server may be restarting. Wait a minute, then try again.'); }
 }
 
 function renderSheet(idx) {
@@ -1009,7 +1009,8 @@ async function reanalyzeSavedPhotos(folder, btn) {
   btn.disabled = true; btn.textContent = 'Reading saved photos…';
   try {
     const resp = await fetch('/reanalyze/'+encodeURIComponent(folder), {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({request_id:crypto.randomUUID()})});
-    const result = await resp.json();
+    // A restarting server answers with an HTML error page, not JSON.
+    const result = await resp.json().catch(() => ({error:'The server was busy or restarting. Wait a minute, then try again.'}));
     if (!resp.ok) throw new Error(result.error || 'Analysis failed');
     await window.DraftArchive?.save(result.folder);
     location.href = '/review/'+encodeURIComponent(result.folder);

@@ -21,7 +21,7 @@ context.showToast=message=>messages.push(message);
  a({ok:true,json:async()=>({folder:'upload_11111111',description:'late wrong sheet'})});await slow;
  assert.deepEqual(rendered,['new size lines','latest second']);
  const failure=context.openSheet(0);pending.shift()({ok:false});await failure;
- assert.equal(rendered.length,2);assert(messages[0].includes('latest draft'));
+ assert.equal(rendered.length,2);assert(messages[0].includes('Could not load this draft'));
  // Deleting a card must not shift indices embedded in the surviving cards.
  context.confirm=()=>true;context.confirmDelete=async()=>true;
  let removed=false;

@@ -975,7 +975,7 @@ async function repriceListing() {
   btn.disabled = true; btn.textContent = 'Checking…';
   try {
     const resp = await fetch(`/reprice/${encodeURIComponent(FOLDER)}`, {method: 'POST'});
-    const data = await resp.json().catch(() => ({}));
+    const data = await resp.json().catch(() => ({error: 'The server was busy or restarting. Wait a minute, then try again.'}));
     if (!resp.ok) throw new Error(data.error || 'Reprice failed');
     const p = data.price_proposal || {};
     const box = document.getElementById('priceProposal');
