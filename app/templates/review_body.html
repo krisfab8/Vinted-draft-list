@@ -1,0 +1,292 @@
+{# Review page body: photos and title, price, details, description; extras under More. #}
+{% set warnings = listing.warnings or [] %}
+{% set error_tags_set = listing.error_tags or [] %}
+{% set role_names = {"front": "Front", "back": "Back", "brand": "Brand", "model_size": "Size tag", "material": "Care label"} %}
+<div class="rv-top">
+  <a href="/drafts" class="rv-back" aria-label="Back to drafts">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg>
+  </a>
+  <span class="rv-status{% if listing.draft_url %} live{% endif %}">{{ 'On Vinted' if listing.draft_url else 'Draft' }}</span>
+</div>
+
+{% if warnings %}
+<div class="rv-flags" aria-label="Things to check">
+  {% for w in warnings %}
+    {% if w == "low_brand_confidence" %}<span class="rv-flag">Check brand</span>
+    {% elif w == "low_material_confidence" %}<span class="rv-flag">Check material</span>
+    {% elif w == "no_price_memory" %}<span class="rv-flag">No price reference</span>
+    {% elif w == "low_confidence_fields" %}<span class="rv-flag">Check {{ (listing.low_confidence_fields or []) | reject('in', ['material_confidence', 'brand_confidence']) | map('replace', '_', ' ') | join(', ') }}</span>
+    {% elif w == "reread_failed" %}<span class="rv-flag bad">Re-read failed</span>
+    {% endif %}
+  {% endfor %}
+</div>
+{% endif %}
+
+{% if show_guidance %}<p class="rv-tip">Tap anything to change it. It saves by itself.</p>{% endif %}
+
+{% if listing.pattern == "Graphic" and listing.category and "Plain" in listing.category %}
+<div class="conflict-banner" id="graphic-conflict">
+  <strong>Is there a print on it?</strong>
+  <div class="conflict-actions">
+    <button class="conflict-btn yes" onclick="resolveGraphicConflict(true)">Yes, print</button>
+    <button class="conflict-btn no"  onclick="resolveGraphicConflict(false)">No, plain</button>
+  </div>
+</div>
+{% endif %}
+
+<!-- ── Photos + title ── -->
+<section class="rv-hero">
+  {% if photos %}
+  <div class="rv-photos" aria-label="Photos">
+    {% for photo in photos %}
+    {% set role = photo.rsplit('.', 1)[0] %}
+    {% set role_label = role_names.get(role, role | replace('_', ' ') | capitalize) %}
+    <figure class="rv-photo">
+      <img src="/items/{{ folder }}/{{ photo }}" alt="{{ role_label }}" loading="{{ 'eager' if loop.first else 'lazy' }}">
+      <figcaption>{{ role_label }}</figcaption>
+    </figure>
+    {% endfor %}
+  </div>
+  {% endif %}
+  <label class="rv-sr" for="f-title">Title</label>
+  <textarea class="rv-title" id="f-title" data-field="title" maxlength="70" rows="2" spellcheck="true">{{ listing.title or '' }}</textarea>
+</section>
+
+<!-- ── Price ── -->
+<section class="rv-card rv-price">
+  <div class="rv-price-row">
+    <label class="rv-pound" for="f-price"><span>£</span>
+      <input id="f-price" type="number" step="0.5" min="0" inputmode="decimal" value="{{ listing.price_gbp if listing.price_gbp is not none else '' }}" aria-label="Price in pounds">
+    </label>
+    <button type="button" class="rv-pill" id="repriceBtn" onclick="repriceListing()" title="Recalculate the price from the current details">Reprice ↻</button>
+  </div>
+  {% if listing.profit_warning %}
+  <span class="rv-flag bad" title="{{ (listing.pricing_flags or []) | join(', ') }}">{{ 'Loss' if 'loss' in (listing.pricing_flags or []) else 'Low margin' }}</span>
+  {% endif %}
+  <div id="repriceNudge" class="rv-nudge" hidden>Details changed. Tap Reprice.</div>
+  <div id="priceProposal" class="rv-proposal" hidden></div>
+  <div id="priceGauge"></div>
+</section>
+
+<!-- ── Details: each saves when you leave it ── -->
+<section class="rv-card">
+  <h2 class="rv-h">Details</h2>
+  <div class="rv-rows">
+    <label class="rv-row" for="f-brand"><span>Brand{% if listing.brand_confidence and listing.brand_confidence != 'high' %} <i class="rv-dot" title="Check this"></i>{% endif %}</span>
+      <input id="f-brand" data-field="brand" value="{{ listing.brand or '' }}" autocomplete="off"></label>
+    <label class="rv-row" for="f-item-type"><span>Item</span>
+      <input id="f-item-type" data-field="item_type" value="{{ listing.item_type or '' }}" autocomplete="off"></label>
+    <label class="rv-row" for="f-gender"><span>For</span>
+      <select id="f-gender" data-field="gender">
+        {% if not listing.gender %}<option value="" selected>Choose</option>{% endif %}
+        <option value="men's" {% if listing.gender == "men's" %}selected{% endif %}>Men</option>
+        <option value="women's" {% if listing.gender == "women's" %}selected{% endif %}>Women</option>
+        <option value="unisex" {% if listing.gender == "unisex" %}selected{% endif %}>Unisex</option>
+      </select></label>
+    <label class="rv-row" for="f-category"><span>Category</span>
+      <select id="f-category" data-field="category">
+        {% if not listing.category %}<option value="" selected>Choose</option>{% endif %}
+        {% for group, keys in category_groups.items() %}
+        <optgroup label="{{ group }}" data-group="{{ group }}">
+          {% for key in keys %}<option value="{{ key }}" {% if key == listing.category %}selected{% endif %}>{{ key.split(' > ', 1)[1] if ' > ' in key else key }}</option>{% endfor %}
+        </optgroup>
+        {% endfor %}
+      </select></label>
+    <label class="rv-row" for="f-size"><span>Size</span>
+      <input id="f-size" data-field="normalized_size" value="{{ listing.normalized_size or listing.tagged_size or '' }}" autocomplete="off"></label>
+    {% if listing.tagged_size and listing.normalized_size and listing.tagged_size != listing.normalized_size %}
+    <p class="rv-note">Label says {{ listing.tagged_size }}</p>
+    {% endif %}
+    <label class="rv-row" for="f-condition"><span>Condition</span>
+      {% set cond_raw = listing.condition_summary or "" %}
+      {% set cond_level = cond_raw.split("—")[0].strip() if "—" in cond_raw else cond_raw %}
+      <select id="f-condition" onchange="saveCondition()">
+        <option value="New with tags — original labels attached." {% if "New with tags" in cond_level %}selected{% endif %}>New with tags</option>
+        <option value="New without tags — unworn, no original tags." {% if "New without tags" in cond_level %}selected{% endif %}>New without tags</option>
+        <option value="Excellent used condition" {% if "Excellent" in cond_level %}selected{% endif %}>Excellent</option>
+        <option value="Very good used condition" {% if "Very good" in cond_level %}selected{% endif %}>Very good</option>
+        <option value="Good used condition" {% if cond_level.startswith("Good") %}selected{% endif %}>Good</option>
+        <option value="Satisfactory" {% if "Satisfactory" in cond_level %}selected{% endif %}>Satisfactory</option>
+      </select></label>
+    <label class="rv-row" for="f-flaws"><span>Flaws</span>
+      <input id="f-flaws" value="{{ listing.flaws_note or '' }}" placeholder="None" onchange="saveFlaws()" autocomplete="off"></label>
+    <p class="rv-note" id="conditionLineDisplay"{% if not listing.condition_line %} hidden{% endif %}>{{ listing.condition_line or "" }}</p>
+    <label class="rv-row" for="f-materials"><span>Material{% if listing.material_confidence and listing.material_confidence != 'high' %} <i class="rv-dot" title="Check this"></i>{% endif %}</span>
+      <input id="f-materials" data-field="materials" value="{{ (listing.materials or []) | join(', ') }}" placeholder="e.g. 80% Wool, 20% Cashmere" autocomplete="off"></label>
+    <label class="rv-row" for="f-made-in"><span>Made in</span>
+      <input id="f-made-in" data-field="made_in" value="{{ listing.made_in or '' }}" placeholder="Unknown" autocomplete="off"></label>
+    <div class="rv-row static"><span>Colour</span>
+      <b>{{ listing.colour or "—" }}{% if listing.colour_secondary %} / {{ listing.colour_secondary }}{% endif %}{% if listing.pattern and listing.pattern != 'Plain' %} · {{ listing.pattern }}{% endif %}{% if listing.fabric_mill %} · {{ listing.fabric_mill }}{% endif %}</b></div>
+  </div>
+</section>
+
+<!-- ── Description ── -->
+<section class="rv-card">
+  <h2 class="rv-h">Description</h2>
+  <label class="rv-sr" for="f-description">Description</label>
+  <textarea class="rv-desc" id="f-description" data-field="description" rows="9">{{ listing.description or "" }}</textarea>
+</section>
+
+<!-- ── Actions ── -->
+<div class="rv-actions">
+  {% if listing.draft_error and not listing.draft_url %}
+  <div class="draft-error-banner"><strong>Last draft failed.</strong> {{ listing.draft_error }}</div>
+  {% endif %}
+  {% if listing.draft_url %}
+    <a class="rv-primary" href="{{ listing.draft_url }}" target="_blank" rel="noopener">Open on Vinted</a>
+  {% else %}
+    <button type="button" class="rv-primary" id="btnDraft" onclick="createDraft()">Create Vinted draft</button>
+  {% endif %}
+  <div class="rv-secondary">
+    <button type="button" class="rv-pill" onclick="markReady()" id="btnMarkReady">Mark ready ✓</button>
+    <button type="button" class="rv-pill" onclick="regenListing()">Regenerate ↺</button>
+  </div>
+</div>
+
+<!-- ── More: analysis details, market checks and quality tags ── -->
+<details class="rv-more">
+  <summary>More</summary>
+
+{% set rs = listing.run_stats %}
+{% set wp = listing.web_price %}
+{% if rs or listing.cost_gbp is number %}
+<div class="review-section" id="analysisStats">
+  <div class="review-section-title">Analysis</div>
+  {% if rs %}
+  <div class="field-row" style="flex-wrap:wrap">
+    <div class="field-label">Total</div>
+    <div class="field-value"><strong>£{{ '%.4f' % rs.total_cost_gbp }}</strong> ({{ '%.2f' % (rs.total_cost_gbp * 100) }}p)
+      · <strong>{{ '%.1f' % (rs.total_ms / 1000) }} s</strong>{% if not rs.cost_complete %} · <span class="conf-badge conf-low">cost incomplete</span>{% endif %}</div>
+  </div>
+  <div style="overflow-x:auto">
+  <table class="stats-table">
+    <thead><tr><th>Step</th><th>Time</th><th>Cost</th><th>Detail</th></tr></thead>
+    <tbody>
+    {% for st in rs.stages %}
+      <tr>
+        <td>{{ st.name }}</td>
+        <td>{{ '%.1f' % (st.ms / 1000) }} s</td>
+        <td>£{{ '%.4f' % st.cost_gbp }}</td>
+        <td>{% if st.calls %}{{ st.calls }} AI call{{ 's' if st.calls != 1 }} · {{ st.input_tokens }} in / {{ st.output_tokens }} out{% if st.cached_tokens %} · {{ st.cached_tokens }} cached{% endif %}{% if st.searches %} · {{ st.searches }} search{{ 'es' if st.searches != 1 }}{% endif %}{% else %}no AI{% endif %}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% else %}
+  <div class="field-row">
+    <div class="field-label">Cost</div>
+    <div class="field-value">£{{ '%.4f' % listing.cost_gbp }}{% if listing.cost_tokens %} · {{ listing.cost_tokens.input }} in / {{ listing.cost_tokens.output }} out tokens{% endif %}</div>
+  </div>
+  {% endif %}
+  {% if wp %}
+  <div class="field-row" style="flex-wrap:wrap;gap:6px 8px">
+    <div class="field-label">Web price</div>
+    <div class="field-value" style="width:100%">
+      {% if wp.typical_gbp %}
+        Typical <strong>£{{ '%g' % wp.typical_gbp }}</strong> (£{{ '%g' % wp.low_gbp }}–£{{ '%g' % wp.high_gbp }})
+        · {{ wp.confidence }} · {{ wp.sold_count }} sold
+      {% else %}No usable prices found.{% endif %}
+      {% if wp.examples %}
+      <ul style="margin:6px 0 0;padding-left:18px;font-size:12px">
+        {% for ex in wp.examples %}
+        <li>{% if ex.url %}<a href="{{ ex.url }}" target="_blank" rel="noopener noreferrer">{{ ex.title or 'Listing' }}</a>{% else %}{{ ex.title }}{% endif %}
+          — £{{ '%g' % ex.price_gbp }} {{ 'sold' if ex.sold else 'asking' }}</li>
+        {% endfor %}
+      </ul>
+      {% endif %}
+    </div>
+  </div>
+  {% endif %}
+</div>
+{% endif %}
+
+<div class="review-section">
+  <div class="review-section-title">Confidence</div>
+  {% set conf_pct = (listing.confidence or 0) * 100 | round | int %}
+  <div class="field-row"><div class="field-label">Overall</div><div class="field-value">{{ conf_pct }}%</div></div>
+  <div class="field-row"><div class="field-label">Brand</div><div class="field-value">{{ listing.brand_confidence or "?" }}</div></div>
+  <div class="field-row"><div class="field-label">Material</div><div class="field-value">{{ listing.material_confidence or "?" }}</div></div>
+  <div class="field-row"><div class="field-label">Price ref</div><div class="field-value">{{ listing.price_memory_match or "none" }}</div></div>
+  {% if listing.ai_price_gbp is defined and listing.ai_price_gbp is not none %}
+  <div class="field-row"><div class="field-label">AI price</div><div class="field-value">£{{ listing.ai_price_gbp | int }}{% if listing.fair_price_gbp %} · fair £{{ listing.fair_price_gbp }}{% endif %}</div></div>
+  {% endif %}
+</div>
+
+<div class="ebay-comps-box" id="ebayCompsBox">
+  <div class="ebay-comps-header">
+    <span class="ebay-comps-title">eBay prices</span>
+    <button class="btn-fetch-comps" id="btnFetchComps" onclick="fetchEbayComps()">Fetch</button>
+  </div>
+  <div id="ebayCompsContent">
+    {% if listing.ebay_suggested_range %}
+      <div class="ebay-comps-body">
+        <div class="ebay-comps-ranges">
+          <div class="ebay-range-block">
+            <span class="ebay-range-label">eBay active (used)</span>
+            <span class="ebay-range-value">£{{ listing.ebay_suggested_range.low }}–£{{ listing.ebay_suggested_range.high }}</span>
+          </div>
+          {% if listing.ebay_vinted_range %}
+          <div class="ebay-range-block">
+            <span class="ebay-range-label">Suggested Vinted</span>
+            <span class="ebay-range-value" style="color:var(--brand-dark)">£{{ listing.ebay_vinted_range.low }}–£{{ listing.ebay_vinted_range.high }}</span>
+          </div>
+          {% endif %}
+          {% if listing.ebay_comps_count %}
+          <div class="ebay-range-block">
+            <span class="ebay-range-label">Listings used</span>
+            <span class="ebay-range-value" style="font-size:14px; color:var(--gray-7)">{{ listing.ebay_comps_count }}</span>
+          </div>
+          {% endif %}
+        </div>
+        {% if listing.ebay_comps_note %}
+          <div class="ebay-comps-note">{{ listing.ebay_comps_note }}</div>
+        {% endif %}
+      </div>
+    {% elif listing.ebay_comps_skipped %}
+      <div class="ebay-comps-skipped">{{ listing.ebay_comps_skipped | replace("_", " ") | capitalize }}</div>
+    {% else %}
+      <div class="ebay-comps-skipped">Not fetched yet.</div>
+    {% endif %}
+  </div>
+</div>
+
+{% if listing.draft_url %}
+<div class="tracker-box" id="trackerBox">
+  <div class="tracker-header">
+    <span class="tracker-title">Listing performance</span>
+    <button class="btn-refresh-tracker" id="btnRefreshTracker" onclick="refreshTracker()">Refresh</button>
+  </div>
+  <div id="trackerContent">
+    <div class="tracker-empty" id="trackerLoading">Loading…</div>
+  </div>
+</div>
+{% endif %}
+
+{% if listing.reanalysis_source %}
+<div class="review-section">
+  <div class="review-section-title">Fresh photo analysis</div>
+  <a href="/review/{{ listing.reanalysis_source }}" style="display:block;padding:0 16px 8px">Open original →</a>
+  <div style="overflow-x:auto"><table style="width:100%;text-align:left;font-size:13px">
+    <thead><tr><th>Detail</th><th>Previous listing</th><th>Fresh read</th></tr></thead>
+    <tbody>{% for label, previous in listing.reanalysis_baseline.items() %}
+      <tr><th>{{ label }}</th><td>{{ previous }}</td><td>{% if label == 'Brand' %}{{ listing.brand or '—' }}{% elif label == 'Size' %}{{ listing.normalized_size or listing.tagged_size or '—' }}{% elif label == 'Material' %}{{ (listing.materials or [])|join(', ') or '—' }}{% else %}{% for marking in listing.garment_text or [] %}{% if marking.confidence == 'high' %}{{ marking.text }} {% endif %}{% endfor %}{% endif %}</td></tr>
+    {% endfor %}</tbody>
+  </table></div>
+</div>
+{% endif %}
+
+<div class="review-section">
+  <div class="review-section-title">Something wrong?</div>
+  <div class="error-tag-grid" id="errorTagGrid">
+    {% for cat in error_categories %}
+    <button class="error-tag-btn {% if cat in error_tags_set %}active{% endif %}"
+            id="etag-{{ cat }}" onclick="toggleErrorTag('{{ cat }}')">
+      {{ cat | replace("_", " ") | title }}
+    </button>
+    {% endfor %}
+  </div>
+</div>
+</details>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>

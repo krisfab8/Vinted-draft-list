@@ -514,439 +514,7 @@
 </style>
 {% endblock %}
 
-{% block content %}
-<a href="/drafts" class="review-back">← Drafts</a>
-
-{% set warnings = listing.warnings or [] %}
-{% set error_tags_set = listing.error_tags or [] %}
-
-{% if warnings %}
-<div class="warnings-bar">
-  {% for w in warnings %}
-    {% if w == "low_brand_confidence" %}
-      <span class="warn-chip">⚠ Low brand confidence</span>
-    {% elif w == "low_material_confidence" %}
-      <span class="warn-chip">⚠ Low material confidence</span>
-    {% elif w == "no_price_memory" %}
-      <span class="warn-chip">⚠ No price reference</span>
-    {% elif w == "low_confidence_fields" %}
-      <span class="warn-chip">⚠ Low confidence fields: {{ (listing.low_confidence_fields or []) | join(", ") }}</span>
-    {% elif w == "reread_failed" %}
-      <span class="warn-chip error">✕ Reread failed</span>
-    {% endif %}
-  {% endfor %}
-</div>
-{% endif %}
-
-{% if show_guidance %}
-<div style="background:#EFF6FF;border:1.5px solid #BFDBFE;border-radius:12px;padding:12px 14px;margin-bottom:14px;font-size:13px;color:#1E40AF;line-height:1.5">
-  Review each field — we've filled them in from your photos. Tap any field to edit before creating your draft.
-</div>
-{% endif %}
-
-{% if listing.pattern == "Graphic" and listing.category and "Plain" in listing.category %}
-<div class="conflict-banner" id="graphic-conflict">
-  <strong>Category conflict</strong><br>
-  This item has a <strong>Graphic</strong> pattern but the category is set to
-  <strong>{{ listing.category }}</strong>.<br>
-  Does it have a visible print, image or graphic on it?
-  <div class="conflict-actions">
-    <button class="conflict-btn yes" onclick="resolveGraphicConflict(true)">Yes — change to Print</button>
-    <button class="conflict-btn no"  onclick="resolveGraphicConflict(false)">No — keep as Plain</button>
-  </div>
-</div>
-{% endif %}
-
-<!-- ── Listing fields ── -->
-<div class="review-section">
-  <div class="review-section-title">Listing</div>
-
-  <div class="field-row">
-    <div class="field-label">Title</div>
-    <div class="field-edit-wrap">
-      <input class="field-input" id="f-title" value="{{ listing.title or '' }}" maxlength="70">
-      <button class="btn-save-field" onclick="saveField('title', document.getElementById('f-title').value)">Save</button>
-    </div>
-  </div>
-
-  <div class="field-row">
-    <div class="field-label">Brand</div>
-    <div class="field-edit-wrap">
-      <input class="field-input" id="f-brand" value="{{ listing.brand or '' }}">
-      <button class="btn-save-field" onclick="saveField('brand', document.getElementById('f-brand').value)">Save</button>
-    </div>
-    {% if listing.brand_confidence %}
-      <span class="conf-badge conf-{{ listing.brand_confidence }}">{{ listing.brand_confidence }}</span>
-    {% endif %}
-  </div>
-
-  <div class="field-row">
-    <div class="field-label">Item type</div>
-    <div class="field-value">{{ listing.item_type or "—" }}</div>
-  </div>
-
-  <div class="field-row">
-    <div class="field-label">Category</div>
-    <div class="field-edit-wrap">
-      <input class="field-input" id="f-category" value="{{ listing.category or '' }}">
-      <button class="btn-save-field" onclick="saveField('category', document.getElementById('f-category').value)">Save</button>
-    </div>
-  </div>
-
-  <div class="field-row">
-    <div class="field-label">Gender</div>
-    <div class="field-value">{{ listing.gender or "—" }}</div>
-  </div>
-
-  <div class="field-row">
-    <div class="field-label">Size</div>
-    <div class="field-value">
-      {% if listing.tagged_size and listing.normalized_size and listing.tagged_size != listing.normalized_size %}
-        tagged: <strong>{{ listing.tagged_size }}</strong> &nbsp;·&nbsp; normalized: <strong>{{ listing.normalized_size }}</strong>
-      {% else %}
-        <strong>{{ listing.normalized_size or listing.tagged_size or "—" }}</strong>
-      {% endif %}
-    </div>
-  </div>
-
-  <div class="field-row">
-    <div class="field-label">Materials</div>
-    <div style="flex:1">
-      {% if listing.materials %}
-        <div class="mat-chips" style="margin-bottom:8px">
-          {% for m in listing.materials %}
-            <span class="mat-chip">{{ m }}</span>
-          {% endfor %}
-        </div>
-      {% endif %}
-      <div class="field-edit-wrap">
-        <input class="field-input" id="f-materials" placeholder="e.g. 80% Wool, 20% Cashmere"
-               value="{{ (listing.materials or []) | join(', ') }}">
-        <button class="btn-save-field" onclick="saveMaterials()">Save</button>
-      </div>
-    </div>
-    {% if listing.material_confidence %}
-      <span class="conf-badge conf-{{ listing.material_confidence }}">{{ listing.material_confidence }}</span>
-    {% endif %}
-  </div>
-
-  <div class="field-row">
-    <div class="field-label">Colour</div>
-    <div class="field-value">
-      {{ listing.colour or "—" }}{% if listing.colour_secondary %} / {{ listing.colour_secondary }}{% endif %}
-    </div>
-  </div>
-
-  <div class="field-row">
-    <div class="field-label">Pattern</div>
-    <div class="field-value">{{ listing.pattern or "Plain" }}</div>
-  </div>
-
-  {% if listing.fabric_mill %}
-  <div class="field-row">
-    <div class="field-label">Fabric mill</div>
-    <div class="field-value">{{ listing.fabric_mill }}</div>
-  </div>
-  {% endif %}
-
-  <div class="field-row">
-    <div class="field-label">Made in</div>
-    <div class="field-edit-wrap">
-      <input class="field-input" id="f-made-in" type="text"
-             value="{{ listing.made_in or '' }}"
-             placeholder="e.g. Italy, Portugal, Japan">
-      <button class="btn-save-field" onclick="saveField('made_in', document.getElementById('f-made-in').value)">Save</button>
-    </div>
-  </div>
-
-  <div class="field-row">
-    <div class="field-label">Condition</div>
-    <div class="field-edit-wrap">
-      <select class="field-input" id="f-condition" onchange="saveCondition()">
-        {% set cond_raw = listing.condition_summary or "" %}
-        {% set cond_level = cond_raw.split("—")[0].strip() if "—" in cond_raw else cond_raw %}
-        <option value="Excellent used condition" {% if "Excellent" in cond_level %}selected{% endif %}>Excellent</option>
-        <option value="Very good used condition" {% if "Very good" in cond_level %}selected{% endif %}>Very good</option>
-        <option value="Good used condition" {% if cond_level.startswith("Good") %}selected{% endif %}>Good</option>
-        <option value="Satisfactory" {% if "Satisfactory" in cond_level %}selected{% endif %}>Satisfactory</option>
-        <option value="New with tags — original labels attached." {% if "New with tags" in cond_level %}selected{% endif %}>New with tags</option>
-        <option value="New without tags — unworn, no original tags." {% if "New without tags" in cond_level %}selected{% endif %}>New without tags</option>
-      </select>
-    </div>
-  </div>
-
-  <div class="field-row">
-    <div class="field-label">Flaws</div>
-    <div class="field-edit-wrap">
-      <input class="field-input" id="f-flaws" type="text"
-             value="{{ listing.flaws_note or '' }}"
-             placeholder="e.g. Small stain on left lapel">
-      <button class="btn-save-field" onclick="saveFlaws()">Save</button>
-    </div>
-  </div>
-
-  <div class="field-row">
-    <div class="field-label">Desc. line</div>
-    <div class="field-value" id="conditionLineDisplay"
-         style="font-size:13px; color:var(--gray-7); font-style:italic">
-      {{ listing.condition_line or "" }}
-    </div>
-  </div>
-
-  <div class="field-row" style="flex-wrap:wrap; gap:6px 8px;">
-    <div class="field-label">Price</div>
-    <div class="field-edit-wrap" style="flex-shrink:0; min-width:0">
-      <input class="field-input" id="f-price" type="number" step="0.5" min="0"
-             value="{{ listing.price_gbp or '' }}" style="max-width:100px">
-      <button class="btn-save-field" onclick="savePrice(parseFloat(document.getElementById('f-price').value))">Save</button>
-      <button class="btn-save-field" id="repriceBtn" onclick="repriceListing()" title="Recalculate the price from the current details">Reprice ↻</button>
-    </div>
-    {% if listing.ai_price_gbp is defined and listing.ai_price_gbp is not none and listing.ai_price_gbp != listing.price_gbp %}
-      <span class="conf-badge conf-medium" title="AI suggested price">AI £{{ listing.ai_price_gbp | int }}</span>
-    {% endif %}
-    {% if listing.profit_warning %}
-      <span class="conf-badge conf-low" title="{{ (listing.pricing_flags or []) | join(', ') }}">
-        {%- if "loss" in (listing.pricing_flags or []) -%}loss{%- else -%}low margin{%- endif -%}
-      </span>
-    {% endif %}
-    <div id="repriceNudge" hidden style="width:100%; font-size:12px; color:#b86a00; font-weight:600">Details changed — tap Reprice to update the price.</div>
-    <div id="priceProposal" hidden style="width:100%; padding:12px; border:1px solid var(--gray-3); border-radius:12px"></div>
-    <div id="priceGauge" style="width:100%"></div>
-  </div>
-</div>
-
-<!-- ── Analysis stats: what this analysis cost and how long it took ── -->
-{% set rs = listing.run_stats %}
-{% set wp = listing.web_price %}
-{% if rs or listing.cost_gbp is number %}
-<div class="review-section" id="analysisStats">
-  <div class="review-section-title">Analysis stats</div>
-  {% if rs %}
-  <div class="field-row" style="flex-wrap:wrap">
-    <div class="field-label">Total</div>
-    <div class="field-value"><strong>£{{ '%.4f' % rs.total_cost_gbp }}</strong> ({{ '%.2f' % (rs.total_cost_gbp * 100) }}p)
-      · <strong>{{ '%.1f' % (rs.total_ms / 1000) }} s</strong>{% if not rs.cost_complete %} · <span class="conf-badge conf-low">cost incomplete</span>{% endif %}</div>
-  </div>
-  <div style="overflow-x:auto">
-  <table class="stats-table">
-    <thead><tr><th>Step</th><th>Time</th><th>Cost</th><th>Detail</th></tr></thead>
-    <tbody>
-    {% for st in rs.stages %}
-      <tr>
-        <td>{{ st.name }}</td>
-        <td>{{ '%.1f' % (st.ms / 1000) }} s</td>
-        <td>£{{ '%.4f' % st.cost_gbp }}</td>
-        <td>{% if st.calls %}{{ st.calls }} AI call{{ 's' if st.calls != 1 }} · {{ st.input_tokens }} in / {{ st.output_tokens }} out{% if st.cached_tokens %} · {{ st.cached_tokens }} cached{% endif %}{% if st.searches %} · {{ st.searches }} search{{ 'es' if st.searches != 1 }}{% endif %}{% else %}no AI{% endif %}</td>
-      </tr>
-    {% endfor %}
-    </tbody>
-  </table>
-  </div>
-  {% else %}
-  <div class="field-row">
-    <div class="field-label">Cost</div>
-    <div class="field-value">£{{ '%.4f' % listing.cost_gbp }}{% if listing.cost_tokens %} · {{ listing.cost_tokens.input }} in / {{ listing.cost_tokens.output }} out tokens{% endif %}
-      <span style="font-size:12px;color:var(--gray-5)">(made before timing was recorded)</span></div>
-  </div>
-  {% endif %}
-  {% if wp %}
-  <div class="field-row" style="flex-wrap:wrap;gap:6px 8px">
-    <div class="field-label">Web price</div>
-    <div class="field-value" style="width:100%">
-      {% if wp.typical_gbp %}
-        Typical <strong>£{{ '%g' % wp.typical_gbp }}</strong> (£{{ '%g' % wp.low_gbp }}–£{{ '%g' % wp.high_gbp }})
-        · <span class="conf-badge conf-{{ 'high' if wp.confidence == 'high' else 'medium' if wp.confidence == 'medium' else 'low' }}">{{ wp.confidence }}</span>
-        · {{ wp.sold_count }} sold example{{ 's' if wp.sold_count != 1 }}
-      {% else %}No usable prices found.{% endif %}
-      <div style="font-size:12px;color:var(--gray-5)">{{ wp.searches }} search{{ 'es' if wp.searches != 1 }} · £{{ '%.4f' % wp.cost_gbp }} · {{ '%.1f' % (wp.latency_ms / 1000) }} s{% if wp.note %} · {{ wp.note }}{% endif %}</div>
-      {% if wp.examples %}
-      <ul style="margin:6px 0 0;padding-left:18px;font-size:12px">
-        {% for ex in wp.examples %}
-        <li>{% if ex.url %}<a href="{{ ex.url }}" target="_blank" rel="noopener noreferrer">{{ ex.title or 'Listing' }}</a>{% else %}{{ ex.title }}{% endif %}
-          — £{{ '%g' % ex.price_gbp }} {{ 'sold' if ex.sold else 'asking' }}</li>
-        {% endfor %}
-      </ul>
-      {% endif %}
-    </div>
-  </div>
-  {% endif %}
-</div>
-{% endif %}
-
-<!-- ── Description ── -->
-<div class="review-section">
-  <div class="review-section-title">Description</div>
-  <div class="field-row" style="border-bottom:none">
-    <div class="field-value description" style="font-size:13px">{{ listing.description or "—" }}</div>
-  </div>
-</div>
-
-<!-- ── Quality signals ── -->
-<div class="review-section">
-  <div class="review-section-title">Quality signals</div>
-
-  <div class="field-row">
-    <div class="field-label">Confidence</div>
-    <div class="field-value">
-      {% set conf_pct = (listing.confidence or 0) * 100 | round | int %}
-      {{ conf_pct }}%
-      <span class="conf-badge {% if conf_pct >= 80 %}conf-high{% elif conf_pct >= 60 %}conf-medium{% else %}conf-low{% endif %}">
-        {% if conf_pct >= 80 %}high{% elif conf_pct >= 60 %}medium{% else %}low{% endif %}
-      </span>
-    </div>
-  </div>
-
-  <div class="field-row">
-    <div class="field-label">Brand conf.</div>
-    <div class="field-value">
-      <span class="conf-badge conf-{{ listing.brand_confidence or 'low' }}">{{ listing.brand_confidence or "?" }}</span>
-    </div>
-  </div>
-
-  <div class="field-row">
-    <div class="field-label">Material conf.</div>
-    <div class="field-value">
-      <span class="conf-badge conf-{{ listing.material_confidence or 'low' }}">{{ listing.material_confidence or "?" }}</span>
-    </div>
-  </div>
-
-  <div class="field-row">
-    <div class="field-label">Price ref</div>
-    <div class="field-value">
-      {% if listing.price_memory_match %}
-        <span class="conf-badge conf-high">{{ listing.price_memory_match }}</span>
-      {% else %}
-        <span class="conf-badge conf-low">no match</span>
-      {% endif %}
-    </div>
-  </div>
-
-  {% if listing.low_confidence_fields %}
-  <div class="field-row">
-    <div class="field-label">Uncertain</div>
-    <div class="field-value" style="color:var(--gold)">{{ listing.low_confidence_fields | join(", ") }}</div>
-  </div>
-  {% endif %}
-</div>
-
-<!-- ── eBay market comps ── -->
-<div class="ebay-comps-box" id="ebayCompsBox">
-  <div class="ebay-comps-header">
-    <span class="ebay-comps-title">eBay market comps</span>
-    <button class="btn-fetch-comps" id="btnFetchComps" onclick="fetchEbayComps()">Fetch comps</button>
-  </div>
-  <div id="ebayCompsContent">
-    {% if listing.ebay_suggested_range %}
-      <div class="ebay-comps-body">
-        <div class="ebay-comps-ranges">
-          <div class="ebay-range-block">
-            <span class="ebay-range-label">eBay active (used)</span>
-            <span class="ebay-range-value">£{{ listing.ebay_suggested_range.low }}–£{{ listing.ebay_suggested_range.high }}</span>
-          </div>
-          {% if listing.ebay_vinted_range %}
-          <div class="ebay-range-block">
-            <span class="ebay-range-label">Suggested Vinted</span>
-            <span class="ebay-range-value" style="color:var(--brand-dark)">£{{ listing.ebay_vinted_range.low }}–£{{ listing.ebay_vinted_range.high }}</span>
-          </div>
-          {% endif %}
-          {% if listing.ebay_comps_count %}
-          <div class="ebay-range-block">
-            <span class="ebay-range-label">Listings used</span>
-            <span class="ebay-range-value" style="font-size:14px; color:var(--gray-7)">{{ listing.ebay_comps_count }}</span>
-          </div>
-          {% endif %}
-        </div>
-        {% if listing.ebay_comps_note %}
-          <div class="ebay-comps-note">{{ listing.ebay_comps_note }}</div>
-        {% endif %}
-      </div>
-    {% elif listing.ebay_comps_skipped %}
-      <div class="ebay-comps-skipped">{{ listing.ebay_comps_skipped | replace("_", " ") | capitalize }}</div>
-    {% else %}
-      <div class="ebay-comps-skipped">Not fetched — tap "Fetch comps" to get market guidance.</div>
-    {% endif %}
-  </div>
-</div>
-
-<!-- ── Listing tracker ── -->
-{% if listing.draft_url %}
-<div class="tracker-box" id="trackerBox">
-  <div class="tracker-header">
-    <span class="tracker-title">Listing performance</span>
-    <button class="btn-refresh-tracker" id="btnRefreshTracker" onclick="refreshTracker()">Refresh</button>
-  </div>
-  <div id="trackerContent">
-    <div class="tracker-empty" id="trackerLoading">Loading…</div>
-  </div>
-</div>
-{% endif %}
-
-{% if listing.reanalysis_source %}
-<div class="review-section">
-  <h2>Fresh photo analysis</h2>
-  <p>Saved photos, with no previous size or material corrections supplied.</p>
-  <a href="/review/{{ listing.reanalysis_source }}">Open original listing →</a>
-  <div style="overflow-x:auto"><table style="width:100%;margin-top:16px;text-align:left;font-size:13px">
-    <thead><tr><th>Detail</th><th>Previous listing</th><th>Fresh read</th></tr></thead>
-    <tbody>{% for label, previous in listing.reanalysis_baseline.items() %}
-      <tr><th>{{ label }}</th><td>{{ previous }}</td><td>{% if label == 'Brand' %}{{ listing.brand or '—' }}{% elif label == 'Size' %}{{ listing.normalized_size or listing.tagged_size or '—' }}{% elif label == 'Material' %}{{ (listing.materials or [])|join(', ') or '—' }}{% else %}{% for marking in listing.garment_text or [] %}{% if marking.confidence == 'high' %}{{ marking.text }} {% endif %}{% endfor %}{% endif %}</td></tr>
-    {% endfor %}</tbody>
-  </table></div>
-</div>
-{% endif %}
-<!-- ── Photos ── -->
-{% if photos %}
-<div class="review-section">
-  <div class="review-section-title">Photos</div>
-  <div class="photos-strip">
-    {% for photo in photos %}
-    <div>
-      <div class="photo-thumb">
-        <img src="/items/{{ folder }}/{{ photo }}" alt="{{ photo }}" loading="lazy">
-      </div>
-      <div class="photo-label">{{ photo.split('.')[0] }}</div>
-    </div>
-    {% endfor %}
-  </div>
-</div>
-{% endif %}
-
-<!-- ── Error taxonomy (Step 4) ── -->
-<div class="review-section">
-  <div class="review-section-title" style="padding-bottom:2px">Error tags</div>
-  <div style="padding: 4px 16px 8px; font-size:12px; color:var(--gray-5)">
-    Tag this listing if you spot a mistake — used for future quality improvements.
-  </div>
-  <div class="error-tag-grid" id="errorTagGrid">
-    {% for cat in error_categories %}
-    <button class="error-tag-btn {% if cat in error_tags_set %}active{% endif %}"
-            id="etag-{{ cat }}" onclick="toggleErrorTag('{{ cat }}')">
-      {{ cat | replace("_", " ") | title }}
-    </button>
-    {% endfor %}
-  </div>
-</div>
-
-<!-- ── Actions ── -->
-<div class="review-actions">
-  {% if listing.draft_error and not listing.draft_url %}
-  <div class="draft-error-banner">
-    <strong>✕ Last draft attempt failed</strong>
-    {{ listing.draft_error }}
-  </div>
-  {% endif %}
-  {% if listing.draft_url %}
-    <a class="btn-primary" href="{{ listing.draft_url }}" target="_blank">Open on Vinted →</a>
-  {% else %}
-    <button class="btn-primary" id="btnDraft" onclick="createDraft()">Create Vinted Draft ↑</button>
-  {% endif %}
-  <button class="btn-secondary" onclick="regenListing()">Regenerate listing ↺</button>
-  <button class="btn-secondary" onclick="markReady()" id="btnMarkReady">Mark as ready ✓</button>
-</div>
-
-<div class="toast" id="toast"></div>
-{% endblock %}
-
+{% block content %}{% include "review_body.html" %}{% endblock %}
 {% block scripts %}
 <script src="{{ url_for('static', filename='price_gauge.js') }}?v=1"></script>
 <script>
@@ -1015,7 +583,7 @@ async function saveField(field, value) {
   });
   if (resp.ok) {
     showToast("Saved");
-    if (["brand", "materials", "item_type", "category", "normalized_size"].includes(field)) nudgeReprice();
+    if (["brand", "materials", "item_type", "category", "normalized_size", "gender"].includes(field)) nudgeReprice();
   } else {
     const d = await resp.json().catch(() => ({}));
     showToast("Error: " + (d.error || "unknown"));
@@ -1069,9 +637,39 @@ function _updateConditionLineDisplay(line) {
   const el = document.getElementById("conditionLineDisplay");
   if (el) {
     el.textContent = line || "";
-    el.closest(".field-row").style.display = line ? "" : "none";
+    el.hidden = !line;
   }
 }
+
+/* Every detail saves by itself when you leave the field — no Save buttons. */
+document.querySelectorAll("[data-field]").forEach(el => {
+  el.addEventListener("change", () => {
+    const field = el.dataset.field;
+    if (field === "materials") return saveMaterials();
+    const value = el.value.trim();
+    if (field === "gender") filterCategories();
+    saveField(field, value === "" ? null : value);
+  });
+});
+document.getElementById("f-price").addEventListener("change", event => {
+  const value = parseFloat(event.target.value);
+  if (Number.isFinite(value)) savePrice(value);
+});
+document.querySelectorAll("textarea.rv-title, textarea.rv-desc").forEach(area => {
+  const fit = () => { area.style.height = "auto"; area.style.height = area.scrollHeight + "px"; };
+  area.addEventListener("input", fit); fit();
+});
+/* Category list follows Men / Women; the current choice always stays visible. */
+function filterCategories() {
+  const gender = document.getElementById("f-gender").value;
+  const want = gender === "men's" ? "Men" : gender === "women's" ? "Women" : "";
+  const select = document.getElementById("f-category");
+  select.querySelectorAll("optgroup").forEach(group => {
+    const keep = !want || group.dataset.group === want || group.contains(select.selectedOptions[0]);
+    group.hidden = !keep; group.disabled = !keep;
+  });
+}
+filterCategories();
 
 async function toggleErrorTag(cat) {
   const idx = _errorTags.indexOf(cat);
@@ -1109,9 +707,9 @@ async function createDraft() {
     });
     const data = await resp.json();
     if (resp.ok && data.draft_url) {
-      btn.outerHTML = `<a class="btn-primary" href="${data.draft_url}" target="_blank">Open on Vinted →</a>`;
+      btn.outerHTML = `<a class="rv-primary" href="${data.draft_url}" target="_blank" rel="noopener">Open on Vinted</a>`;
     } else {
-      btn.textContent = "Create Vinted Draft ↑";
+      btn.textContent = "Create Vinted draft";
       btn.disabled = false;
       if (data.code === "LOW_BRAND_CONFIDENCE") {
         showToast("Low brand confidence — confirm the brand, then retry.", 5000);
@@ -1122,7 +720,7 @@ async function createDraft() {
       }
     }
   } catch (e) {
-    btn.textContent = "Create Vinted Draft ↑";
+    btn.textContent = "Create Vinted draft";
     btn.disabled = false;
   }
 }
@@ -1142,12 +740,12 @@ async function regenListing() {
       setTimeout(() => location.reload(), 1200);
     } else {
       const d = await resp.json().catch(() => ({}));
-      btn.textContent = "Regenerate listing ↺";
+      btn.textContent = "Regenerate ↺";
       btn.disabled = false;
       showToast("Error: " + (d.error || "unknown"), 3000);
     }
   } catch (e) {
-    btn.textContent = "Regenerate listing ↺";
+    btn.textContent = "Regenerate ↺";
     btn.disabled = false;
   }
 }
@@ -1166,12 +764,12 @@ async function markReady() {
       showToast("Marked as ready ✓");
       setTimeout(() => { window.location.href = "/drafts"; }, 1000);
     } else {
-      btn.textContent = "Mark as ready ✓";
+      btn.textContent = "Mark ready ✓";
       btn.disabled = false;
       showToast("Failed to mark ready");
     }
   } catch {
-    btn.textContent = "Mark as ready ✓";
+    btn.textContent = "Mark ready ✓";
     btn.disabled = false;
   }
 }
@@ -1211,7 +809,7 @@ async function fetchEbayComps() {
     const data = await resp.json();
     if (!resp.ok) {
       showToast("Error: " + (data.error || "unknown"), 3000);
-      btn.textContent = "Fetch comps";
+      btn.textContent = "Fetch";
       btn.disabled = false;
       return;
     }
@@ -1220,7 +818,7 @@ async function fetchEbayComps() {
     btn.disabled = false;
   } catch (e) {
     showToast("Fetch failed", 3000);
-    btn.textContent = "Fetch comps";
+    btn.textContent = "Fetch";
     btn.disabled = false;
   }
 }

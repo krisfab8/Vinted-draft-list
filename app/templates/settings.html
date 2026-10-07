@@ -1,0 +1,126 @@
+{% extends "base.html" %}
+{% block title %}Settings · Vinted Lister{% endblock %}
+
+{% block content %}
+<div class="st-hero">
+  <div class="st-avatar" aria-hidden="true">{{ (profile.name or "?")[:1] | upper }}</div>
+  <div>
+    <h1 class="sn-title st-title">Settings</h1>
+    <p class="st-sub">{{ profile.name or "Not set up yet" }}</p>
+  </div>
+</div>
+
+<section class="rv-card">
+  <h2 class="rv-h">You</h2>
+  <form class="rv-rows" id="identityForm" novalidate>
+    <label class="rv-row" for="s-name"><span>Name</span>
+      <input id="s-name" name="name" value="{{ profile.name or '' }}" maxlength="40" placeholder="Your name" autocomplete="given-name"></label>
+    <label class="rv-row" for="s-email"><span>Email</span>
+      <input id="s-email" name="email" type="email" inputmode="email" value="{{ profile.email or '' }}" maxlength="254" placeholder="you@email.com" autocomplete="email"></label>
+    <label class="rv-row st-check" for="s-optin"><span>Tips &amp; updates</span>
+      <input id="s-optin" type="checkbox" {% if profile.marketing_opt_in %}checked{% endif %}></label>
+    <p class="st-error" id="identityError" role="alert"></p>
+  </form>
+</section>
+
+<section class="rv-card">
+  <h2 class="rv-h">Selling</h2>
+  <div class="st-group">
+    <span id="lbl-pricing">Pricing style</span>
+    <div class="sn-seg" role="group" aria-labelledby="lbl-pricing" data-setting="pricing_mode">
+      <button type="button" data-value="speed">Sell fast</button>
+      <button type="button" data-value="balanced">Balanced</button>
+      <button type="button" data-value="price">Best price</button>
+    </div>
+    <small>Moves every price and the dial.</small>
+  </div>
+  <div class="st-group">
+    <span id="lbl-volume">Items a week</span>
+    <div class="sn-seg" role="group" aria-labelledby="lbl-volume" data-setting="volume">
+      <button type="button" data-value="low">1–5</button>
+      <button type="button" data-value="medium">5–20</button>
+      <button type="button" data-value="high">20+</button>
+    </div>
+    <small id="goalNote">Daily goal: {{ daily_goal }} a day</small>
+  </div>
+  <div class="st-group">
+    <span id="lbl-camera">Camera</span>
+    <div class="sn-seg" role="group" aria-labelledby="lbl-camera" data-setting="photo_mode">
+      <button type="button" data-value="guided">Guided</button>
+      <button type="button" data-value="pro">Pro</button>
+    </div>
+  </div>
+  <div class="st-group">
+    <span id="lbl-help">Help notes</span>
+    <div class="sn-seg" role="group" aria-labelledby="lbl-help" data-setting="vinted_experience">
+      <button type="button" data-value="new">On</button>
+      <button type="button" data-value="{{ 'experienced' if profile.vinted_experience == 'experienced' else 'occasional' }}">Off</button>
+    </div>
+  </div>
+</section>
+
+<section class="rv-card st-links">
+  <a href="/connect" class="st-link"><span>Vinted account</span><b id="st-vinted">Check</b></a>
+  <a href="/welcome" class="st-link"><span>Redo the welcome</span><b>›</b></a>
+</section>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(() => {
+  const PROFILE = {{ {"pricing_mode": profile.pricing_mode, "volume": profile.volume, "photo_mode": profile.photo_mode,
+                     "vinted_experience": profile.vinted_experience} | tojson }};
+  const GOAL = {low: 1, medium: 3, high: 6};
+  const toast = message => {
+    const t = document.getElementById("toast"); t.textContent = message; t.classList.add("show");
+    setTimeout(() => t.classList.remove("show"), 1600);
+  };
+  function mark(group, value) {
+    group.querySelectorAll("button").forEach(b => {
+      b.classList.toggle("on", b.dataset.value === value);
+      b.setAttribute("aria-pressed", String(b.dataset.value === value));
+    });
+  }
+  document.querySelectorAll("[data-setting]").forEach(group => {
+    const key = group.dataset.setting;
+    mark(group, PROFILE[key]);
+    group.addEventListener("click", async event => {
+      const button = event.target.closest("button"); if (!button) return;
+      const previous = PROFILE[key];
+      mark(group, button.dataset.value);
+      const response = await fetch("/api/profile", {method: "PATCH", headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({[key]: button.dataset.value})}).catch(() => null);
+      if (!response || !response.ok) { mark(group, previous); return toast("Not saved. Try again."); }
+      PROFILE[key] = button.dataset.value;
+      if (key === "photo_mode") { try { localStorage.setItem("photoMode", button.dataset.value); } catch (_) {} }
+      if (key === "volume") document.getElementById("goalNote").textContent = `Daily goal: ${GOAL[button.dataset.value]} a day`;
+      toast("Saved");
+    });
+  });
+  // Name, email and opt-in save when you leave the field (same checks as the welcome).
+  const form = document.getElementById("identityForm"), error = document.getElementById("identityError");
+  async function saveIdentity() {
+    const body = {name: form.name.value, email: form.email.value, marketing_opt_in: document.getElementById("s-optin").checked};
+    const response = await fetch("/api/profile/identity", {method: "POST", headers: {"Content-Type": "application/json"},
+      body: JSON.stringify(body)}).catch(() => null);
+    const data = response ? await response.json().catch(() => ({})) : {};
+    if (!response || !response.ok) { error.textContent = data.error || "Not saved. Try again."; return; }
+    error.textContent = "";
+    document.querySelector(".st-sub").textContent = data.name;
+    document.querySelector(".st-avatar").textContent = data.name.slice(0, 1).toUpperCase();
+    try {
+      const saved = JSON.parse(localStorage.getItem("onboarding") || "null");
+      if (saved) localStorage.setItem("onboarding", JSON.stringify({...saved, ...data}));
+    } catch (_) {}
+    toast("Saved");
+  }
+  form.addEventListener("change", saveIdentity);
+  form.addEventListener("submit", event => { event.preventDefault(); saveIdentity(); });
+  fetch("/auth/status").then(r => r.json()).then(d => {
+    document.getElementById("st-vinted").textContent = d.logged_in === "likely" ? "Connected" : "Connect";
+  }).catch(() => {});
+})();
+</script>
+{% endblock %}

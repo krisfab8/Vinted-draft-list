@@ -653,8 +653,10 @@ def _nav_counts():
             listing = item_dir / "listing.json"
             if item_dir.is_dir() and not item_dir.name.startswith("_") and listing.exists():
                 made_today += date.fromtimestamp(listing.stat().st_ctime) == today
+    name = profile_svc.load().get("name") or ""
     # Route-supplied values (e.g. draft_count) take precedence over these defaults.
-    return {"sold_count": sold_count, "today_count": made_today, "draft_count": _draft_count()}
+    return {"sold_count": sold_count, "today_count": made_today, "draft_count": _draft_count(),
+            "profile_initial": name[:1].upper()}
 
 
 def _draft_count() -> int:
@@ -1286,11 +1288,13 @@ def review_listing_page(folder):
         from app.services.pricing import price_range
         listing["price_range"] = price_range(listing)  # display only; not saved
 
-    # Collect photo filenames
+    # Collect photo filenames: front first, then the order photos are taken in.
     extensions = {".jpg", ".jpeg", ".png", ".webp"}
+    role_order = ["front", "back", "brand", "model_size", "material"]
     photos = sorted(
-        f.name for f in item_path.iterdir()
-        if f.is_file() and f.suffix.lower() in extensions
+        (f.name for f in item_path.iterdir() if f.is_file() and f.suffix.lower() in extensions),
+        key=lambda name: (role_order.index(name.rsplit(".", 1)[0]) if name.rsplit(".", 1)[0] in role_order
+                          else len(role_order), name),
     )
 
     profile = profile_svc.load()
@@ -1305,7 +1309,36 @@ def review_listing_page(folder):
         active_tab="drafts",
         show_guidance=profile_svc.show_guidance(profile),
         is_reseller=profile_svc.is_reseller(profile),
+        category_groups=_category_groups(listing.get("category")),
     )
+
+
+def _category_groups(current: str | None) -> dict[str, list[str]]:
+    """Vinted categories the draft filler knows, grouped by Men / Women / ..."""
+    from app.services.category_validator import CATEGORY_NAV
+    groups: dict[str, list[str]] = {}
+    for key in CATEGORY_NAV:
+        groups.setdefault(key.split(" > ")[0], []).append(key)
+    if current and current not in CATEGORY_NAV:
+        groups.setdefault(current.split(" > ")[0], []).insert(0, current)
+    return groups
+
+
+@app.get("/settings")
+def settings_page():
+    profile = profile_svc.load()
+    return render_template("settings.html", profile=profile, active_tab="settings",
+                           daily_goal=profile_svc.daily_goal(profile))
+
+
+@app.post("/api/profile/identity")
+def update_identity():
+    """Change name, email or the tips opt-in (validated like onboarding)."""
+    try:
+        profile = profile_svc.update_identity(request.get_json(silent=True))
+    except ValueError as error:
+        return jsonify(error=str(error)), 422
+    return jsonify(name=profile["name"], email=profile["email"], marketing_opt_in=profile["marketing_opt_in"])
 
 
 @app.post("/listing/<folder>/error-tags")

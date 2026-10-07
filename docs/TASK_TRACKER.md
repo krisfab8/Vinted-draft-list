@@ -249,3 +249,11 @@ Keep IDs stable. Do not rename an open task to hide scope. Split partial work in
 - Camera mode comes from the profile (reseller → Pro) on every device; toggling it saves to the profile; the camera no
   longer asks "How do you list?" after onboarding. PATCH /api/profile validates choice values.
 - Daily goal from items-a-week; "new to Vinted" keeps the review-page guidance.
+
+## 2026-10-07 — Review restyle, Settings page
+- Review page restyled to Studio look (review_body.html): photos first (front, back, brand, size, material order), title,
+  price dial card, tap-to-edit Details rows, description, one lime "Create Vinted draft" button. Stats, confidence, eBay comps,
+  tracker and error tags moved under "More". Edits auto-save on change (PATCH /listing, logged as corrections, marked manual).
+- Gender ("For") and Category are now editable selects; category list comes from CATEGORY_NAV, filtered by gender.
+- /settings: name, email, tips opt-in (POST /api/profile/identity, validated), pricing style, items a week (daily goal),
+  camera mode, help notes, Vinted connection, redo welcome. Header avatar (initial) links there.

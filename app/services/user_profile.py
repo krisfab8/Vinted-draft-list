@@ -69,16 +69,35 @@ def daily_goal(profile: dict) -> int:
     return DAILY_GOAL.get(profile.get("volume"), 1)
 
 
-def onboard(body) -> dict:
-    """Validate onboarding answers and save them. Raises ValueError with a short reason."""
-    if not isinstance(body, dict):
-        raise ValueError("Answers missing.")
+def _clean_identity(body) -> tuple[str, str]:
     name = " ".join(str(body.get("name") or "").split())[:40]
     email = str(body.get("email") or "").strip().lower()
     if not name:
         raise ValueError("Add your name.")
     if len(email) > 254 or not _EMAIL.fullmatch(email):
         raise ValueError("Check your email address.")
+    return name, email
+
+
+def update_identity(body) -> dict:
+    """Settings: change name/email/opt-in after onboarding, with the same checks."""
+    if not isinstance(body, dict):
+        raise ValueError("Details missing.")
+    profile = load()
+    name, email = _clean_identity({"name": body.get("name", profile.get("name")),
+                                   "email": body.get("email", profile.get("email"))})
+    profile.update(name=name, email=email)
+    if "marketing_opt_in" in body:
+        profile["marketing_opt_in"] = body["marketing_opt_in"] is True
+    save(profile)
+    return profile
+
+
+def onboard(body) -> dict:
+    """Validate onboarding answers and save them. Raises ValueError with a short reason."""
+    if not isinstance(body, dict):
+        raise ValueError("Answers missing.")
+    name, email = _clean_identity(body)
     profile = load()
     for key, allowed in CHOICES.items():
         if key in body:
