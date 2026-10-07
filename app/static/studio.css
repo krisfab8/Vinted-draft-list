@@ -45,7 +45,7 @@ header { background: var(--sn-bg); border-bottom: none; padding: calc(12px + env
 .private-test-note { background: transparent; color: var(--sn-muted); }
 
 /* Bottom bar: standard icon controls, red counts, no sliding pill. */
-.bottom-nav { left: 50%; right: auto; transform: translateX(-50%); width: min(240px, calc(100% - 40px)); bottom: calc(14px + env(safe-area-inset-bottom)); height: 62px; padding: 0 8px; gap: 0; border-radius: 999px; border: 1px solid var(--sn-line); background: rgba(255,255,255,.92); box-shadow: 0 12px 32px rgba(0,0,0,.10); }
+.bottom-nav { left: 50%; right: auto; transform: translateX(-50%); width: min(360px, calc(100% - 32px)); bottom: calc(14px + env(safe-area-inset-bottom)); height: 62px; padding: 0 8px; gap: 0; border-radius: 999px; border: 1px solid var(--sn-line); background: rgba(255,255,255,.92); box-shadow: 0 12px 32px rgba(0,0,0,.10); }
 .nav-item, .nav-item.active { background: none; border-radius: 999px; color: #AEAEB2; }
 .nav-item.active { color: var(--sn-text); }
 .nav-item svg { width: 26px; height: 26px; }
@@ -371,3 +371,5 @@ body.tab-upload:has(#resultCard:empty):has(#reviewCard:empty) .page-upload .uplo
 .sn-stats strong { font-size: 22px; font-weight: 800; letter-spacing: -.03em; font-variant-numeric: tabular-nums; }
 .sn-stats span { font-size: 12px; font-weight: 700; color: var(--sn-muted); }
 .ci-tile .ci-sub { margin-top: -6px; padding: 0 6px; font-size: 10.5px; line-height: 1.25; font-weight: 600; color: var(--sn-muted); text-align: center; }
+/* Create listing only appears once photos are added (the camera's Analyse also creates it). */
+.page-upload .btn-submit:not(.ready) { display: none; }
