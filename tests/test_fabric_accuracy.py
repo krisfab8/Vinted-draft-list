@@ -87,7 +87,7 @@ def test_writer_preserves_printed_tag_and_removes_generated_condition_assurances
     result=finalize_listing(generated,evidence,{})
     assert result['tagged_size']=='54' and result['normalized_size']=='44R'
     assert 'Immaculate' not in result['description'] and not result['description'].startswith('Excellent Boggi')
-    assert result['description'].count('- Size: UK 44R / EU 54 (label)')==1
+    assert result['description'].count('- Size: UK 44R / EU 54')==1
     assert '• Size:' not in result['description']
     before=result['description'];copy_quality.apply(result,evidence)
     assert result['description']==before

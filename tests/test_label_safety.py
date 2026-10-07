@@ -59,7 +59,7 @@ def test_size_edit_retains_printed_l_updates_only_detail_and_preserves_prose():
     old=dict(tagged_size='L',normalized_size='L',description='My own opening.\n\n- Size: L\n- Material: wool\nMy notes.',manual_fields=['description'])
     new=listing_edits.apply(old,{'normalized_size':'18'})
     assert new['tagged_size']=='L'
-    assert '- Size: 18 (equivalent); L (label)' in new['description']
+    assert '- Size: 18 / L' in new['description']
     assert new['description'].startswith('My own opening.') and new['description'].endswith('My notes.')
     assert '- Material: wool' in new['description']
 

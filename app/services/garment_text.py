@@ -40,6 +40,7 @@ def carry(listing, item):
 
 
 def detail(listing):
+    # Plain wording, no quotes or brackets, so the copy doesn't read machine-made.
     values = normalize(listing.get('garment_text'))
-    return '; '.join('“'+value['text']+'”'+(' ('+value['location']+')' if value['location'] else '')
+    return '; '.join(value['text']+(', '+value['location'] if value['location'] else '')
                      for value in values if value['confidence'] == 'high')

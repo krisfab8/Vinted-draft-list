@@ -39,7 +39,7 @@ def test_fresh_analysis_clones_exact_slots_without_hints_and_preserves_source(sa
     assert response.status_code==200
     result=response.json;target=root/result['folder']
     assert target!=source and (source/'listing.json').read_bytes()==original
-    assert result['normalized_size']=='L' and result['reanalysis_baseline']['Size']=='18 (equivalent); L (label)'
+    assert result['normalized_size']=='L' and result['reanalysis_baseline']['Size']=='18 / L'
     for role in ('front','brand','model_size','material','back'):
         assert (target/(role+'.jpg')).read_bytes()==(source/(role+'.jpg')).read_bytes()
     assert not (target/'contact.jpg').exists()

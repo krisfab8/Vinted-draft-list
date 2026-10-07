@@ -956,8 +956,12 @@ def patch_listing(folder):
         if "normalized_size" in updates:
             new_size = updates["normalized_size"]
             title = listing.get("title", "")
-            if old_size and old_size in title and 'title' not in (old_listing.get('manual_fields') or []):
-                listing["title"] = title.replace(old_size, new_size or '', 1)
+            if old_size and 'title' not in (old_listing.get('manual_fields') or []):
+                from app.services.premium_features import retitle_size
+                if new_size:
+                    retitle_size(listing, old_size)
+                elif old_size in title:
+                    listing["title"] = title.replace(old_size, '', 1)
         from app.services import review_evidence
         review_evidence.capture(listing_path.parent, old_listing)
         from app.validate_listing import validate_or_raise

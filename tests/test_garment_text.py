@@ -24,7 +24,7 @@ def test_real_writer_retains_unfamiliar_markings_when_model_omits_them(monkeypat
     monkeypatch.setattr(listing_writer.anthropic, 'Anthropic', lambda **kw:client)
     listing, _ = listing_writer.write(deepcopy(ITEM))
     assert listing['brand']=='Galvin Green' and listing['garment_text']==ITEM['garment_text']
-    assert '- Logo / print: “'+WORDING+'” (chest embroidery)' in listing['description']
+    assert '- Logo / print: '+WORDING+', chest embroidery' in listing['description']
     assert WORDING not in listing['title']
     first=listing['description']
     description_layout.apply(listing)

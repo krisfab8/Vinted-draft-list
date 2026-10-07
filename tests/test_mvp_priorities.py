@@ -135,7 +135,7 @@ def test_size_correction_updates_saved_detail_without_replacing_seller_prose(ite
     assert response.status_code == 200
     saved = json.loads((folder/'listing.json').read_text())
     assert saved['tagged_size'] == 'L'
-    assert '- Size: 18 (equivalent); L (label)' in saved['description']
+    assert '- Size: 18 / L' in saved['description']
     assert saved['description'].startswith('My own opening.') and saved['description'].endswith('My own notes.')
 
 
@@ -143,5 +143,5 @@ def test_regeneration_size_update_synchronizes_manual_description():
     from app.services.pipeline import preserve_user_fields
     existing = dict(ITEM, tagged_size='L', normalized_size='L', description='My own opening.\n\n- Size: L\nMy own notes.')
     result = preserve_user_fields(existing, deepcopy(existing), {'normalized_size':'18'})
-    assert '- Size: 18 (equivalent); L (label)' in result['description']
+    assert '- Size: 18 / L' in result['description']
     assert result['description'].startswith('My own opening.') and result['description'].endswith('My own notes.')

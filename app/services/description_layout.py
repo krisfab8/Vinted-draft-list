@@ -31,8 +31,12 @@ def _size_text(listing):
             if ((tailoring and number in _EU_TO_UK and uk == f'{_EU_TO_UK[number]}R')
                     or (_is_shoe_item(kind) and number in _EU_TO_UK_SHOE
                         and uk == str(_EU_TO_UK_SHOE[number]))):
-                return f'UK {uk} / EU {number} (label)'
-        return f'{normalized} (equivalent); {tagged} (label)'
+                return f'UK {uk} / EU {number}'
+        # "Large" on the label and "L" saved: one size, written once ("L / Large").
+        if _LETTER_SIZES.get(normalized.upper(), '').casefold() == tagged.casefold():
+            return normalized
+        # Plain wording reads like a person wrote it; no "(equivalent)" / "(label)".
+        return f'{normalized} / {tagged}'
     return normalized or tagged
 
 

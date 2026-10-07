@@ -14,7 +14,7 @@ def test_generated_tailoring_details_have_dual_sizes_before_keywords():
     result = finalize_listing(listing, item)
     desc = result['description']
     assert result['tagged_size'] == '54' and result['normalized_size'] == '44R'
-    assert desc.count('- Size:') == 1 and '- Size: UK 44R / EU 54 (label)' in desc
+    assert desc.count('- Size:') == 1 and '- Size: UK 44R / EU 54' in desc
     labels = ['- Size:', '- Made in:', '- Fabric mill:', '- Fabric line:', '- Fit:', '- Material:']
     assert [desc.index(x) for x in labels] == sorted(desc.index(x) for x in labels)
     assert desc.index('- Size:') < desc.index('Keywords:')
@@ -28,7 +28,7 @@ def test_unknown_size_and_unconfirmed_conversion_stay_unknown():
     listing.update(tagged_size='M', normalized_size='M')
     description_layout.apply(listing)
     assert '- Size: M' in listing['description'] and 'EU' not in listing['description']
-    assert description_layout.size_text(dict(item_type='dress', tagged_size='38', normalized_size='10')) == '10 (equivalent); 38 (label)'
+    assert description_layout.size_text(dict(item_type='dress', tagged_size='38', normalized_size='10')) == '10 / 38'
 
 
 def test_formatting_preserves_measurements_flaws_and_is_repeatable():

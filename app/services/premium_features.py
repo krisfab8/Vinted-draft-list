@@ -91,3 +91,58 @@ def ensure_tag_terms(listing, item, limit=2, max_length=120):
             added += 1
     listing['title'] = title
     return listing
+
+
+def _title_size_pattern(size):
+    from app.services.description_layout import _LETTER_SIZES
+    alternatives = [re.escape(size)]
+    word = _LETTER_SIZES.get(size.upper())
+    if word and word.upper() != size.upper():
+        alternatives.insert(0, '(?i:' + re.escape(word) + ')')
+    return re.compile(r"(?<![\w'’])(?i:size\s+)?(?:" + '|'.join(alternatives) + r")(?![\w'’])")
+
+
+def _title_size_phrase(size):
+    from app.services.description_layout import _LETTER_SIZES
+    word = _LETTER_SIZES.get(size.upper())
+    return f'Size {word}' if word else size
+
+
+def _replace_last(title, pattern, phrase):
+    matches = list(pattern.finditer(title))
+    if not matches:
+        return None
+    last = matches[-1]
+    return title[:last.start()] + phrase + title[last.end():]
+
+
+def ensure_title_size(listing, max_length=120):
+    """Letter sizes read as words in the title: "... Mens Navy L" -> "... Mens Navy Size Large".
+
+    Only for generated copy; caller protects seller-edited titles. Other sizes
+    (W32 L30, UK 10, 40R) are left exactly as written.
+    """
+    size = str(listing.get('normalized_size') or listing.get('tagged_size') or '').strip()
+    phrase = _title_size_phrase(size) if size else ''
+    if not phrase.startswith('Size '):
+        return listing
+    title = listing.get('title') or ''
+    candidate = _replace_last(title, _title_size_pattern(size), phrase)
+    if candidate is None:
+        candidate = f'{title} {phrase}'.strip()
+    if len(candidate) <= max_length:
+        listing['title'] = candidate
+    return listing
+
+
+def retitle_size(listing, old_size):
+    """After a size edit, swap the old size in the title (either written form) for the new one."""
+    old_size = str(old_size or '').strip()
+    new_size = str(listing.get('normalized_size') or '').strip()
+    title = listing.get('title') or ''
+    if not old_size or not new_size:
+        return listing
+    candidate = _replace_last(title, _title_size_pattern(old_size), _title_size_phrase(new_size))
+    if candidate is not None:
+        listing['title'] = candidate
+    return listing

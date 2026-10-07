@@ -41,7 +41,7 @@ Retain fabric mill/line and clearly read tag keywords. Include all high-confiden
 Rank premium natural fibres first; keep every distinct composition entry, including lining.
 Description: one short opening, then dash bullets in order: Size, Made in, Fabric mill,
 Fabric line, Fit, Model, Material. Omit unknown facts. Keep UK and EU/tagged sizes together
-on the first Size line where supported, e.g. '- Size: UK 44R / EU 54 (label)'.
+on the first Size line where supported, e.g. '- Size: UK 44R / EU 54'.
 Do not put condition or flaws in description: the app adds one condition line.
 Keep visible flaws in flaws_note and condition_summary. Never infer storage/history.
 Preserve the supplied condition grade; never improve it. Include known size and exact
