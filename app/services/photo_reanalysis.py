@@ -56,6 +56,11 @@ def promote(source, target, listing, baseline):
     for key in KEEP_FIELDS:
         if baseline.get(key) is not None:
             listing[key] = baseline[key]
+    # Keep the original creation day so streaks and today's count don't move.
+    from app.services.progress import created_on
+    made = baseline.get('created_at') or (baseline.get('run_stats') or {}).get('finished_at') or baseline.get('listed_date')
+    if made or created_on(baseline, source):
+        listing['created_at'] = made or created_on(baseline, source).isoformat()
     for path in target.iterdir():
         if path.is_file() and not path.is_symlink() and path.name not in {'listing.json', 'reanalysis.json', 'photo_roles.json'} \
                 and path.suffix.lower() not in {'.jpg', '.jpeg', '.png', '.webp'}:

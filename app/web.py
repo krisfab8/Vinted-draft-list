@@ -561,16 +561,35 @@ def upload_listing():
     return jsonify(listing), 200
 
 
+def _progress(listings=None) -> dict:
+    from app.services import progress, sales_history
+    return progress.summary(listings if listings is not None else _get_all_listings(), ITEMS_DIR,
+                            profile_svc.daily_goal(profile_svc.load()), sales_history.today())
+
+
+@app.get("/progress")
+def progress_page():
+    from app.services import progress
+    return render_template("progress.html", p=_progress(), active_tab="progress",
+                           rules=[("List an item", progress.XP_LIST), ("Full photo set", progress.XP_FULL_SET),
+                                  ("★ Premium piece", progress.XP_PREMIUM), ("🔥 Hot piece (premium, £40+)", progress.XP_HOT),
+                                  ("Mark it sold", progress.XP_SOLD)])
+
+
 @app.get("/drafts")
 def drafts_page():
-    listings = [item for item in _get_all_listings() if item['inventory_status'] != 'sold']
+    from app.services import progress
+    everything = _get_all_listings()
+    for item in everything:
+        item['tier'] = progress.tier(item)
+    listings = [item for item in everything if item['inventory_status'] != 'sold']
     try:
         folders = {item['folder'] for item in listings}
-        review_count = sum(folder in folders for folder in item_store.get_items_needing_review())
+        review_count = len(folders & set(item_store.get_items_needing_review()))
     except Exception:
         review_count = 0
     return render_template("drafts.html", listings=listings, draft_count=len(listings), active_tab="drafts",
-                           review_count=review_count)
+                           review_count=review_count, progress=_progress(everything))
 
 
 @app.get("/sold")
@@ -669,12 +688,17 @@ def _nav_counts():
         rows = []
     month = date.today().strftime('%Y-%m')
     sold_count = sum(1 for row in rows if row.get('status') == 'sold' and (row.get('sold_date') or '').startswith(month))
-    today, made_today = date.today(), 0
+    from app.services import progress
+    today, made_today = sales_history.today(), 0
     if ITEMS_DIR.exists():
         for item_dir in ITEMS_DIR.iterdir():
             listing = item_dir / "listing.json"
             if item_dir.is_dir() and not item_dir.name.startswith("_") and listing.exists():
-                made_today += date.fromtimestamp(listing.stat().st_ctime) == today
+                # Saved creation time, not file time: a restore from backup resets file times.
+                try:
+                    made_today += progress.created_on(json.loads(listing.read_text()), item_dir) == today
+                except (OSError, ValueError):
+                    continue
     name = profile_svc.load().get("name") or ""
     # Route-supplied values (e.g. draft_count) take precedence over these defaults.
     return {"sold_count": sold_count, "today_count": made_today, "draft_count": _draft_count(),

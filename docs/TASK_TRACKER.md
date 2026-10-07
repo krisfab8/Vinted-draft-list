@@ -302,3 +302,15 @@ Keep IDs stable. Do not rename an open task to hide scope. Split partial work in
   Sell fast at its bottom edge, Balanced in the middle. Band width follows evidence (±8% sales history,
   ±10% web/reference, ±15% AI-only). Previously a flat ±10% with the band centred on the asking price,
   so the needle always looked central.
+
+## 2026-10-07 — Gamification phase 1: streaks, XP, levels, Progress page
+- app/services/progress.py works out streak, best streak, XP, level and premium/hot counts from listings + sales
+  (no storage, no AI). XP: list +10, full 5-photo set +5, ★ premium +15, 🔥 hot (premium and £40+) +25,
+  sold +20 plus £1 profit = 1 XP. Premium = writer flag, premium brand list, or premium material.
+- Streak = days in a row meeting the daily goal; stays alive until today ends (Duolingo-style).
+  Levels: Rookie 0 → Trader 300 → Pro Seller 1200 → Top Seller 4000.
+- /progress page (Upload style): "Day N." hero, week of flames, level bar, today/best/premium/hot tiles, how to earn.
+- Drafts chip is now "🔥 streak · XP" linking to /progress; Upload's today chip links there too.
+  Cards show ★ +15 or 🔥 +25.
+- Fixes: today's count used file times (a backup restore made everything "today" → "17 today"); now uses saved
+  creation time. Deleting a draft updates the bottom-bar count. Re-analysis keeps the original creation day.
