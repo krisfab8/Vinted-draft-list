@@ -220,7 +220,7 @@ header { background: var(--sn-bg); border-bottom: none; padding: calc(12px + env
 #draft-backup-status { padding: 0 !important; font-size: 11px !important; text-align: left; }
 /* Upload is one fixed screen: no page scroll until a result is showing. */
 .tab-upload .private-test-note { display: none; }
-body.tab-upload:has(#resultCard:empty):has(#reviewCard:empty) { height: 100dvh; overflow: hidden; padding-bottom: 0; display: flex; flex-direction: column; }
+body.tab-upload:has(#resultCard:empty):has(#reviewCard:empty) { height: 100dvh; height: var(--app-h, 100dvh); overflow: hidden; padding-bottom: 0; display: flex; flex-direction: column; }
 body.tab-upload:has(#resultCard:empty):has(#reviewCard:empty) main.page-upload { flex: 1; min-height: 0; padding-bottom: calc(92px + env(safe-area-inset-bottom)); }
 body.tab-upload:has(#resultCard:empty):has(#reviewCard:empty) .page-upload .photo-section { min-height: 0; }
 body.tab-upload:has(#resultCard:empty):has(#reviewCard:empty) .page-upload .photo-grid { max-height: none; min-height: 0; }
