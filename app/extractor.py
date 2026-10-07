@@ -8,6 +8,7 @@ Supports VISION_PROVIDER:
 from app.services import model_usage
 
 import base64
+from contextvars import ContextVar
 import io
 import json
 import re
@@ -457,6 +458,11 @@ def _autocrop_label(img: "Image.Image") -> tuple["Image.Image", dict]:
     }
 
 
+# Set by extract() while loading photos when the label OCR will run in parallel:
+# the material photo is then cropped without waiting for OCR.
+_DEFER_LABEL_OCR: ContextVar[bool] = ContextVar("defer_label_ocr", default=False)
+
+
 def _compress_with_autocrop(path: Path, max_dim: int) -> tuple[str, str, dict]:
     """Autocrop to label region (if ENABLE_LABEL_AUTOCROP) then compress.
 
@@ -467,7 +473,19 @@ def _compress_with_autocrop(path: Path, max_dim: int) -> tuple[str, str, dict]:
         from PIL import Image, ImageOps
         img = ImageOps.exif_transpose(Image.open(path)).convert("RGB")
 
-        if ENABLE_LABEL_AUTOCROP and path.stem == "material":
+        if ENABLE_LABEL_AUTOCROP and path.stem == "material" and _DEFER_LABEL_OCR.get():
+            from app.services.label_reader import crop_only
+            original_size = img.size
+            img, preparation = crop_only(path)
+            crop_meta = {
+                "original_size": original_size, "cropped_size": img.size,
+                "crop_applied": preparation.get("rectified", False),
+                "crop_confidence": 1.0 if preparation.get("rectified") else 0.0,
+                "fallback_used": not preparation.get("rectified", False),
+                "label_preparation": preparation,
+                "local_ocr_status": "running_in_parallel",
+            }
+        elif ENABLE_LABEL_AUTOCROP and path.stem == "material":
             from app.services.label_reader import prepare
             original_size = img.size
             img, reading = prepare(path)
@@ -1051,7 +1069,23 @@ def extract(item_folder: str | Path, hints: dict | None = None, *, single_pass: 
                 _photos_found.append(_name)
                 break
 
-    photos, crop_report = _load_photos(folder)
+    # Speed: the material-label OCR (several seconds on a small server) does not
+    # feed the AI call, so run it while the AI reads the photos.
+    # PARALLEL_LABEL_OCR=0 restores the old one-after-the-other order.
+    import os
+    from app.services import label_reader as _label_reader
+    parallel_ocr = os.getenv("PARALLEL_LABEL_OCR", "1") == "1"
+    defer_token = _DEFER_LABEL_OCR.set(parallel_ocr)
+    try:
+        photos, crop_report = _load_photos(folder)
+    finally:
+        _DEFER_LABEL_OCR.reset(defer_token)
+    ocr_pool = ocr_future = None
+    if parallel_ocr:
+        from concurrent.futures import ThreadPoolExecutor
+        ocr_pool = ThreadPoolExecutor(max_workers=1, thread_name_prefix="label-ocr")
+        ocr_future = ocr_pool.submit(_label_reader.read_folder, folder)
+        ocr_pool.shutdown(wait=False)
     # Log auto-crop results for OCR photos
     for role, meta in crop_report.items():
         if meta.get("crop_applied"):
@@ -1115,7 +1149,7 @@ def extract(item_folder: str | Path, hints: dict | None = None, *, single_pass: 
     # Each reread is isolated — failure of one never fails the other.
     # -----------------------------------------------------------------------
     from app.services import label_safety, label_reader
-    independent_material = label_reader.read_folder(folder)
+    independent_material = ocr_future.result() if ocr_future else label_reader.read_folder(folder)
     label_reader.check(result, independent_material)
     print("  Composition evidence: " + json.dumps({k: independent_material.get(k)
         for k in ('status', 'consensus', 'text', 'pairs', 'attempts', 'local_latency_ms')}))

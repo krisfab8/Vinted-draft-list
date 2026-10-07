@@ -294,6 +294,22 @@ def prepare(path):
     return image.copy(), deepcopy(reading)
 
 
+def crop_only(path):
+    """The label crop the AI sees, without running OCR (milliseconds, not seconds).
+
+    Same thumbnail and rectification as _prepare; no OCR-chosen rotation, so a
+    sideways label reaches the AI sideways. OCR still runs (in parallel) and
+    its result still gates the composition.
+    """
+    with Image.open(path) as opened:
+        image = ImageOps.exif_transpose(opened).convert("RGB")
+    image.thumbnail((1600, 1600), Image.Resampling.LANCZOS)
+    try:
+        return crop_label(image)
+    except ImportError:
+        return image, {"rectified": False, "preparation_unavailable": True}
+
+
 def read_folder(folder):
     for extension in (".jpg", ".jpeg", ".png", ".webp"):
         path = Path(folder) / ("material" + extension)
