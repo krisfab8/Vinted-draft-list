@@ -668,6 +668,7 @@
     <div class="draft-card" id="card-{{ item.folder }}" data-folder="{{ item.folder }}" data-status="{{ item.inventory_status }}" data-search="{{ ((item.brand or '') ~ ' ' ~ (item.title or '') ~ ' ' ~ (item.normalized_size or ''))|lower }}" role="button" tabindex="0" aria-label="View {{ item.title or 'listing' }}" onclick="openSheet({{ loop.index0 }})" onkeydown="if(event.target===this &amp;&amp; (event.key==='Enter' || event.key===' ')){event.preventDefault();openSheet({{ loop.index0 }});}">
       <div class="draft-thumb">
         {% if item.inventory_status == 'sold' %}<div class="sold-tag">SOLD</div>{% endif %}
+        {% if item.still_live %}<div class="still-live-tag" title="Take it down on {{ item.still_live|join(', ') }}">⚠ Still on {{ item.still_live|join(', ') }}</div>{% endif %}
         {% if item.thumbnail_url %}
           <img src="{{ item.thumbnail_url }}" alt="{{ item.title }}" loading="lazy" onerror="this.hidden=true;this.nextElementSibling.hidden=false">
           <div class="draft-thumb-placeholder" hidden role="img" aria-label="Photo unavailable"><img src="/static/upload-art.svg" alt=""></div>
@@ -877,16 +878,17 @@ function renderSheet(idx) {
     : "";
 
   document.getElementById("sheetBody").innerHTML = `
+    ${crosslistPanel(item, idx)}
     <section class="sale-panel">
       <h3>${item.outcome?.status === 'sold' ? 'Sold · £'+esc(item.outcome.sold_price_gbp) : 'Sold this item?'}</h3>
       <button type="button" class="btn-sold" onclick="this.hidden=true;this.nextElementSibling.hidden=false">${item.outcome?.status === 'sold' ? 'Edit sale' : 'Sold'}</button>
       <form class="sale-form" hidden onsubmit="saveOutcome(event, '${esc(item.folder)}')">
         <input type="hidden" name="status" value="sold">
         <label>Sold for (£, excluding postage)<input required name="sold_price_gbp" type="number" inputmode="decimal" min="0.01" max="100000" step="0.01" value="${esc(item.outcome?.sold_price_gbp ?? '')}" placeholder="e.g. 45"></label>
+        <label>Sold on<select name="platform">${['Vinted','eBay','Depop','Other'].map(p=>`<option ${soldOnDefault(item)===p?'selected':''}>${p}</option>`).join('')}</select></label>
         <label>Purchase cost (£, optional)<input name="buy_price_gbp" type="number" inputmode="decimal" min="0" max="100000" step="0.01" value="${esc(item.outcome?.buy_price_gbp ?? item.buy_price_gbp ?? '')}" placeholder="Leave blank if unknown"></label>
         <p class="sale-note">${item.outcome?.sold_date ? 'Recorded '+monthYear(item.outcome.sold_date)+'.' : 'Sale date is saved as today.'} ${item.outcome?.published_date ? 'Your publication date is already saved.' : 'Add the date it went live below if known.'}</p>
-        <details><summary>More details · dates, platform &amp; costs</summary><div class="sale-extra">
-          <label>Platform<select name="platform">${['Vinted','eBay','Depop','Other'].map(p=>`<option ${item.outcome?.platform===p?'selected':''}>${p}</option>`).join('')}</select></label>
+        <details><summary>More details · dates &amp; costs</summary><div class="sale-extra">
           <label>Sale date<input name="sold_date" type="date" value="${esc(item.outcome?.sold_date || '')}"></label>
           <label>First published date (if known)<input name="published_date" type="date" value="${esc(item.outcome?.published_date || '')}"></label>
           <label>Selling costs (£, optional)<input name="selling_cost_gbp" type="number" inputmode="decimal" min="0" max="100000" step="0.01" value="${esc(item.outcome?.selling_cost_gbp ?? '')}" placeholder="Fees or seller-paid postage"></label>
@@ -999,6 +1001,51 @@ document.addEventListener('keydown', event => {
   }
 });
 
+/* ── Cross-listing: where it's listed, and what to take down once it sells ── */
+const XL_PLATFORMS = ['Vinted', 'eBay', 'Depop', 'Other'];
+function soldOnDefault(item) {
+  if (item.outcome?.platform) return item.outcome.platform;
+  const live = Object.entries(item.crosslist || {}).filter(([, e]) => e.status === 'live').map(([p]) => p);
+  return live.length === 1 ? live[0] : 'Vinted';
+}
+function crosslistPanel(item, idx) {
+  if (!item.folder) return '';
+  const where = item.crosslist || {};
+  if (item.outcome?.status === 'sold') {
+    const removed = Object.entries(where).filter(([, e]) => e.status === 'removed').map(([p]) => p);
+    if (!(item.still_live || []).length && !removed.length) return '';
+    return `<section class="xl-panel${(item.still_live || []).length ? ' warn' : ''}" aria-label="Other listings">
+      ${(item.still_live || []).length ? `<h3>Take it down so it can't sell twice</h3>` : ''}
+      ${(item.still_live || []).map(p => `<div class="xl-task"><b>Still live on ${esc(p)}</b>
+        ${where[p]?.url ? `<a class="xl-open" href="${esc(where[p].url)}" target="_blank" rel="noopener">Open</a>` : ''}
+        <button type="button" class="xl-done" onclick="crosslistSet(${idx},'${esc(p)}','removed',this)">Removed ✓</button></div>`).join('')}
+      ${removed.length ? `<p class="xl-ok">✓ Removed from ${removed.map(esc).join(', ')}</p>` : ''}
+    </section>`;
+  }
+  return `<section class="xl-panel" aria-label="Listed on"><h3>Listed on</h3><div class="xl-chips">
+    ${XL_PLATFORMS.map(p => {
+      const on = where[p]?.status === 'live', fixed = p === 'Vinted' && !!item.draft_url;
+      return `<button type="button" class="xl-chip${on ? ' on' : ''}" aria-pressed="${on}" ${fixed ? 'disabled title="Has a Vinted draft"' : ''}
+        onclick="crosslistSet(${idx},'${p}','${on ? 'unlisted' : 'listed'}',this)">${on ? '✓ ' : ''}${p}</button>`;
+    }).join('')}</div>
+    <p class="sale-note">When it sells on one, we'll remind you to take it down on the others.</p></section>`;
+}
+async function crosslistSet(idx, platform, action, btn) {
+  const item = LISTINGS[idx];
+  btn.disabled = true;
+  try {
+    const response = await fetch('/listing/' + encodeURIComponent(item.folder) + '/crosslist', {method: 'POST',
+      headers: {'Content-Type': 'application/json'}, body: JSON.stringify({platform, action})});
+    const result = await response.json().catch(() => ({error: 'The server was busy. Try again in a minute.'}));
+    if (!response.ok) throw new Error(result.error || 'Could not save');
+    item.crosslist = result.crosslist;
+    item.still_live = result.still_live;
+    await window.DraftArchive?.flush?.();
+    renderSheet(idx);
+    if (action === 'removed' && !result.still_live.length) showToast('All clear: only sold where it sold.');
+  } catch (error) { showToast(error.message); btn.disabled = false; }
+}
+
 async function saveOutcome(event, folder) {
   event.preventDefault();
   const form = event.target;
@@ -1016,6 +1063,8 @@ async function saveOutcome(event, folder) {
     const result = await response.json();
     if (!response.ok) throw new Error(result.error || 'Could not save');
     await window.DraftArchive?.flush();
+    const pending = (result.delist || []).filter(task => !task.done);
+    if (pending.length) { location.href = '/sold?open=' + encodeURIComponent(folder); return; }
     location.reload();
   } catch (error) { showToast(error.message); }
   finally { button.disabled = false; }
@@ -1249,6 +1298,12 @@ async function createDraftFromSheet(folder) {
 
 document.addEventListener("DOMContentLoaded", () => {
   if (location.pathname !== '/sold') checkAuthOnLoad();
+  const openFolder = new URLSearchParams(location.search).get('open');
+  if (openFolder) {
+    const idx = LISTINGS.findIndex(item => item.folder === openFolder);
+    if (idx !== -1) openSheet(idx);
+    history.replaceState(null, '', location.pathname);
+  }
   // Pages refresh themselves: coming back via the back button reloads fresh data.
   window.addEventListener("pageshow", e => { if (e.persisted) location.reload(); });
 });

@@ -356,3 +356,11 @@ Keep IDs stable. Do not rename an open task to hide scope. Split partial work in
 - `app/static/coin.js` + `.coin*` CSS: real 3D brass coin (two faces, stacked rim, moving light/sheen, floor shadow).
   Sways and flips every ~5s; `Coin.earn(el)` fast spin + sparkles; `Coin.fly(x, y, text)` for "+10 XP".
   Used on Progress (tap to spin), the Drafts XP chip, and the upload celebration.
+
+## Auto-delist when sold (phase 1)
+- `app/services/crosslist.py`: where each item is listed (stored in listing.json "crosslist"; a Vinted draft counts
+  as listed on Vinted). On a sale, `after_sale()` ends it automatically where a delister exists (eBay later) and
+  returns a checklist for the rest. Vinted removal is always a manual tap.
+- `POST /listing/<folder>/crosslist` {platform, action: listed|unlisted|removed}; outcome POST returns `delist`.
+- Drafts sheet: "Listed on" chips, "Sold on" picker; after a sale, opens on Sold with "Take it down so it can't sell
+  twice"; sold cards show "⚠ Still on …" until ticked. Tests: tests/test_crosslist.py.

@@ -732,7 +732,7 @@ def _get_all_listings() -> list[dict]:
     listings = []
     if not ITEMS_DIR.exists():
         return listings
-    from app.services import sales_history
+    from app.services import sales_history, crosslist
     outcomes = {row['folder']: row for row in sales_history.read_all()}
     dirs = sorted(ITEMS_DIR.iterdir(), key=lambda p: p.stat().st_mtime, reverse=True)
     for item_dir in dirs:
@@ -746,6 +746,7 @@ def _get_all_listings() -> list[dict]:
             listing["folder"] = item_dir.name
             listing['outcome'] = outcomes.get(item_dir.name)
             listing['inventory_status'] = (listing['outcome'] or {}).get('status', 'draft')
+            crosslist.decorate(listing, listing['outcome'])
             # A saved thumbnail URL may outlive its file after a restore.
             listing.pop("thumbnail_url", None)
             for role in ["front", "back", "brand"]:
@@ -931,6 +932,8 @@ def get_listing(folder):
     from app.services import sales_history
     listing['outcome'] = sales_history.get(safe_folder)
     listing['sales_history'] = sales_history.comparisons(listing)
+    from app.services import crosslist
+    crosslist.decorate(listing, listing['outcome'])
     from app.services.ebay_comps import search_links, EbayQueryError
     try:
         listing['ebay_links'] = search_links(listing)

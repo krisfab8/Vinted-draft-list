@@ -20,8 +20,10 @@ Newest at the top. Move items to TASK_TRACKER.md when done.
   end it on the other. Needs a free eBay developer account and one-time "connect eBay" sign-in.
 
 ## From competitor research (see docs/COMPETITORS.md)
-- **Auto-delist when sold** — the main reason people pay for these tools. eBay tells us about sales automatically;
-  for Vinted, start with one tap: "Sold on Vinted → end the eBay listing".
+- [~] **Auto-delist when sold** — DONE: "Listed on" chips per item, "Sold on" picker, and after a sale a
+  "Take it down" checklist plus a "⚠ Still on …" badge until ticked (`app/services/crosslist.py`).
+  NEXT: register an eBay delister in `crosslist.DELISTERS` once eBay is connected (ends it automatically),
+  and listen for eBay sale notices so selling on eBay marks it sold here.
 - **Depop via its official partner API** — invitation only: email Depop's partner team (Vendoo got in in 2026).
   Safest second platform for clothing.
 - **Price per platform** — show each platform's fees and suggest a price for each (eBay vs Vinted buyers differ).

@@ -66,7 +66,7 @@ header { background: var(--sn-bg); border-bottom: none; padding: calc(12px + env
 .btn-submit:active, .btn-create:active { transform: scale(.98); box-shadow: none; }
 .btn-submit:disabled { background: var(--sn-card); color: var(--sn-muted); border: 1px solid var(--sn-line); opacity: 1; }
 .btn-vinted, .btn-save-review, .btn-sheet-vinted { background: var(--sn-text); color: #fff; border-radius: 999px; box-shadow: none; }
-.btn-sold { border-radius: 999px; box-shadow: none; }
+.btn-sold { border-radius: 999px; box-shadow: none; background: var(--sn-pop) !important; color: var(--sn-on-pop) !important; }
 :focus-visible, input[type]:focus-visible { outline-color: var(--sn-text); }
 
 /* Motion vocabulary (also used by JS). */
@@ -518,3 +518,22 @@ button.st-link { width: 100%; background: none; border: 0; font: inherit; font-w
   border-radius: 18px; background: var(--sn-card); border: 1px solid var(--sn-line); color: var(--sn-text);
   font-size: 15px; font-weight: 700; text-decoration: none; -webkit-tap-highlight-color: transparent; }
 .sn-back:active { transform: scale(.96); }
+
+/* Cross-listing: where it's listed / take it down after a sale */
+.xl-panel { background: var(--sn-card); border: 1px solid var(--sn-line); border-radius: 20px; padding: 14px 16px; margin-bottom: 12px; }
+.xl-panel h3 { margin: 0 0 10px; font-size: 15px; font-weight: 800; }
+.xl-panel.warn { background: #FBF1E4; border-color: #E9C9A0; }
+.xl-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.xl-chip { height: 38px; padding: 0 14px; border-radius: 19px; border: 1px solid var(--sn-line2); background: var(--sn-bg);
+  font: 700 14px/1 inherit; color: var(--sn-text); }
+.xl-chip.on { background: var(--sn-pop); border-color: var(--sn-pop); color: var(--sn-on-pop); }
+.xl-chip:disabled { opacity: 1; }
+.xl-task { display: flex; align-items: center; gap: 8px; padding: 8px 0; border-top: 1px solid #EBD5B8; }
+.xl-task:first-of-type { border-top: 0; }
+.xl-task b { flex: 1; font-size: 14px; }
+.xl-open, .xl-done { height: 36px; padding: 0 14px; border-radius: 18px; font: 800 13px/36px inherit; text-decoration: none; white-space: nowrap; }
+.xl-open { border: 1px solid var(--sn-line2); background: var(--sn-card); color: var(--sn-text); }
+.xl-done { border: 0; background: var(--sn-pop); color: var(--sn-on-pop); }
+.xl-ok { margin: 6px 0 0; font-size: 13px; font-weight: 700; color: var(--sn-pop); }
+.still-live-tag { position: absolute; left: 10px; top: 46px; max-width: calc(100% - 20px); z-index: 2; padding: 5px 8px; border-radius: 10px;
+  background: #B8552B; color: #FFF8EE; font-size: 11px; font-weight: 800; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
