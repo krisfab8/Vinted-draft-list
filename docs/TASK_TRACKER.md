@@ -339,3 +339,13 @@ Keep IDs stable. Do not rename an open task to hide scope. Split partial work in
   (review, edit, reprice, analyse, photo or backup request). Summary-only items are never uploaded, and a backup
   of one is refused until its photos arrive, so nothing incomplete can overwrite a full copy.
   Item fingerprints are content-based, so phones don't re-download unchanged items after a wake-up.
+
+## 2026-10-08 — Vinted phone-app prototype (Android)
+- `android/`: minimal Java app — our site in a WebView plus a built-in Vinted window (login stays on the phone),
+  "← Lister" button, JS bridge (startFill / getPayload / report / openVinted; each checks the calling site).
+- `app/static/vinted_filler.js`: ports the desktop robot's steps and Vinted form IDs to in-page JS; fills, shows
+  a ✓/✗ panel, and only saves when the seller taps Save draft. Tested against a mock form (11/11 steps).
+- Server: `/api/vinted-fill/<folder>` (payload incl. photos as data URLs, same mappings as the robot via
+  `app/services/vinted_payload.py`); `/api/vinted-fill-report` logs reports and stores a saved draft's Vinted link.
+- Review page shows "Fill Vinted for me" + "Log in to Vinted" only inside the app.
+- `.github/workflows/android-prototype.yml` builds the APK and attaches it to the "android-prototype" release.

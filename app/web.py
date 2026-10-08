@@ -1643,6 +1643,46 @@ def update_profile():
     return jsonify(profile)
 
 
+@app.get("/api/vinted-fill/<folder>")
+def vinted_fill_payload(folder):
+    """Phone app: everything needed to fill Vinted's sell form for this listing (photos inline)."""
+    from app.services import vinted_payload
+    path = ITEMS_DIR / Path(folder).name
+    if not (path / "listing.json").is_file():
+        return jsonify(error="Listing not found"), 404
+    return jsonify(vinted_payload.build(json.loads((path / "listing.json").read_text()), path))
+
+
+@app.post("/api/vinted-fill-report")
+def vinted_fill_report():
+    """Phone app: what the form filler found and filled. Kept for debugging; a saved draft's
+    Vinted link is stored on the listing so it shows as "In Vinted drafts"."""
+    from urllib.parse import urlsplit
+    report = request.get_json(silent=True)
+    if not isinstance(report, dict):
+        return jsonify(error="Report missing"), 400
+    keep = {k: report.get(k) for k in ("folder", "url", "ua", "found", "steps", "filled", "total", "saved",
+                                       "draft_url", "error", "errors")}
+    keep["at"] = datetime.now().isoformat(timespec="seconds")
+    line = json.dumps(keep, default=str)[:20000]
+    path = ROOT / "data" / "vinted_fill_reports.jsonl"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("a") as out:
+        out.write(line + "\n")
+    app.logger.warning("Vinted fill report: %s", line[:1500])
+    folder, draft_url = str(keep.get("folder") or ""), keep.get("draft_url")
+    host = urlsplit(draft_url).netloc if isinstance(draft_url, str) else ""
+    if keep.get("saved") and (host == "vinted.co.uk" or host.endswith(".vinted.co.uk")) \
+            and (ITEMS_DIR / Path(folder).name / "listing.json").is_file():
+        with listing_state.locked(ITEMS_DIR, Path(folder).name):
+            listing_path = ITEMS_DIR / Path(folder).name / "listing.json"
+            listing = json.loads(listing_path.read_text())
+            listing["draft_url"] = draft_url
+            listing.pop("draft_error", None)
+            listing_state.write(listing_path, listing)
+    return jsonify(ok=True)
+
+
 @app.get("/privacy")
 def privacy_page():
     return render_template("privacy.html")

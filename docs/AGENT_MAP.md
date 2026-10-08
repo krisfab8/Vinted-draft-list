@@ -25,6 +25,7 @@
 | Re-analysis | `/reanalyze` in `web.py` + `app/services/photo_reanalysis.py` |
 | Sign-in, removals, delete-my-data | `app/hosted.py`, `app/services/removed_items.py`, `account_data.py`, `signin.html`, `privacy.html` |
 | Cloud backup + light restore | `app/services/cloud_store.py` (hydrate), `item_backup.py` (summary, stub helpers) |
+| Phone app + Vinted filler | `android/` (MainActivity.java), `app/static/vinted_filler.js`, `app/services/vinted_payload.py` |
 | Draft automation | `app/draft_creator.py` (fragile — minimal edits only) |
 | Change log | `docs/TASK_TRACKER.md` (append one short entry per change) |
 

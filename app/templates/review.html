@@ -577,6 +577,15 @@ async function markPosted() {
   finally { btn.disabled = false; }
 }
 if (location.hash === '#post') setTimeout(openPostSheet, 300);
+// Inside the phone app: it can open Vinted and fill the sell form itself.
+if (window.AndroidBridge) document.getElementById('postAuto')?.removeAttribute('hidden');
+async function fillVintedInApp() {
+  try {
+    const r = await fetch(`/api/vinted-fill/${encodeURIComponent(FOLDER)}`);
+    if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || 'Could not load the listing');
+    window.AndroidBridge.startFill(JSON.stringify(await r.json()));
+  } catch (error) { showToast(error.message); }
+}
 const PRICE_RANGE = {{ (listing.price_range or none) | tojson }};
 const PRICE_REASONS = {{ (listing.price_adjustments or []) | tojson }};
 document.getElementById('priceGauge').innerHTML =

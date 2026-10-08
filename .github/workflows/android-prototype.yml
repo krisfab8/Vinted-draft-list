@@ -1,0 +1,43 @@
+name: Android prototype
+
+# Builds the phone app (debug-signed APK) and attaches it to the "android-prototype" release,
+# so there is one stable download link. Runs when the app or the Vinted form filler changes.
+on:
+  push:
+    branches: [claude/friendly-goodall-hqvukz, work/vinted-cost-measurements]
+    paths: ["android/**", "app/static/vinted_filler.js", ".github/workflows/android-prototype.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.10.2"
+      - name: Bundle the Vinted form filler
+        run: cp app/static/vinted_filler.js android/app/src/main/assets/vinted_filler.js
+      - name: Build APK
+        run: gradle -p android assembleDebug --no-daemon
+      - name: Rename
+        run: cp android/app/build/outputs/apk/debug/app-debug.apk VintedLister-prototype.apk
+      - uses: actions/upload-artifact@v4
+        with:
+          name: VintedLister-prototype
+          path: VintedLister-prototype.apk
+      - name: Publish to the android-prototype release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release view android-prototype >/dev/null 2>&1 || \
+            gh release create android-prototype --prerelease --title "Android prototype" \
+              --notes "Test build of the phone app. Install on Android: allow installs from your browser when asked." --target "$GITHUB_SHA"
+          gh release upload android-prototype VintedLister-prototype.apk --clobber

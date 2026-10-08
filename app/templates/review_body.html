@@ -132,6 +132,11 @@
 <dialog class="sn-sheet post-sheet" id="postSheet" aria-labelledby="postTitle">
   <div class="sn-grab"></div>
   <h2 id="postTitle">Post on Vinted</h2>
+  <div class="post-auto" id="postAuto" hidden>
+    <button type="button" class="rv-primary" onclick="fillVintedInApp()">Fill Vinted for me</button>
+    <button type="button" class="post-cancel" onclick="window.AndroidBridge.openVinted()">Log in to Vinted</button>
+    <p class="post-or">or do it by hand</p>
+  </div>
   <ol class="post-steps">
     <li><span class="post-n">1</span><button type="button" class="post-btn" id="postPhotos" onclick="sharePhotos()">Save photos <small>{{ photos|length }}</small></button></li>
     <li><span class="post-n">2</span><a class="post-btn" href="https://www.vinted.co.uk/items/new" target="_blank" rel="noopener">Open Vinted</a></li>

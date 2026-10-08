@@ -2,6 +2,15 @@
 
 Newest at the top. Move items to TASK_TRACKER.md when done.
 
+## Main route to launch: phone app that fills Vinted drafts (no computer needed)
+- [~] **Vinted prototype (Android)** — app with a built-in Vinted window: log in once on the phone, tap
+  "Fill Vinted for me", it fills the sell form (photos, category, title, description, brand, size, condition,
+  colour, material, price, parcel); seller checks and taps Save draft. Built from `android/` by GitHub Actions
+  (release "android-prototype"). NEXT: install on a real phone and read the fill report (Render logs /
+  data/vinted_fill_reports.jsonl) to see which fields Vinted's mobile site accepts.
+- **eBay connect + listing** via eBay's official API (works from any phone, no robot).
+- **Publish Android app** to Google Play ($25 one-off); iPhone later ($99/year, stricter review).
+
 ## Next up
 - **Run the app on your own computer for free testing** — one-command start + free Cloudflare Tunnel
   (secure web address for the phone), photos stored on your own disk, Vinted draft robot switched back on

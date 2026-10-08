@@ -65,3 +65,8 @@ data/model_calls.jsonl
 
 data/ebay_comps_cache.json
 items/_locks/
+android/.gradle/
+android/build/
+android/app/build/
+android/app/src/main/assets/vinted_filler.js
+android/local.properties
