@@ -1328,6 +1328,9 @@
   /* Guided / Pro capture: stitched ghost, quality states, light intro panels. */
   .camera-top { align-items:flex-start; gap:10px; }
   .camera-top-group { display:flex; gap:8px; }
+  .camera-mode-btn { height:44px; padding:0 12px 0 16px; border-radius:22px; border:0; background:rgba(0,0,0,.45); color:#fff;
+    display:inline-flex; align-items:center; gap:4px; font:800 15px/1 inherit; backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px); }
+  .camera-mode-btn svg { width:18px; height:18px; fill:none; stroke:#fff; stroke-width:2.4; stroke-linecap:round; stroke-linejoin:round; }
   .camera-step { margin-top:4px; padding:8px 18px; border-radius:999px; background:rgba(15,23,42,.6); font-size:18px; font-weight:800; }
   .camera-step:empty { display:none; }
   .camera-ghost { position:absolute; inset:0; z-index:0; pointer-events:none; }
@@ -1530,6 +1533,7 @@
     <div class="camera-top">
       <div class="camera-top-group">
         <button type="button" id="cameraClose" class="camera-icon" aria-label="Close camera"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg></button>
+        <button type="button" id="cameraModeBtn" class="camera-mode-btn" aria-label="Change photo mode: Guided or Pro" hidden><span>Guided</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button>
         <button type="button" id="cameraTorch" class="camera-icon" aria-label="Camera light" aria-pressed="false" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m13 2-9 12h7l-1 8 10-13h-7z"/></svg></button>
       </div>
       <div id="cameraStep" class="camera-step"></div>

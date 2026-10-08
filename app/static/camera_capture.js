@@ -139,6 +139,8 @@ function createPhotoCamera({getPhotos, addPhotos, removePhoto, pickGallery, pick
   /* ── Guide overlay ── */
   function setGuide() {
     const guided = mode() !== 'free';
+    const modeBtn = el('cameraModeBtn');   // switch Guided/Pro from inside the camera
+    if (modeBtn) { modeBtn.hidden = !el('cameraIntro'); modeBtn.querySelector('span').textContent = mode() === 'pro' ? 'Pro' : 'Guided'; }
     dialog.classList?.toggle?.('camera-guided', mode() === 'guided');
     dialog.classList?.toggle?.('camera-pro', mode() === 'pro');
     const ghost = el('cameraGhost');
@@ -382,7 +384,8 @@ function createPhotoCamera({getPhotos, addPhotos, removePhoto, pickGallery, pick
     let html = '';
     if (name === 'mode') {
       const current = getMode();
-      html = `<div class="ci-kicker">Photos</div><h2>How do you list?</h2>
+      html = `<button type="button" class="ci-back" data-go="close" aria-label="Close"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg></button>
+        <div class="ci-kicker">Photos</div><h2>How do you list?</h2>
         <button type="button" class="ci-mode${current !== 'pro' ? ' on' : ''}" data-mode="guided">
           <span class="ci-mode-art">${cameraIcon('top', {size: 42})}</span>
           <span class="ci-mode-text"><b>Guided</b><small>Step by step</small><span class="ci-bars">${'<i></i>'.repeat(5)}</span></span>
@@ -441,6 +444,7 @@ function createPhotoCamera({getPhotos, addPhotos, removePhoto, pickGallery, pick
     }
     if (target.dataset.shape) { shape = target.dataset.shape; steps = cameraSteps(shape); return showPanel('shots'); }  // one tap picks
     const go = target.dataset.go;
+    if (go === 'close') return close();
     if (go === 'mode') return showPanel('mode');
     if (go === 'pick') return showPanel('pick');
     if (go === 'shots') return showPanel('shots');
@@ -460,6 +464,7 @@ function createPhotoCamera({getPhotos, addPhotos, removePhoto, pickGallery, pick
   }
 
   el('cameraClose').onclick = close; el('cameraDone').onclick = close;
+  if (el('cameraModeBtn')) el('cameraModeBtn').onclick = () => { if (!busy) showPanel('mode'); };
   el('cameraShutter').onclick = shoot;
   el('cameraFlip').onclick = () => { if (!busy) { facing = facing === 'environment' ? 'user' : 'environment'; start(); } };
   el('cameraGallery').onclick = pickGallery;
