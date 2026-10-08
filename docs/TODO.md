@@ -19,6 +19,16 @@ Newest at the top. Move items to TASK_TRACKER.md when done.
   photos, category, item specifics (brand, size, colour, department), price; when it sells on one platform,
   end it on the other. Needs a free eBay developer account and one-time "connect eBay" sign-in.
 
+## From competitor research (see docs/COMPETITORS.md)
+- **Auto-delist when sold** — the main reason people pay for these tools. eBay tells us about sales automatically;
+  for Vinted, start with one tap: "Sold on Vinted → end the eBay listing".
+- **Depop via its official partner API** — invitation only: email Depop's partner team (Vendoo got in in 2026).
+  Safest second platform for clothing.
+- **Price per platform** — show each platform's fees and suggest a price for each (eBay vs Vinted buyers differ).
+- **Refresh stale listings + import existing listings** (Vendoo charges $4.99/month for each).
+- **Our pricing** — free tier of ~10 items/month, then cheaper than rivals' $29 entry plans.
+- Keep Vinted human-tapped only: no bulk or background posting (Vinted is suspending automated accounts).
+
 ## Later
 - Separate data per person (before inviting other sellers).
 - Switch cloud photo storage to Cloudflare R2 (free downloads, 10 GB free).
