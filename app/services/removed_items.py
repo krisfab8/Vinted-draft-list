@@ -64,6 +64,9 @@ def merge_retests(items_dir: Path) -> dict:
         source = Path(items_dir) / str(source_name)
         if not source_name or not (source / "listing.json").is_file():
             continue
+        from app.services.item_backup import is_stub
+        if is_stub(source) or is_stub(target):
+            continue  # photos still in the cloud; startup fetches these pairs first
         original = json.loads((source / "listing.json").read_text())
         if (target / "listing.json").is_file() and not _operator_touched(original, source.name):
             listing = json.loads((target / "listing.json").read_text())

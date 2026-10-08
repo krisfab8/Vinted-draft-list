@@ -297,6 +297,7 @@
   (function(){ function fit(){ document.documentElement.style.setProperty('--app-h', window.innerHeight + 'px'); }
     fit(); window.addEventListener('resize', fit); window.addEventListener('orientationchange', fit); })();
 </script>
+{% if hosted_test %}<meta name="hosted" content="1">{% endif %}
 </head>
 <body class="tab-{{ active_tab or 'none' }}">
 {% if hosted_test %}

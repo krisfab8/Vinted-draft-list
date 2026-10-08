@@ -425,3 +425,22 @@ button.st-link { width: 100%; background: none; border: 0; font: inherit; font-w
 .st-danger-btn { margin-top: 16px; width: 100%; height: 56px; border: 0; border-radius: 999px; background: var(--sn-red); color: #fff; font: inherit; font-size: 17px; font-weight: 800; }
 .st-danger-btn:disabled { opacity: .35; }
 .st-cancel { margin-top: 8px; width: 100%; height: 48px; border: 0; background: none; font: inherit; font-weight: 700; color: var(--sn-muted); }
+
+/* ── Post on Vinted hand-off sheet ── */
+.post-sheet h2 { margin-bottom: 14px; }
+.post-steps { list-style: none; display: flex; flex-direction: column; gap: 12px; margin: 0 0 14px; padding: 0; }
+.post-steps li { display: flex; gap: 12px; align-items: flex-start; }
+.post-n { flex-shrink: 0; width: 28px; height: 28px; margin-top: 12px; border-radius: 14px; background: var(--sn-text); color: #fff; display: grid; place-items: center; font-size: 14px; font-weight: 800; }
+.post-btn { flex: 1; height: 52px; border-radius: 16px; border: 1px solid var(--sn-line); background: var(--sn-card); display: flex; align-items: center; justify-content: center; gap: 8px; font: inherit; font-size: 16px; font-weight: 800; color: var(--sn-text); text-decoration: none; }
+.post-btn small { font-size: 13px; color: var(--sn-muted); }
+.post-btn.done { background: var(--brand-pale, #EEF9D0); border-color: var(--sn-pop-deep); }
+.post-copy { flex: 1; display: flex; flex-direction: column; border: 1px solid var(--sn-line); border-radius: 16px; overflow: hidden; background: var(--sn-card); }
+.post-row { display: flex; justify-content: space-between; align-items: center; min-height: 50px; padding: 0 14px; border: 0; background: none; font: inherit; font-size: 15px; font-weight: 700; color: var(--sn-text); }
+.post-row + .post-row { border-top: 1px solid var(--sn-line); }
+.post-row b { color: var(--sn-pop-deep); font-weight: 800; }
+.post-row.done b { color: var(--sn-text); }
+.post-facts { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 16px 40px; }
+.post-facts span { display: flex; flex-direction: column; padding: 8px 12px; border-radius: 12px; background: var(--sn-bg); font-size: 14px; font-weight: 700; }
+.post-facts small { font-size: 11px; color: var(--sn-muted); font-weight: 700; }
+.post-cancel { width: 100%; height: 46px; margin-top: 6px; border: 0; background: none; font: inherit; font-weight: 700; color: var(--sn-muted); }
+.post-sheet .rv-primary { width: 100%; display: flex; align-items: center; justify-content: center; }

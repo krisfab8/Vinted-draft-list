@@ -38,6 +38,11 @@ def _rate_limited(ip):
     return len(recent) >= _SIGNIN_LIMIT
 
 
+def web_items_dir():
+    from app import web
+    return web.ITEMS_DIR
+
+
 def valid_folder(folder):
     if not isinstance(folder, str) or not _FOLDER.fullmatch(folder):
         return False
@@ -80,6 +85,14 @@ def _tidy_duplicates(cloud):
     from app import web
     from app.services import removed_items
     try:
+        if cloud:   # duplicate pairs need their full files before merging (only a few)
+            for target in web.ITEMS_DIR.glob("upload_retest_*"):
+                try:
+                    source = json.loads((target / "reanalysis.json").read_text()).get("source")
+                except (OSError, ValueError, AttributeError):
+                    continue
+                if cloud.hydrate(target.name) and source and (web.ITEMS_DIR / source).is_dir():
+                    cloud.hydrate(source)
         result = removed_items.merge_retests(web.ITEMS_DIR)
         for folder in result["merged"]:
             web._sync_item_status(folder, json.loads((web.ITEMS_DIR / folder / "listing.json").read_text()))
@@ -168,6 +181,16 @@ def create_app():
             folder = body["folder"]
         if folder is not None and not valid_folder(folder):
             return jsonify(error="Invalid item folder"), 400
+        # Restored as a summary after a wake-up: fetch the item's photos the first time it's used.
+        if cloud:
+            wanted = folder if folder is not None and request.method != "DELETE" else None
+            if request.path == "/api/private/backup":
+                wanted = request.args.get("folder")
+                if not wanted:   # full backup download: everything
+                    for item in list(web_items_dir().glob("upload_*")):
+                        cloud.hydrate(item.name)
+            if wanted and not request.path.endswith("/_thumb.jpg") and valid_folder(wanted):
+                cloud.hydrate(wanted)
         if request.path in _BROWSER_ROUTES or request.path.startswith("/tracker/refresh/"):
             return jsonify(error="Vinted browser operations require the local app", code="LOCAL_BROWSER_REQUIRED"), 503
         if request.path == "/auth/status":

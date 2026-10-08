@@ -519,6 +519,64 @@
 <script src="{{ url_for('static', filename='price_gauge.js') }}"></script>
 <script>
 const FOLDER = {{ folder | tojson }};
+const PHOTOS = {{ (photos or []) | tojson }};
+
+// ── Post on Vinted hand-off: photos, open Vinted, copy the words, mark live ──
+function openPostSheet() { document.getElementById('postSheet')?.showModal(); }
+async function copyText(text) {
+  try { await navigator.clipboard.writeText(text); return true; }
+  catch (_) {
+    const area = Object.assign(document.createElement('textarea'), {value: text});
+    document.body.appendChild(area); area.select();
+    const ok = document.execCommand('copy'); area.remove(); return ok;
+  }
+}
+document.querySelectorAll('.post-row[data-copy]').forEach(row => row.addEventListener('click', async () => {
+  const key = row.dataset.copy;
+  const text = key === 'title' ? document.getElementById('f-title')?.value
+             : key === 'description' ? document.getElementById('f-description')?.value
+             : String(document.getElementById('f-price')?.value || '');
+  if (await copyText((text || '').trim())) {
+    row.classList.add('done'); row.querySelector('b').textContent = 'Copied ✓';
+  } else showToast('Copy failed — press and hold to copy');
+}));
+async function sharePhotos() {
+  const btn = document.getElementById('postPhotos');
+  btn.disabled = true;
+  try {
+    const files = await Promise.all(PHOTOS.map(async (name, i) => {
+      const blob = await (await fetch(`/items/${encodeURIComponent(FOLDER)}/${encodeURIComponent(name)}`)).blob();
+      return new File([blob], `${String(i + 1).padStart(2, '0')}-${name}`, {type: blob.type || 'image/jpeg'});
+    }));
+    if (navigator.canShare && navigator.canShare({files})) {
+      await navigator.share({files});            // pick Vinted or "Save to gallery"
+    } else {
+      files.forEach(file => {                    // desktop / older phones: download them
+        const a = Object.assign(document.createElement('a'), {href: URL.createObjectURL(file), download: file.name});
+        document.body.appendChild(a); a.click(); a.remove();
+      });
+    }
+    btn.classList.add('done');
+  } catch (error) {
+    if (error?.name !== 'AbortError') showToast('Could not save photos');
+  } finally { btn.disabled = false; }
+}
+async function markPosted() {
+  const btn = document.getElementById('postDone');
+  btn.disabled = true;
+  const d = new Date(), today = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  try {
+    const r = await fetch(`/listing/${encodeURIComponent(FOLDER)}/outcome`, {method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({status: 'listed', platform: 'Vinted', published_date: today})});
+    if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || 'Could not save');
+    document.getElementById('postSheet').close();
+    const main = document.getElementById('btnPost');
+    if (main) main.textContent = 'Live on Vinted ✓';
+    showToast('Marked live on Vinted');
+  } catch (error) { showToast(error.message); }
+  finally { btn.disabled = false; }
+}
+if (location.hash === '#post') setTimeout(openPostSheet, 300);
 const PRICE_RANGE = {{ (listing.price_range or none) | tojson }};
 const PRICE_REASONS = {{ (listing.price_adjustments or []) | tojson }};
 document.getElementById('priceGauge').innerHTML =

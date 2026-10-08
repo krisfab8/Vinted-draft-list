@@ -127,6 +127,28 @@
   <textarea class="rv-desc" id="f-description" data-field="description" rows="9">{{ listing.description or "" }}</textarea>
 </section>
 
+<!-- ── Post on Vinted hand-off (hosted app: no browser automation) ── -->
+{% if hosted_test %}
+<dialog class="sn-sheet post-sheet" id="postSheet" aria-labelledby="postTitle">
+  <div class="sn-grab"></div>
+  <h2 id="postTitle">Post on Vinted</h2>
+  <ol class="post-steps">
+    <li><span class="post-n">1</span><button type="button" class="post-btn" id="postPhotos" onclick="sharePhotos()">Save photos <small>{{ photos|length }}</small></button></li>
+    <li><span class="post-n">2</span><a class="post-btn" href="https://www.vinted.co.uk/items/new" target="_blank" rel="noopener">Open Vinted</a></li>
+    <li><span class="post-n">3</span><div class="post-copy">
+      <button type="button" class="post-row" data-copy="title"><span>Title</span><b>Copy</b></button>
+      <button type="button" class="post-row" data-copy="description"><span>Description</span><b>Copy</b></button>
+      <button type="button" class="post-row" data-copy="price"><span>Price £{{ listing.price_gbp or '' }}</span><b>Copy</b></button>
+    </div></li>
+  </ol>
+  <div class="post-facts">
+    {% for label, value in [('Brand', listing.brand), ('Size', listing.normalized_size or listing.tagged_size), ('Condition', (listing.condition_summary or '').split('.')[0]), ('Category', (listing.category or '').split(' > ')[-1])] %}{% if value %}<span><small>{{ label }}</small>{{ value }}</span>{% endif %}{% endfor %}
+  </div>
+  <button type="button" class="rv-primary" id="postDone" onclick="markPosted()">I've posted it</button>
+  <form method="dialog"><button class="post-cancel">Close</button></form>
+</dialog>
+{% endif %}
+
 <!-- ── Actions ── -->
 <div class="rv-actions">
   {% if listing.draft_error and not listing.draft_url %}
@@ -134,6 +156,8 @@
   {% endif %}
   {% if listing.draft_url %}
     <a class="rv-primary" href="{{ listing.draft_url }}" target="_blank" rel="noopener">Open on Vinted</a>
+  {% elif hosted_test %}
+    <button type="button" class="rv-primary" id="btnPost" onclick="openPostSheet()">{% if listing.outcome and listing.outcome.status == 'listed' %}Live on Vinted ✓{% else %}Post on Vinted{% endif %}</button>
   {% else %}
     <button type="button" class="rv-primary" id="btnDraft" onclick="createDraft()">Create Vinted draft</button>
   {% endif %}

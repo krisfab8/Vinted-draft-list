@@ -630,13 +630,12 @@ def stats_page():
 
 
 def _backup_revision(folder: Path) -> str:
-    """Changes whenever any file in the item folder changes (cheap: file sizes and times only)."""
+    """Content fingerprint; unchanged by a server restore, so phones skip unchanged items."""
+    from app.services import item_backup
     try:
-        files = sorted((f.name, f.stat().st_size, f.stat().st_mtime_ns) for f in folder.iterdir() if f.is_file())
+        return item_backup.revision(folder)
     except OSError:
         return ""
-    import hashlib
-    return hashlib.sha1(repr(files).encode()).hexdigest()[:16]
 
 
 @app.get("/api/listings")
@@ -756,6 +755,9 @@ def _get_all_listings() -> list[dict]:
                         break
                 if listing.get("thumbnail_url"):
                     break
+            # Restored as a summary: a small preview until the full photos are fetched.
+            if not listing.get("thumbnail_url") and (item_dir / "_thumb.jpg").exists():
+                listing["thumbnail_url"] = f"/items/{item_dir.name}/_thumb.jpg"
             # Lazy migration: write status to DB if this item has no record yet
             item_store.sync_from_listing(item_dir.name, listing)
             listings.append(listing)
@@ -1348,6 +1350,11 @@ def review_listing_page(folder):
     if not listing_path.exists():
         return jsonify({"error": "listing not found"}), 404
     listing = json.loads(listing_path.read_text())
+    try:
+        from app.services import sales_history
+        listing["outcome"] = sales_history.get(safe_folder)   # "Live on Vinted" state
+    except Exception:
+        listing["outcome"] = None
     listing["folder"] = safe_folder
     if not listing.get("price_range"):
         from app.services.pricing import price_range

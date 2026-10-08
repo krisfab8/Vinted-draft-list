@@ -329,3 +329,13 @@ Keep IDs stable. Do not rename an open task to hide scope. Split partial work in
 - Privacy: /privacy note; Settings → Delete my data (type DELETE) removes listings, photos, sales, profile
   and logs from the server, cloud backup and the phone. /favicon.ico no longer errors.
 - Not yet: separate data per person (needed before inviting other sellers) — planned as its own job.
+
+## 2026-10-08 — Post on Vinted hand-off; light restores on wake-up
+- Hosted review page: main button is "Post on Vinted" (drafts sheet links to it). Sheet: 1 Save photos
+  (phone share sheet — save or send to Vinted; downloads on desktop), 2 Open Vinted, 3 one-tap copy of
+  title/description/price, plus brand/size/condition/category to pick, and "I've posted it" → marked Live.
+- Cloud backup now also keeps a small summary per item (meta/<folder>.json: listing, roles, file sizes, 360px
+  preview). On wake-up only summaries are downloaded; full photos are fetched the first time an item is opened
+  (review, edit, reprice, analyse, photo or backup request). Summary-only items are never uploaded, and a backup
+  of one is refused until its photos arrive, so nothing incomplete can overwrite a full copy.
+  Item fingerprints are content-based, so phones don't re-download unchanged items after a wake-up.

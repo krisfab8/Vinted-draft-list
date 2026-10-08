@@ -53,7 +53,17 @@ def test_drafts_survive_a_wiped_server(s3, tmp_path):
     assert store.restore_all() == [FOLDER]
     assert seen == [FOLDER]
     assert json.loads((second / FOLDER / "listing.json").read_text())["title"] == "Peter Millar Polo Shirt S"
+    # Wake-up restores only the summary and a preview; photos come down on first open.
+    assert (second / FOLDER / "_thumb.jpg").is_file() and not (second / FOLDER / "front.jpg").exists()
+    assert item_backup.revision(second / FOLDER) == item_backup.revision(first / FOLDER)
+    with pytest.raises(ValueError):
+        item_backup.export(second, FOLDER)          # never an incomplete backup
+    store.sync()
+    assert store.status["uploaded"] == 0            # a summary-only copy is never uploaded
+    assert store.hydrate(FOLDER)
     assert (second / FOLDER / "front.jpg").read_bytes() == (first / FOLDER / "front.jpg").read_bytes()
+    assert not item_backup.is_stub(second / FOLDER)
+    assert item_backup.revision(second / FOLDER) == item_backup.revision(first / FOLDER)
 
     # Nothing changed, so the restored item is not uploaded again.
     store.sync()
@@ -90,7 +100,7 @@ def test_delete_only_removes_items_seen_locally(s3, tmp_path):
     # An empty server must never wipe the bucket.
     empty = store_for(s3, tmp_path / "empty")
     empty.sync()
-    assert s3.list_objects_v2(Bucket=BUCKET)["KeyCount"] == 1
+    assert s3.list_objects_v2(Bucket=BUCKET, Prefix="items/")["KeyCount"] == 1
 
     # Deleting an item the server holds removes the stored copy.
     store = store_for(s3, items)
@@ -218,3 +228,21 @@ def test_no_stored_profile_is_not_an_error(s3, tmp_path):
     store = store_for(s3, tmp_path / "items", profile_path=tmp_path / "user_profile.json")
     store.restore_all()
     assert store.status["last_error"] is None and not (tmp_path / "user_profile.json").exists()
+
+
+def test_older_items_get_a_summary_and_failed_fetch_keeps_the_stub(s3, tmp_path):
+    # A bucket written before summaries existed: full restore, then a summary is added once.
+    old = tmp_path / "old" / "items"
+    make_item(old)
+    s3.put_object(Bucket=BUCKET, Key=f"items/{FOLDER}.zip", Body=item_backup.export(old, FOLDER))
+    fresh = tmp_path / "fresh" / "items"
+    store = store_for(s3, fresh)
+    assert store.restore_all() == [FOLDER] and (fresh / FOLDER / "front.jpg").is_file()
+    store.sync()
+    assert s3.list_objects_v2(Bucket=BUCKET, Prefix="meta/")["KeyCount"] == 1
+    # Next wake uses the summary; if the photo download then fails, the stub stays a stub.
+    third = tmp_path / "third" / "items"
+    store = store_for(s3, third)
+    store.restore_all()
+    s3.delete_object(Bucket=BUCKET, Key=f"items/{FOLDER}.zip")
+    assert store.hydrate(FOLDER) is False and item_backup.is_stub(third / FOLDER)

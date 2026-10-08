@@ -138,3 +138,27 @@ with tempfile.TemporaryDirectory() as tmp:
     env = {**os.environ, "APP_USERNAME": "kristian", "APP_PASSWORD": "sample-password", "SESSION_COOKIE_SECURE": "0"}
     result = subprocess.run([sys.executable, "-c", script], env=env, capture_output=True, text=True, timeout=60)
     assert result.returncode == 0, result.stdout + result.stderr
+
+
+def test_hosted_review_offers_post_on_vinted_handoff():
+    script = r'''
+import base64, json, tempfile
+from pathlib import Path
+from app import config, web
+with tempfile.TemporaryDirectory() as tmp:
+    items = Path(tmp) / "items"; items.mkdir()
+    config.ITEMS_DIR = web.ITEMS_DIR = items
+    folder = items / "upload_abcdef12"; folder.mkdir()
+    (folder / "listing.json").write_text(json.dumps(dict(brand="Barbour", item_type="jacket", title="Barbour jacket",
+        description="Wax.", tagged_size="L", normalized_size="L", price_gbp=55, category="Men > Coats")))
+    (folder / "front.jpg").write_bytes(b"jpg")
+    from app.hosted import create_app
+    c = create_app().test_client()
+    auth = {"Authorization": "Basic " + base64.b64encode(b"kristian:sample-password").decode()}
+    page = c.get("/review/upload_abcdef12", headers=auth).get_data(as_text=True)
+    assert 'id="postSheet"' in page and "Post on Vinted" in page and 'onclick="createDraft()"' not in page
+    assert "https://www.vinted.co.uk/items/new" in page and 'data-copy="description"' in page
+'''
+    env = {**os.environ, "APP_USERNAME": "kristian", "APP_PASSWORD": "sample-password", "SESSION_COOKIE_SECURE": "0"}
+    result = subprocess.run([sys.executable, "-c", script], env=env, capture_output=True, text=True, timeout=60)
+    assert result.returncode == 0, result.stdout + result.stderr

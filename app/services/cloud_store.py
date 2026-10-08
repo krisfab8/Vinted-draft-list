@@ -2,12 +2,15 @@
 
 Render's free plan wipes local files on every restart. When the four B2_*
 variables are set, each item folder is stored as one backup zip (the same
-format as the phone backup) and restored into an empty server on startup.
+format as the phone backup) plus a small summary (listing + preview). On
+startup only the summaries are downloaded; an item's photos are fetched the
+first time it is opened (hydrate). This keeps cloud downloads tiny on each wake.
 
 Safety rules:
 - restore never overwrites an existing local item (item_backup.restore refuses)
 - a remote copy is only deleted after this process saw the item locally and
   then saw it disappear, so an empty or failed startup can never wipe the bucket
+- a summary-only item is never uploaded, so a partial copy can't replace the full one
 - failures are logged and retried; they never break a request
 """
 import json
@@ -21,6 +24,7 @@ from app.services import item_backup
 log = logging.getLogger("cloud_store")
 
 PREFIX = "items/"
+META_PREFIX = "meta/"  # small per-item summaries used for fast, cheap restores
 PROFILE_KEY = "profile/user_profile.json"  # onboarding answers (name, email, preferences)
 REMOVED_KEY = "profile/removed_items.json"  # items removed on purpose; must survive restarts
 REQUIRED = ("B2_KEY_ID", "B2_APP_KEY", "B2_BUCKET", "B2_ENDPOINT")
@@ -59,6 +63,10 @@ def _key(folder):
     return f"{PREFIX}{folder}.zip"
 
 
+def _meta_key(folder):
+    return f"{META_PREFIX}{folder}.json"
+
+
 def _signature(folder_path):
     """Changes whenever a file in the item folder or its sale record changes."""
     files = sorted(
@@ -81,7 +89,8 @@ class CloudStore:
         self.on_restored = on_restored
         self.profile_path = Path(profile_path) if profile_path else None
         self._profile_sig = None
-        self._known = {}  # folder -> signature last uploaded or restored
+        self._known = {}  # folder -> signature last uploaded or restored ("stub" for summaries)
+        self._meta = set()  # folders whose summary is in the bucket
         self._lock = threading.Lock()
         self._wake = threading.Event()
         self.status = {"enabled": True, "restored": 0, "uploaded": 0, "deleted": 0,
@@ -93,6 +102,21 @@ class CloudStore:
         return {p.name: p for p in self.items_dir.iterdir()
                 if p.is_dir() and item_backup.FOLDER.fullmatch(p.name)
                 and (p / "listing.json").is_file()}
+
+    def _remote_meta(self):
+        found, token = set(), None
+        while True:
+            kwargs = {"Bucket": self.bucket, "Prefix": META_PREFIX}
+            if token:
+                kwargs["ContinuationToken"] = token
+            page = self.client.list_objects_v2(**kwargs)
+            for obj in page.get("Contents", []):
+                name = obj["Key"][len(META_PREFIX):]
+                if name.endswith(".json") and item_backup.FOLDER.fullmatch(name[:-5]):
+                    found.add(name[:-5])
+            if not page.get("IsTruncated"):
+                return found
+            token = page["NextContinuationToken"]
 
     def _remote_folders(self):
         folders, token = [], None
@@ -121,6 +145,11 @@ class CloudStore:
             local = self._local_folders()
             from app.services import removed_items
             self._restore_removed()
+            try:
+                self._meta = self._remote_meta()
+            except Exception as error:
+                self._fail("list summaries", error)
+                self._meta = set()
             for folder in remote:
                 if folder in local:
                     continue
@@ -128,13 +157,24 @@ class CloudStore:
                     # Removed on purpose: drop the stale cloud copy instead of restoring it.
                     try:
                         self.client.delete_object(Bucket=self.bucket, Key=_key(folder))
+                        self.client.delete_object(Bucket=self.bucket, Key=_meta_key(folder))
                     except Exception as error:
                         self._fail(f"delete {folder}", error)
                     continue
                 try:
-                    body = self.client.get_object(Bucket=self.bucket, Key=_key(folder))["Body"].read()
-                    item_backup.restore(body, self.items_dir)
-                    self._known[folder] = _signature(self.items_dir / folder)
+                    if folder in self._meta:
+                        # Summary only (a few KB); photos come down when the item is opened.
+                        body = self.client.get_object(Bucket=self.bucket, Key=_meta_key(folder))["Body"].read()
+                        summary = json.loads(body)
+                        item_backup.restore_summary(summary, self.items_dir, folder)
+                        if summary.get("sale"):
+                            from app.services import sales_history
+                            sales_history.restore([summary["sale"]])
+                        self._known[folder] = "stub"
+                    else:
+                        body = self.client.get_object(Bucket=self.bucket, Key=_key(folder))["Body"].read()
+                        item_backup.restore(body, self.items_dir)
+                        self._known[folder] = _signature(self.items_dir / folder)
                     restored.append(folder)
                     if self.on_restored:
                         self.on_restored(folder)
@@ -224,27 +264,63 @@ class CloudStore:
         with self._lock:
             local = self._local_folders()
             for folder, path in local.items():
+                if item_backup.is_stub(path):
+                    continue  # never upload a summary-only copy over the full backup
                 try:
                     signature = _signature(path)
                     if self._known.get(folder) == signature:
+                        if folder not in self._meta:
+                            self._put_summary(folder, path)   # older items: add their summary once
                         continue
                     json.loads((path / "listing.json").read_text())  # skip half-written saves
                     with item_backup.export_file(self.items_dir, folder) as data:
                         self.client.put_object(Bucket=self.bucket, Key=_key(folder), Body=data,
                                                ContentType="application/zip")
                     self._known[folder] = signature
+                    self._put_summary(folder, path)
                     self.status["uploaded"] += 1
                 except Exception as error:
                     self._fail(f"upload {folder}", error)
             for folder in [f for f in self._known if f not in local]:
                 try:
                     self.client.delete_object(Bucket=self.bucket, Key=_key(folder))
+                    self.client.delete_object(Bucket=self.bucket, Key=_meta_key(folder))
+                    self._meta.discard(folder)
                     del self._known[folder]
                     self.status["deleted"] += 1
                 except Exception as error:
                     self._fail(f"delete {folder}", error)
             self._sync_profile()
             self._sync_removed()
+
+    def _put_summary(self, folder, path):
+        try:
+            summary = item_backup.summary(path)
+            from app.services import sales_history
+            summary["sale"] = sales_history.get(folder)
+            self.client.put_object(Bucket=self.bucket, Key=_meta_key(folder),
+                                   Body=json.dumps(summary, default=str).encode(), ContentType="application/json")
+            self._meta.add(folder)
+        except Exception as error:
+            self._fail(f"upload summary {folder}", error)
+
+    def hydrate(self, folder):
+        """Fetch the full files of a summary-only item. Returns True when the item is complete."""
+        path = self.items_dir / folder
+        if not item_backup.is_stub(path):
+            return True
+        with self._lock:
+            if not item_backup.is_stub(path):
+                return True
+            try:
+                body = self.client.get_object(Bucket=self.bucket, Key=_key(folder))["Body"].read()
+                item_backup.fill_stub(body, self.items_dir, folder)
+                self._known[folder] = _signature(path)
+                self.status["hydrated"] = self.status.get("hydrated", 0) + 1
+                return True
+            except Exception as error:
+                self._fail(f"fetch {folder}", error)
+                return False
 
     def request_sync(self):
         self._wake.set()

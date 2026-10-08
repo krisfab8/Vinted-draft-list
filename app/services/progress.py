@@ -62,10 +62,18 @@ def tier(listing: dict) -> str | None:
     return "hot" if price >= HOT_PRICE_GBP else "premium"
 
 
+def _has_full_set(folder: Path) -> bool:
+    from app.services.item_backup import backup_files
+    try:
+        stems = {name.rsplit(".", 1)[0] for name in backup_files(folder)}  # includes photos still in the cloud
+    except OSError:
+        return False
+    return all(role in stems for role in FULL_SET)
+
+
 def item_xp(listing: dict, folder: Path | None = None) -> int:
     xp = XP_LIST
-    if folder is not None and all(any((folder / f"{role}{ext}").exists() for ext in (".jpg", ".jpeg", ".png", ".webp"))
-                                  for role in FULL_SET):
+    if folder is not None and _has_full_set(folder):
         xp += XP_FULL_SET
     xp += {"hot": XP_HOT, "premium": XP_PREMIUM}.get(tier(listing), 0)
     outcome = listing.get("outcome") or {}

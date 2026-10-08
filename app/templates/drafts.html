@@ -851,7 +851,9 @@ function renderSheet(idx) {
     : item.folder
       ? `<div id="sheetDraftWrap">
            ${_authOk
-             ? `<button class="btn-sheet-vinted" id="sheetDraftBtn" onclick="createDraftFromSheet('${esc(item.folder)}')">Create Vinted Draft ↑</button>`
+             ? (document.querySelector('meta[name="hosted"]')
+                 ? `<a class="btn-sheet-vinted" href="/review/${encodeURIComponent(item.folder)}#post">Post on Vinted ↑</a>`
+                 : `<button class="btn-sheet-vinted" id="sheetDraftBtn" onclick="createDraftFromSheet('${esc(item.folder)}')">Create Vinted Draft ↑</button>`)
              : `<a class="btn-draft-disabled" href="/connect" style="text-align:center;text-decoration:none">Connect Vinted →</a>`
            }
          </div>`
