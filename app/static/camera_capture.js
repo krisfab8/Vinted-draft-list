@@ -356,15 +356,25 @@ function createPhotoCamera({getPhotos, addPhotos, removePhoto, pickGallery, pick
     }
     return steps.length;
   }
+  // Next shot still needed; when started part-way through (tapped a shot), loop back once for the
+  // shots before it. Skipped shots stay skipped.
+  let firstStep = 0, stopAt = Infinity;
+  function nextStep() {
+    const ahead = nextMissingStep(stepIndex + 1);
+    if (ahead < Math.min(steps.length, stopAt)) return ahead;
+    const earlier = nextMissingStep(0);
+    if (stopAt === Infinity && earlier < firstStep) { stopAt = firstStep; return earlier; }
+    return steps.length;
+  }
   function advance() {
     if (extraStep) { extraStep = false; return showPanel('done'); }
-    stepIndex = nextMissingStep(stepIndex + 1);
+    stepIndex = nextStep();
     if (stepIndex >= steps.length) return showPanel('done');
     setGuide(); startQuality();
   }
   function skip() {
     if (extraStep) { extraStep = false; return showPanel('done'); }
-    stepIndex = nextMissingStep(stepIndex + 1);
+    stepIndex = nextStep();
     if (stepIndex >= steps.length) return showPanel('done');
     setGuide(); startQuality();
   }
@@ -404,8 +414,8 @@ function createPhotoCamera({getPhotos, addPhotos, removePhoto, pickGallery, pick
         </div>`;
     } else if (name === 'shots') {
       html = `${back('pick')}<h2>${steps.length} photos <span class="ci-soft">+ flaws</span></h2><div class="ci-grid">
-        ${steps.map((step, i) => `<div class="ci-tile static"><b class="ci-num">${i + 1}</b>${cameraIcon(step.ghost, {back: step.back})}<span>${step.label}</span></div>`).join('')}
-        <div class="ci-tile dashed">${'<svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#64748B" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>'}<span>Flaws</span></div>
+        ${steps.map((step, i) => `<button type="button" class="ci-tile static" data-step="${i}" aria-label="Take ${step.label} photo"><b class="ci-num">${i + 1}</b>${cameraIcon(step.ghost, {back: step.back})}<span>${step.label}</span></button>`).join('')}
+        <button type="button" class="ci-tile dashed" data-go="flaws" aria-label="Take flaw photos">${'<svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#64748B" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>'}<span>Flaws</span></button>
         </div><div class="ci-grow"></div><button type="button" class="ci-primary" data-go="camera">Start</button>`;
     } else if (name === 'done') {
       const files = getPhotos();
@@ -443,6 +453,11 @@ function createPhotoCamera({getPhotos, addPhotos, removePhoto, pickGallery, pick
       return showPanel('mode');
     }
     if (target.dataset.shape) { shape = target.dataset.shape; steps = cameraSteps(shape); return showPanel('shots'); }  // one tap picks
+    if (target.dataset.step) {   // one tap on a shot opens the camera at that shot
+      hidePanels(); extraStep = false;
+      stopAt = Infinity; stepIndex = firstStep = Math.min(Number(target.dataset.step) || 0, steps.length - 1);
+      setGuide(); return start();
+    }
     const go = target.dataset.go;
     if (go === 'close') return close();
     if (go === 'mode') return showPanel('mode');
@@ -455,7 +470,7 @@ function createPhotoCamera({getPhotos, addPhotos, removePhoto, pickGallery, pick
     }
     if (go === 'camera') {
       hidePanels(); extraStep = false;
-      stepIndex = nextMissingStep(0);
+      stopAt = Infinity; stepIndex = firstStep = nextMissingStep(0);
       if (stepIndex >= steps.length) return showPanel('done');
       setGuide(); return start();
     }

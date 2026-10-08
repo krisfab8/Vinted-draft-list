@@ -96,6 +96,21 @@ const settle=async()=>{for(let i=0;i<10;i++)await Promise.resolve()};
   await s.e.cameraShutter.onclick();await settle();assert.equal(s.roles.get(s.files[4]),'extra');assert(s.e.cameraIntro.innerHTML.includes('All set'));
   s.click('analyse');assert.equal(s.analysed(),1);assert.equal(s.e.photoCamera.open,false);
 
+  // Tapping a shot on the list opens the camera at that shot; it then loops back for the ones before it.
+  s=setup('guided');s.camera.open();s.click({shape:'trousers'});
+  assert(s.e.cameraIntro.innerHTML.includes('data-step="2"'));
+  s.click({step:'2'});await settle();
+  assert.equal(s.e.cameraIntro.hidden,true);assert.equal(s.e.cameraStep.textContent,'Brand');
+  s.setGrade({ok:true,hint:'Sharp',focus:'ok',light:'ok',glare:'ok'});
+  for(const want of ['Size','Care label','Front','Back']){
+    for(let i=0;i<5;i++)s.tick();
+    await s.e.cameraShutter.onclick();await settle();
+    assert.equal(s.e.cameraStep.textContent,want);
+  }
+  for(let i=0;i<5;i++)s.tick();await s.e.cameraShutter.onclick();await settle();
+  assert.deepStrictEqual(s.files.map(f=>s.roles.get(f)),['brand','model_size','material','front','back']);
+  assert(s.e.cameraIntro.innerHTML.includes('All set'));
+
   // Pro: straight to the camera, quality dots, never auto-shoots, roles left to the page.
   s=setup('pro');s.camera.open();await settle();
   assert(!s.e.cameraIntro.innerHTML);assert.equal(s.e.cameraQuality.hidden,false);assert.equal(s.e.cameraDone.hidden,false);
