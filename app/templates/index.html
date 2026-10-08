@@ -1585,7 +1585,7 @@
   function celebrateListing() {
     const btn = document.getElementById("submitBtn");
     if (btn && !window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-      const colours = ["#C6F432", "#1D1D1F", "#FF9F0A", "#C6F432", "#86868B"];
+      const colours = ["#2F4A3A", "#C9A45C", "#F3EDE0", "#6E8B6A", "#1E2A22"];
       for (let i = 0; i < 18; i++) {
         const bit = document.createElement("span");
         const angle = (i / 18) * Math.PI * 2, dist = 90 + (i % 3) * 40;
@@ -1596,6 +1596,10 @@
         document.body.appendChild(bit);
         setTimeout(() => bit.remove(), 1200);
       }
+    }
+    if (btn && window.Coin) {
+      const box = btn.getBoundingClientRect();
+      Coin.fly(box.left + box.width / 2, box.top - 40, "+10 XP");
     }
     const count = document.getElementById("snStreakCount"), streak = document.getElementById("snStreak");
     if (count && streak) {
@@ -1731,7 +1735,7 @@
         ? "Add photos"
         : (SLOT_LABELS[photos.length] || `Extra ${photos.length - 4}`);
       btn.innerHTML = photos.length === 0 ? `
-        <svg class="sn-stage-stitch" aria-hidden="true"><rect x="1" y="1" width="calc(100% - 2px)" height="calc(100% - 2px)" rx="20" fill="none" stroke="#9BC21C" stroke-width="2" stroke-dasharray="9 6"/></svg>
+        <svg class="sn-stage-stitch" aria-hidden="true"><rect x="1" y="1" width="calc(100% - 2px)" height="calc(100% - 2px)" rx="20" fill="none" stroke="#2F4A3A" stroke-width="2" stroke-dasharray="9 6"/></svg>
         <svg class="sn-stage-shirt" width="96" height="100" viewBox="24 176 342 415" fill="none" stroke="#1D1D1F" stroke-width="12" stroke-linejoin="round" stroke-linecap="round" aria-hidden="true"><path d="M140 196l-96 54 34 88 44-17v250h146V321l44 17 34-88-96-54c-10 25-37 42-55 42s-45-17-55-42z" stroke-dasharray="24 18"/><path d="M178 210l17 22 17-22" stroke-width="10"/></svg>
         <div class="sn-stage-cta"><span class="sn-plus"><b><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#1D1D1F" stroke-width="3.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></b></span>Add photos</div>
       ` : `

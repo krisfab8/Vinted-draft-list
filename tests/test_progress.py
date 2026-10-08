@@ -62,3 +62,6 @@ def test_progress_page_and_drafts_chip(monkeypatch, tmp_path):
     drafts = client.get("/drafts").get_data(as_text=True)
     assert 'href="/progress" class="sn-streak sn-xp-chip' in drafts and "35 XP" in drafts
     assert 'draft-premium-tag hot' in drafts
+    # The spinning XP coin: big on Progress, mini in the chip, script on every page.
+    assert 'id="pgCoin" data-coin="idle"' in page and "coin.js" in page
+    assert 'class="coin" data-coin="idle" style="--coin:18px"' in drafts

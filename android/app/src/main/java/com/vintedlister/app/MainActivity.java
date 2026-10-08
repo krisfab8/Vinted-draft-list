@@ -58,8 +58,8 @@ public class MainActivity extends Activity {
 
         backToApp = new Button(this);
         backToApp.setText("← Lister");
-        backToApp.setTextColor(Color.WHITE);
-        backToApp.setBackgroundColor(Color.parseColor("#1D1D1F"));
+        backToApp.setTextColor(Color.parseColor("#F3EDE0"));
+        backToApp.setBackgroundColor(Color.parseColor("#2F4A3A"));
         backToApp.setVisibility(View.GONE);
         backToApp.setOnClickListener(v -> web.loadUrl(APP_URL + "drafts"));
         FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(-2, -2, Gravity.TOP | Gravity.START);

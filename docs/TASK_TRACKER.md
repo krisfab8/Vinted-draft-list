@@ -349,3 +349,10 @@ Keep IDs stable. Do not rename an open task to hide scope. Split partial work in
   `app/services/vinted_payload.py`); `/api/vinted-fill-report` logs reports and stores a saved draft's Vinted link.
 - Review page shows "Fill Vinted for me" + "Log in to Vinted" only inside the app.
 - `.github/workflows/android-prototype.yml` builds the APK and attaches it to the "android-prototype" release.
+
+## Brand: bottle green & cream + 3D XP coin
+- Palette tokens in `studio.css` (bottle green #2F4A3A, cream #F3EDE0, brass #C9A45C); lime removed everywhere.
+- New logo (hanger + upside-down shoe) in `brand-mark.svg`, `app-icon.svg`, PNG icons, manifest; Android adaptive icon.
+- `app/static/coin.js` + `.coin*` CSS: real 3D brass coin (two faces, stacked rim, moving light/sheen, floor shadow).
+  Sways and flips every ~5s; `Coin.earn(el)` fast spin + sparkles; `Coin.fly(x, y, text)` for "+10 XP".
+  Used on Progress (tap to spin), the Drafts XP chip, and the upload celebration.

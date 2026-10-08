@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <meta name="theme-color" content="#F5F5F7">
+  <meta name="theme-color" content="#F4F0E8">
   <title>Welcome · Vinted Lister</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -104,11 +104,11 @@
 (() => {
   const ME = {{ {"name": profile.get("name") or "", "email": profile.get("email") or ""}|tojson }};
   const mascot = (size = 64) => `<svg class="ob-mascot" width="${size}" height="${size + 4}" viewBox="24 176 342 415" aria-hidden="true">
-    <path d="M140 196l-96 54 34 88 44-17v250h146V321l44 17 34-88-96-54c-10 25-37 42-55 42s-45-17-55-42z" fill="#F1FAD8" stroke="#1D1D1F" stroke-width="14" stroke-linejoin="round"/>
-    <path d="M140 196l-96 54 34 88 44-17v250h146V321l44 17 34-88-96-54c-10 25-37 42-55 42s-45-17-55-42z" fill="none" stroke="#9BC21C" stroke-width="6" stroke-dasharray="18 14" stroke-linejoin="round" transform="translate(195 384) scale(0.86) translate(-195 -384)"/>
+    <path d="M140 196l-96 54 34 88 44-17v250h146V321l44 17 34-88-96-54c-10 25-37 42-55 42s-45-17-55-42z" fill="#E7EDE4" stroke="#1E2A22" stroke-width="14" stroke-linejoin="round"/>
+    <path d="M140 196l-96 54 34 88 44-17v250h146V321l44 17 34-88-96-54c-10 25-37 42-55 42s-45-17-55-42z" fill="none" stroke="#2F4A3A" stroke-width="6" stroke-dasharray="18 14" stroke-linejoin="round" transform="translate(195 384) scale(0.86) translate(-195 -384)"/>
     <g class="eyes"><circle cx="165" cy="380" r="15" fill="#1D1D1F"/><circle cx="225" cy="380" r="15" fill="#1D1D1F"/><circle cx="170" cy="374" r="5" fill="#fff"/><circle cx="230" cy="374" r="5" fill="#fff"/></g>
     <path d="M168 428c16 18 42 18 56 0" fill="none" stroke="#1D1D1F" stroke-width="11" stroke-linecap="round"/></svg>`;
-  const tick = '<span class="ob-tick"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#C6F432" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-10"/></svg></span>';
+  const tick = '<span class="ob-tick"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#F3EDE0" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-10"/></svg></span>';
   const icon = path => `<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#1D1D1F" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${path}</svg>`;
   const ICONS = {
     shirt: '<path d="M8 3L3 6l2 4 2-1v11h10V9l2 1 2-4-5-3c-.5 1.5-2 2.5-4 2.5S8.5 4.5 8 3z" stroke-dasharray="3 2"/>',
@@ -177,7 +177,7 @@
       html = `<div class="ob-ask">${mascot()}<div class="ob-bubble">Your plan, ${esc(firstName())}!</div></div>
         <div class="ob-plan">
           <div class="ob-goal">
-            <svg class="ob-goal-ring" width="64" height="64" viewBox="0 0 64 64" aria-hidden="true"><circle cx="32" cy="32" r="26" fill="none" stroke="#3A3A3C" stroke-width="7"/><circle class="on" cx="32" cy="32" r="26" fill="none" stroke="#C6F432" stroke-width="7" stroke-linecap="round" transform="rotate(-90 32 32)" style="--arc:${arc}"/></svg>
+            <svg class="ob-goal-ring" width="64" height="64" viewBox="0 0 64 64" aria-hidden="true"><circle cx="32" cy="32" r="26" fill="none" stroke="#3A3A3C" stroke-width="7"/><circle class="on" cx="32" cy="32" r="26" fill="none" stroke="#C9A45C" stroke-width="7" stroke-linecap="round" transform="rotate(-90 32 32)" style="--arc:${arc}"/></svg>
             <div><b>${goal} a day</b><small>Daily goal · build a streak</small></div>
           </div>
           <div class="ob-plan-row" style="animation-delay:.15s"><span class="ob-icon">${icon(photoMode() === 'pro' ? ICONS.stack : ICONS.shirt)}</span><div><b>${photoMode() === 'pro' ? 'Pro camera' : 'Guided photos'}</b><small>${photoMode() === 'pro' ? 'Fast shots, sharpness checks' : 'Step by step, shoots when sharp'}</small></div></div>
@@ -232,7 +232,7 @@
   }
   function burst(from) {
     if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-    const box = from.getBoundingClientRect(), colours = ['#C6F432', '#1D1D1F', '#FF9F0A', '#C6F432', '#86868B'];
+    const box = from.getBoundingClientRect(), colours = ['#2F4A3A', '#C9A45C', '#F3EDE0', '#6E8B6A', '#1E2A22'];
     for (let i = 0; i < 22; i++) {
       const bit = document.createElement('span'), angle = (i / 22) * Math.PI * 2, dist = 90 + (i % 3) * 45;
       bit.className = 'sn-burst-bit';

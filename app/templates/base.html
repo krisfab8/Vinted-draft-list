@@ -6,7 +6,7 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="theme-color" content="#415BFF">
+  <meta name="theme-color" content="#F4F0E8">
   <link rel="manifest" href="/manifest.json">
   <title>{% block title %}Vinted Lister{% endblock %}</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -359,6 +359,7 @@
 
 
   <script src="{{ url_for('static', filename='item_state.js') }}"></script>
+  <script src="{{ url_for('static', filename='coin.js') }}" defer></script>
   {% if config.get('HOSTED_TEST') %}
   <script src="{{ url_for('static', filename='draft_archive.js') }}"></script>
   {% endif %}

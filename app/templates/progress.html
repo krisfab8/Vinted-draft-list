@@ -18,7 +18,12 @@
 </section>
 
 <section class="pg-card pg-level" aria-label="Level">
-  <div class="pg-level-top"><div><small>Level</small><strong>{{ p.level.name }}</strong></div><div class="pg-xp"><strong>{{ p.xp }}</strong><small>XP</small></div></div>
+  <div class="pg-coin-stage" id="pgCoinStage" role="button" tabindex="0" aria-label="{{ p.xp }} XP. Tap to spin the coin">
+    <span class="coin" id="pgCoin" data-coin="idle" style="--coin:128px"></span>
+    <div class="pg-coin-xp">{{ p.xp }}<small>XP</small></div>
+    {% if p.xp_today %}<div class="pg-coin-hint">+{{ p.xp_today }} today</div>{% endif %}
+  </div>
+  <div class="pg-level-top"><div><small>Level</small><strong>{{ p.level.name }}</strong></div>{% if p.level.next_name %}<div class="pg-xp"><small>Next</small><strong>{{ p.level.next_name }}</strong></div>{% endif %}</div>
   <div class="pg-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ (p.level.progress * 100)|round|int }}"><i style="width:{{ (p.level.progress * 100)|round(1) }}%"></i></div>
   <p class="pg-note">{% if p.level.next_name %}{{ p.level.to_next }} XP to {{ p.level.next_name }}{% else %}Top level reached{% endif %}{% if p.xp_today %} · +{{ p.xp_today }} today{% endif %}</p>
 </section>
@@ -36,4 +41,15 @@
   <div class="pg-rule"><span>Profit when sold</span><b>+1 per £1</b></div>
   {# ANIM / Phase 2: daily quests, coins, streak freezes go here. #}
 </section>
+{% endblock %}
+{% block scripts %}
+<script>
+  (() => {
+    const stage = document.getElementById("pgCoinStage"), coin = document.getElementById("pgCoin");
+    const spin = () => window.Coin && Coin.earn(coin);
+    stage.addEventListener("click", spin);
+    stage.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); spin(); } });
+    if (stage.querySelector(".pg-coin-hint")) setTimeout(spin, 700);   // XP earned today: a celebratory spin
+  })();
+</script>
 {% endblock %}

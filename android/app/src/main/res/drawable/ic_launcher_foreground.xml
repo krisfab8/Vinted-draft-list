@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Logo: curved hanger whose bar is the sole of an upside-down shoe. Kept inside the adaptive-icon safe zone. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp" android:height="108dp" android:viewportWidth="200" android:viewportHeight="200">
+  <group android:pivotX="100" android:pivotY="100" android:scaleX="0.62" android:scaleY="0.62">
+    <group android:translateY="107.4">
+      <path android:pathData="M100 -46 C100 -56 101 -61 107 -65 C115 -70 116 -81 108 -85 C101 -89 92 -85 93 -77" android:strokeColor="#FFF3EDE0" android:strokeWidth="6.000" android:strokeLineCap="round" android:strokeLineJoin="round" android:fillColor="#00000000"/>
+      <path android:pathData="M100 -46 C84 -36 43.2 -22 33.2 -10 C27.2 -4 29.2 0 39.2 0 L160.8 0 C170.8 0 172.8 -4 166.8 -10 C156.8 -22 116 -36 100 -46" android:strokeColor="#FFF3EDE0" android:strokeWidth="6.000" android:strokeLineCap="round" android:strokeLineJoin="round" android:fillColor="#00000000"/>
+      <group android:translateX="100.0" android:translateY="100.0" android:scaleX="5.4" android:scaleY="-5.4">
+        <path android:pathData="M22.5 15h-21V7.333a.333.333 0 0 1 .6-.2l.327.436a3.578 3.578 0 0 0 6.062-.547l.726-1.451a1.032 1.032 0 0 1 1.568-.345l1.259 1.007c.595.476.892.714 1.195.943a27 27 0 0 0 4.939 2.96c.344.158.694.308 1.395.609l.172.073c.32.138.48.206.622.28a4 4 0 0 1 2.122 3.22c.013.16.013.334.013.682" android:strokeColor="#FFF3EDE0" android:strokeWidth="1.111" android:strokeLineCap="round" android:strokeLineJoin="round" android:fillColor="#00000000"/>
+        <path android:pathData="M22.5 15c0 1.414 0 2.121-.44 2.56c-.439.44-1.146.44-2.56.44h-15c-1.414 0-2.121 0-2.56-.44c-.44-.439-.44-1.146-.44-2.56M12 9.5L13.5 8m1.5 3l1.5-1.5" android:strokeColor="#FFF3EDE0" android:strokeWidth="1.111" android:strokeLineCap="round" android:strokeLineJoin="round" android:fillColor="#00000000"/>
+      </group>
+    </group>
+  </group>
+</vector>

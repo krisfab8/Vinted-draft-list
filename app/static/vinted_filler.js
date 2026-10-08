@@ -152,7 +152,7 @@
     const rows = Object.entries(report.steps).map(([k, v]) => `<span style="opacity:${v ? 1 : .6}">${v ? '✓' : '✗'} ${k}</span>`).join(' · ');
     box.innerHTML = `<div style="font-size:16px;font-weight:800;margin-bottom:6px">Filled ${report.filled}/${report.total} — check, then save</div>
       <div style="margin-bottom:10px">${rows}</div>
-      <button id="vl-save" style="width:100%;height:46px;border:0;border-radius:999px;background:#C6F432;color:#1D1D1F;font:800 16px system-ui">Save draft</button>
+      <button id="vl-save" style="width:100%;height:46px;border:0;border-radius:999px;background:#2F4A3A;color:#F3EDE0;font:800 16px system-ui">Save draft</button>
       <button id="vl-hide" style="width:100%;height:36px;border:0;background:none;color:#aaa;font:700 13px system-ui;margin-top:4px">Hide</button>`;
     document.body.appendChild(box);
     box.querySelector('#vl-hide').onclick = () => box.remove();
