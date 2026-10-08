@@ -1544,6 +1544,7 @@
       <div id="cameraHint" class="camera-hint" hidden></div>
       <div id="cameraDots" class="camera-dots" hidden></div>
       <div id="cameraMessage" class="camera-message" role="status" aria-live="polite"></div>
+      <button type="button" id="cameraRetry" class="camera-native" hidden>Try again</button>
       <button type="button" id="cameraNative" class="camera-native" hidden>Open phone camera</button>
       <div id="cameraPhotos" class="camera-photos" aria-label="Added photos"></div>
       <div class="camera-controls">
@@ -1798,7 +1799,9 @@
     if (document.getElementById("photoCamera").open) photoCamera.refresh();
   }
   function addSelectedPhotos() {
-    addPhotoFiles(this.files);
+    // Taken with the phone's camera while our camera is open: it counts as the current guided shot.
+    if (this.id === "cameraInput" && document.getElementById("photoCamera").open) photoCamera.acceptNative(this.files);
+    else addPhotoFiles(this.files);
     this.value = "";
   }
   ["fileInput", "cameraInput"].forEach(id => {

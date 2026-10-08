@@ -262,7 +262,7 @@ function createPhotoCamera({getPhotos, addPhotos, removePhoto, pickGallery, pick
   async function start() {
     stop();
     const request = generation;
-    message('Opening camera…'); el('cameraNative').hidden = true;
+    message('Opening camera…'); el('cameraNative').hidden = true; if (el('cameraRetry')) el('cameraRetry').hidden = true;
     try {
       if (!navigator.mediaDevices?.getUserMedia) throw new Error('unsupported');
       const next = await navigator.mediaDevices.getUserMedia({audio:false, video:{
@@ -284,9 +284,10 @@ function createPhotoCamera({getPhotos, addPhotos, removePhoto, pickGallery, pick
       if (!dialog.open || request !== generation) return;
       stop();
       message(error.name === 'NotAllowedError'
-        ? 'Camera permission is off. Allow camera access in your browser, or use your phone camera below.'
+        ? 'Camera is blocked for this site. Tap the icon left of the web address → Permissions → Camera → Allow, then Try again. Or use your phone camera.'
         : 'Live camera is unavailable here. You can still use your phone camera or choose photos.');
       el('cameraNative').hidden = false;
+      if (el('cameraRetry')) el('cameraRetry').hidden = false;
     }
   }
   function close() {
@@ -484,6 +485,7 @@ function createPhotoCamera({getPhotos, addPhotos, removePhoto, pickGallery, pick
   el('cameraFlip').onclick = () => { if (!busy) { facing = facing === 'environment' ? 'user' : 'environment'; start(); } };
   el('cameraGallery').onclick = pickGallery;
   el('cameraNative').onclick = pickNativeCamera;
+  if (el('cameraRetry')) el('cameraRetry').onclick = () => start();
   el('cameraTorch').onclick = async () => {
     const track = stream?.getVideoTracks()[0]; if (!track) return;
     try {
@@ -507,5 +509,20 @@ function createPhotoCamera({getPhotos, addPhotos, removePhoto, pickGallery, pick
     if (document.hidden) { resumeOnVisible = !!stream; stop(); }
     else if (resumeOnVisible) { resumeOnVisible = false; start(); }
   });
-  return {open, close, refresh, showPanel};
+  // A photo from the phone's own camera app (live camera blocked or unavailable): in Guided it fills the
+  // current shot and moves to the next one, exactly like the shutter; otherwise it is just added.
+  function acceptNative(files) {
+    const list = Array.from(files || []);
+    if (!list.length) return;
+    if (mode() === 'guided') {
+      const step = currentStep();
+      addPhotos(list.slice(0, 1), step.role);
+      refresh(); advance();
+      if (dialog.open && !el('cameraIntro')?.innerHTML) message('Photo added · next: ' + currentStep().label);
+    } else {
+      addPhotos(list);
+      message('Photo added');
+    }
+  }
+  return {open, close, refresh, showPanel, acceptNative};
 }

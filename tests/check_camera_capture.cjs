@@ -26,7 +26,7 @@ const settle=async()=>{for(let i=0;i<10;i++)await Promise.resolve()};
  s.doc.hidden=true;s.events.visibilitychange();assert(s.e.cameraShutter.disabled);s.doc.hidden=false;s.events.visibilitychange();await settle();assert.equal(s.requests.length,3);
  s.camera.close();assert.equal(s.doc.body.style.overflow,'scroll');assert(!s.e.photoCamera.open);assert.equal(s.stats().stopped,3);
  // Permission denied offers working native/gallery fallbacks.
- s=setup();s.media(async()=>{const err=Error();err.name='NotAllowedError';throw err});s.camera.open();await settle();assert(!s.e.cameraNative.hidden);assert(s.e.cameraMessage.textContent.includes('permission'));assert(s.e.cameraShutter.disabled);s.e.cameraNative.onclick();assert.equal(s.stats().native,1);s.camera.close();
+ s=setup();s.media(async()=>{const err=Error();err.name='NotAllowedError';throw err});s.camera.open();await settle();assert(!s.e.cameraNative.hidden);assert(s.e.cameraMessage.textContent.includes('Camera is blocked'));assert.equal(s.e.cameraRetry?.hidden??false,false);assert(s.e.cameraShutter.disabled);s.e.cameraNative.onclick();assert.equal(s.stats().native,1);s.camera.close();
  // Closing before permission resolution must release the late stream.
  s=setup();let resolve;s.media(()=>new Promise(r=>resolve=r));s.camera.open();s.camera.close();resolve(s.makeStream());await settle();assert.equal(s.stats().stopped,1);assert.equal(s.e.cameraPreview.srcObject,null);
  // Encoding completed after close must not add a photo.

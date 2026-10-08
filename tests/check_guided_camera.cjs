@@ -111,6 +111,12 @@ const settle=async()=>{for(let i=0;i<10;i++)await Promise.resolve()};
   assert.deepStrictEqual(s.files.map(f=>s.roles.get(f)),['brand','model_size','material','front','back']);
   assert(s.e.cameraIntro.innerHTML.includes('All set'));
 
+  // A photo from the phone's own camera app fills the current guided shot and moves on.
+  s=setup('guided');s.camera.open();s.click({shape:'trousers'});s.click('camera');await settle();
+  assert.equal(s.e.cameraStep.textContent,'Front');
+  s.camera.acceptNative([{name:'native.jpg'}]);
+  assert.equal(s.roles.get(s.files[0]),'front');assert.equal(s.e.cameraStep.textContent,'Back');
+
   // Pro: straight to the camera, quality dots, never auto-shoots, roles left to the page.
   s=setup('pro');s.camera.open();await settle();
   assert(!s.e.cameraIntro.innerHTML);assert.equal(s.e.cameraQuality.hidden,false);assert.equal(s.e.cameraDone.hidden,false);
