@@ -1426,9 +1426,12 @@
 <!-- Page heading -->
 <div class="sn-hero">
   <h1 class="sn-title">Snap it.<br><span>List it<i>.</i></span></h1>
-  <a href="/progress" class="sn-streak{% if (today_count or 0) >= daily_goal %} met{% endif %}" id="snStreak" data-goal="{{ daily_goal }}" aria-label="Listed today: {{ today_count or 0 }} of {{ daily_goal }}">
+  {% set met = progress.today_count >= daily_goal %}
+  <a href="/progress" class="sn-streak{% if met %} met{% endif %}" id="snStreak" data-goal="{{ daily_goal }}"
+     data-streak-risk data-streak="{{ progress.streak }}" data-met="{{ '1' if met else '0' }}" data-before="{{ progress.streak_before_today }}"
+     data-tip="{{ progress.tip }}" aria-label="{{ progress.streak }}-day streak. Listed today: {{ progress.today_count }} of {{ daily_goal }}">
     <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2c1 4 6 6 6 12a6 6 0 01-12 0c0-3 2-5 3-6 0 2 1 3 2 3 0-4 0-6 1-9z" fill="#FF9F0A"/><path d="M12 12c2 2 3 3 3 5a3 3 0 01-6 0c0-2 2-3 3-5z" fill="#FFD60A"/></svg>
-    <b id="snStreakCount">{{ today_count or 0 }}</b><small id="snStreakGoal">{{ " today ✓" if (today_count or 0) >= daily_goal else "/" ~ daily_goal ~ " today" }}</small>
+    <b id="snStreakDays">{{ progress.streak }}</b><small class="stk-days">-day streak ·&nbsp;</small><b id="snStreakCount">{{ progress.today_count }}</b><small id="snStreakGoal">{{ " ✓" if met else "/" ~ daily_goal }}</small>
   </a>
 </div>
 
@@ -1612,12 +1615,20 @@
       count.classList.remove("flip"); void count.offsetWidth; count.classList.add("flip");
       const plus = document.createElement("span"); plus.className = "plus"; plus.textContent = "+1";
       streak.appendChild(plus); setTimeout(() => plus.remove(), 1500);
-      streak.setAttribute("aria-label", `Listed today: ${count.textContent} of ${streak.dataset.goal}`);
-      // ANIM placeholder: goal reached gets its own celebration in the gamification pass.
       const met = parseInt(count.textContent, 10) >= parseInt(streak.dataset.goal, 10);
+      const wasMet = streak.dataset.met === "1";
       streak.classList.toggle("met", met);
       const goal = document.getElementById("snStreakGoal");
-      if (goal) goal.textContent = met ? "\u00a0today ✓" : `/${streak.dataset.goal} today`;
+      if (goal) goal.textContent = met ? " ✓" : `/${streak.dataset.goal}`;
+      const days = document.getElementById("snStreakDays");
+      if (met && !wasMet) {
+        // Today's goal just hit: the streak grows by one and gets its celebration.
+        const next = (parseInt(streak.dataset.before, 10) || 0) + 1;
+        streak.dataset.met = "1"; streak.dataset.streak = String(next); streak.classList.remove("risk");
+        if (days) { days.textContent = String(next); days.classList.remove("flip"); void days.offsetWidth; days.classList.add("flip"); }
+        setTimeout(() => window.Streak?.celebrate({streak: next, tip: streak.dataset.tip}), 1500);
+      }
+      streak.setAttribute("aria-label", `${days ? days.textContent : 0}-day streak. Listed today: ${count.textContent} of ${streak.dataset.goal}`);
     }
   }
 

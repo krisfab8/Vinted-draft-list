@@ -395,6 +395,7 @@ def index():
         is_reseller=profile_svc.is_reseller(profile),
         onboarded=bool(profile.get("onboarded_at")),
         daily_goal=profile_svc.daily_goal(profile),
+        progress=_progress(),
     )
 
 

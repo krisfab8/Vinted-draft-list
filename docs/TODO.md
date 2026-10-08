@@ -31,6 +31,14 @@ Newest at the top. Move items to TASK_TRACKER.md when done.
 - **Our pricing** — free tier of ~10 items/month, then cheaper than rivals' $29 entry plans.
 - Keep Vinted human-tapped only: no bulk or background posting (Vinted is suspending automated accounts).
 
+## Gamification next (step 1 streaks done)
+- **Step 2 — rewards that sell the paid tiers:** daily quests (3/day) and badges pay XP; XP/coins unlock
+  *time-limited tastes* of premium features — e.g. "eBay sold-price check on your next 3 listings",
+  "Pro analytics for 7 days", "Priority AI reread" — plus pure-fun rewards (coin skins, flame colours,
+  confetti styles). Level-up coin shower. Coins can buy streak freezes.
+- **Step 3 — weekly leagues/leaderboard** once accounts are separate (XP only for listings sent to
+  Vinted/eBay, daily cap, sales worth most; first name + initial, opt-out).
+
 ## Later
 - Separate data per person (before inviting other sellers).
 - Switch cloud photo storage to Cloudflare R2 (free downloads, 10 GB free).

@@ -4,19 +4,43 @@
 {% block content %}
 <a class="sn-back" href="/drafts" onclick="if (document.referrer.startsWith(location.origin)) { history.back(); return false; }">
   <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>Back</a>
-<div class="sn-hero">
-  <h1 class="sn-title">{% if p.streak %}Day {{ p.streak }}.{% else %}Start a streak.{% endif %}<br>
-    <span>{% if p.today_met %}Goal hit{% elif p.streak %}List {{ p.goal - p.today_count }} to keep it{% else %}List {{ p.goal }} today{% endif %}<i>.</i></span></h1>
-  <div class="sn-streak{% if p.today_met %} met{% endif %}">{{ (flame % (18, 18, '#FF9F0A', '#FFD60A'))|safe }}<b>{{ p.streak }}</b></div>
-</div>
+<div class="sn-hero"><h1 class="sn-title">Progress.<br><span>Keep it burning<i>.</i></span></h1></div>
+
+{% set left = p.goal - p.today_count %}
+<section class="pg-streak{% if not p.streak %} cold{% endif %}" aria-label="{{ p.streak }}-day streak">
+  <div class="pg-streak-top">
+    <svg class="stk-flame" width="96" height="96" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 1.5c1.2 4.2 6.5 6.3 6.5 12.6a6.5 6.5 0 01-13 0c0-3.3 2.1-5.3 3.2-6.4 0 2.1 1 3.2 2.1 3.2 0-4.2 0-6.3 1.2-9.4z" fill="#F08A24"/><path d="M12 10.5c2.1 2.1 3.4 3.3 3.4 5.6a3.4 3.4 0 01-6.8 0c0-2.2 2.2-3.4 3.4-5.6z" fill="#FFD34D"/></svg>
+    <div class="pg-streak-num"><b>{{ p.streak }}</b><span>day streak</span></div>
+  </div>
+  <p class="pg-streak-status" data-streak-risk data-streak="{{ p.streak }}" data-met="{{ '1' if p.today_met else '0' }}"
+     data-risk-text="⏰ List {{ left }} by midnight to keep your {{ p.streak }}-day streak">
+    {%- if p.today_met %}Goal hit today ✓ See you tomorrow.{% elif p.streak %}List {{ left }} today to keep your streak.{% else %}List {{ p.goal }} today to start a streak.{% endif -%}
+  </p>
+  <div class="pg-freezes" aria-label="{{ p.freezes }} streak freezes">
+    {% for i in range(2) %}<i class="{{ '' if i < p.freezes else 'empty' }}">❄️</i>{% endfor %}
+    <span>{% if p.freezes %}{{ p.freezes }} streak freeze{{ 's' if p.freezes > 1 }}: covers a missed day{% else %}Earn a streak freeze every 7 days{% endif %}</span>
+  </div>
+  {% if p.freeze_saved_yesterday %}<p class="pg-saved">❄️ A streak freeze saved your streak yesterday.</p>{% endif %}
+  {% if p.milestone.next %}
+  <div class="pg-mile">
+    <p>🏅 {{ p.milestone.to_go }} day{{ 's' if p.milestone.to_go != 1 }} to your {{ p.milestone.next }}-day milestone</p>
+    <div class="pg-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ (p.milestone.progress * 100)|round|int }}"><i style="width:{{ (p.milestone.progress * 100)|round(1) }}%"></i></div>
+  </div>
+  {% endif %}
+</section>
 
 <section class="pg-card pg-week" aria-label="This week">
   {% for d in p.week %}
-  <div class="pg-day{% if d.met %} met{% endif %}{% if d.today %} today{% endif %}" title="{{ d.count }} listed">
-    <span class="pg-flame">{% if d.met %}{{ (flame % (26, 26, '#FF9F0A', '#FFD60A'))|safe }}{% else %}{{ (flame % (26, 26, '#E5E5EA', '#F5F5F7'))|safe }}{% endif %}</span>
+  <div class="pg-day{% if d.met %} met{% endif %}{% if d.today %} today{% endif %}{% if d.frozen %} frozen{% endif %}" title="{{ 'Saved by a streak freeze' if d.frozen else d.count ~ ' listed' }}">
+    <span class="pg-flame">{% if d.frozen %}<span style="font-size:22px;line-height:26px">❄️</span>{% elif d.met %}{{ (flame % (26, 26, '#FF9F0A', '#FFD60A'))|safe }}{% else %}{{ (flame % (26, 26, '#E5E5EA', '#F5F5F7'))|safe }}{% endif %}</span>
     <b>{{ d.count }}</b><small>{{ d.label }}</small>
   </div>
   {% endfor %}
+</section>
+
+<section class="pg-card pg-tip" aria-label="Why streaks matter">
+  <span class="pg-tip-ic" aria-hidden="true">💡</span>
+  <div><div class="pg-head">Why streaks matter</div><p>{{ p.tip }}</p></div>
 </section>
 
 <section class="pg-card pg-level" aria-label="Level">

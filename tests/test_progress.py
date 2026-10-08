@@ -66,3 +66,28 @@ def test_progress_page_and_drafts_chip(monkeypatch, tmp_path):
     # The spinning XP coin: big on Progress, mini in the chip, script on every page.
     assert 'id="pgCoin" data-coin="idle"' in page and "coin.js" in page
     assert 'class="coin" data-coin="idle" style="--coin:18px"' in drafts
+
+
+def test_streak_freezes_are_earned_every_7_days_and_cover_a_missed_day():
+    today = date(2026, 10, 20)
+    days = {today - timedelta(days=i): 1 for i in range(1, 10)}       # 9 days in a row up to yesterday
+    info = progress.streak_info(days, 1, today)
+    assert info["run"] == 9 and info["before_today"] == 9 and not info["today_met"] and info["freezes"] == 1
+    # Miss one day in the middle of a 7+ run: the freeze keeps the streak alive (the missed day adds nothing).
+    gap = dict(days); gap[today] = 1; del gap[today - timedelta(days=2)]
+    info = progress.streak_info(gap, 1, today)
+    assert info["frozen"] == [today - timedelta(days=2)] and info["run"] == 9 and info["freezes"] == 0
+    # No freeze yet (run under 7): a missed day breaks it.
+    short = {today - timedelta(days=i): 1 for i in (1, 3, 4)}
+    assert progress.streak_info(short, 1, today)["run"] == 1
+    # Freezes cap at 2.
+    long = {today - timedelta(days=i): 1 for i in range(1, 30)}
+    assert progress.streak_info(long, 1, today)["freezes"] == 2
+
+
+def test_milestones_and_tip_in_summary(tmp_path):
+    assert progress.milestones(0) == {"previous": 0, "next": 3, "hit_today": False, "to_go": 3, "progress": 0.0}
+    assert progress.milestones(7)["hit_today"] and progress.milestones(9)["next"] == 14
+    assert progress.milestones(400)["next"] is None
+    s = progress.summary([], tmp_path, 1, date(2026, 10, 20))
+    assert s["tip"] in progress.TIPS and s["freezes"] == 0 and s["milestone"]["next"] == 3

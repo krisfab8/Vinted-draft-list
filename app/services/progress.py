@@ -27,6 +27,21 @@ PREMIUM_MATERIALS = ("cashmere", "merino", "silk", "leather", "suede", "alpaca",
                      "camel", "vicuna", "down", "lambswool", "angora")
 FULL_SET = ("front", "back", "brand", "model_size", "material")
 
+MILESTONES = (3, 7, 14, 30, 50, 100, 200, 365)
+FREEZE_EVERY = 7        # a 7-day run earns a streak freeze
+MAX_FREEZES = 2
+
+# Honest seller tips: Vinted's own help page says recency/new listings get visibility; eBay's ranking
+# is unpublished, so we only say what's widely agreed (sales history and steady selling help).
+TIPS = (
+    "Vinted shows new listings first, so a few items every day keeps you in front of buyers.",
+    "Little and often beats one big batch: each new item lands at the top of Vinted's \"Newest first\".",
+    "eBay ranks listings that sell. Listing steadily builds the sales history that helps you climb.",
+    "Steady sellers build momentum: more listings live means more chances to be found every day.",
+    "Answer messages quickly and post within a day. Fast sellers get more repeat buyers.",
+    "Clear daylight photos get more clicks, and more clicks help a listing get shown more.",
+)
+
 
 def created_on(listing: dict, folder: Path | None = None) -> date | None:
     """When the listing was made: saved timestamps first; file time only as a last resort
@@ -116,6 +131,51 @@ def best_streak(day_counts: dict, goal: int) -> int:
     return best
 
 
+def streak_info(day_counts: dict, goal: int, today: date) -> dict:
+    """The streak with Duolingo-style freezes: every 7-day run earns a freeze (max 2), and a missed day
+    uses one up automatically instead of breaking the streak. Today only counts once met.
+    Returns run (current streak), before_today, today_met, freezes, frozen (days saved), best."""
+    goal = max(1, goal)
+    met = lambda d: day_counts.get(d, 0) >= goal
+    first = min((d for d in day_counts if met(d) and d <= today), default=None)
+    run = best = freezes = 0
+    frozen: list[date] = []
+    if first is not None:
+        day = first
+        while day < today:
+            if met(day):
+                run += 1
+                if run % FREEZE_EVERY == 0:
+                    freezes = min(MAX_FREEZES, freezes + 1)
+            elif run and freezes:
+                freezes -= 1
+                frozen.append(day)
+            else:
+                run = 0
+            best = max(best, run)
+            day += timedelta(days=1)
+    before = run
+    today_met = met(today)
+    if today_met:
+        run += 1
+        if run % FREEZE_EVERY == 0:
+            freezes = min(MAX_FREEZES, freezes + 1)
+    return {"run": run, "before_today": before, "today_met": today_met, "freezes": freezes,
+            "frozen": frozen, "best": max(best, run)}
+
+
+def milestones(run: int) -> dict:
+    """Next milestone and how far along the way to it the streak is."""
+    previous = max((m for m in MILESTONES if m <= run), default=0)
+    upcoming = next((m for m in MILESTONES if m > run), None)
+    out = {"previous": previous, "next": upcoming, "hit_today": run in MILESTONES}
+    if upcoming:
+        out.update(to_go=upcoming - run, progress=round((run - previous) / (upcoming - previous), 3))
+    else:
+        out.update(to_go=0, progress=1.0)
+    return out
+
+
 def summary(listings: list[dict], root: Path, goal: int, today: date) -> dict:
     """Everything the Progress page and chips need, from the item list."""
     day_counts, xp_total, xp_today, tiers = {}, 0, 0, {"hot": 0, "premium": 0}
@@ -131,13 +191,18 @@ def summary(listings: list[dict], root: Path, goal: int, today: date) -> dict:
         kind = tier(listing)
         if kind:
             tiers[kind] += 1
-    current, today_met = streak(day_counts, goal, today)
+    info = streak_info(day_counts, goal, today)
+    current, today_met = info["run"], info["today_met"]
+    frozen = set(info["frozen"])
     week = []
     for offset in range(6, -1, -1):
         day = today - timedelta(days=offset)
         count = day_counts.get(day, 0)
         week.append({"label": "Today" if offset == 0 else day.strftime("%a")[:1], "count": count,
-                     "met": count >= max(1, goal), "today": offset == 0})
-    return {"streak": current, "today_met": today_met, "best_streak": max(best_streak(day_counts, goal), current),
+                     "met": count >= max(1, goal), "today": offset == 0, "frozen": day in frozen})
+    saved_yesterday = (today - timedelta(days=1)) in frozen
+    return {"streak": current, "today_met": today_met, "best_streak": max(best_streak(day_counts, goal), info["best"]),
+            "streak_before_today": info["before_today"], "freezes": info["freezes"], "freeze_saved_yesterday": saved_yesterday,
+            "milestone": milestones(current), "tip": TIPS[today.toordinal() % len(TIPS)],
             "today_count": day_counts.get(today, 0), "goal": goal, "xp": xp_total, "xp_today": xp_today,
             "level": level(xp_total), "week": week, "hot": tiers["hot"], "premium": tiers["premium"]}

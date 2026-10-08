@@ -370,3 +370,11 @@ Keep IDs stable. Do not rename an open task to hide scope. Split partial work in
   listing, Into your Vinted drafts, Sold? We tidy up, Keep your streak). Auto-advance 6.5s, tap left/right, swipe,
   hold to pause, Skip. Last card "List your first item" opens the camera (`/?camera=1`).
 - Welcome finishes on the tour; Settings → How it works rewatches it. Tests: tests/test_tour.py.
+
+## Streaks that mean something (gamification step 1)
+- progress.py: `streak_info()` with Duolingo-style freezes (1 per 7-day run, max 2, a missed day uses one),
+  `milestones()` (3, 7, 14, 30, 50, 100, 200, 365), honest seller TIPS (Vinted recency is from its help page;
+  eBay only "sales history helps" since Best Match is unpublished).
+- "🔥 N-day streak" on the Upload and Drafts chips; amber "at risk" pulse after 6pm (streak.js markRisk).
+- Progress: big flame card (streak, status, freezes, milestone bar, "freeze saved you" note), ❄️ on frozen days,
+  "Why streaks matter" tip. Celebration overlay when today's goal is hit (Streak.celebrate, once a day).
