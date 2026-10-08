@@ -33,8 +33,9 @@ def outcome(folder):
         if row['status'] == 'sold':
             item_store.set_status(folder, 'sold')
             # Sold on one platform: end it (or list what to end) everywhere else, so it can't sell twice.
-            delist = crosslist.after_sale(item, row['platform'])
-            save(folder, item)
+            if crosslist.where_listed(item):    # nothing tracked → listing.json is left untouched
+                delist = crosslist.after_sale(item, row['platform'])
+                save(folder, item)
         else:
             status, review = item_store.derive_status(item)
             item_store.set_status(folder, status, review_needed=review)
