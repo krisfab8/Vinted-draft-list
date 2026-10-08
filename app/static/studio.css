@@ -514,3 +514,7 @@ button.st-link { width: 100%; background: none; border: 0; font: inherit; font-w
 .pg-coin-stage .pg-coin-xp { margin-top: 26px; font-size: 34px; font-weight: 800; letter-spacing: -.03em; line-height: 1; }
 .pg-coin-stage .pg-coin-xp small { font-size: 15px; color: var(--sn-muted); margin-left: 4px; letter-spacing: 0; }
 .pg-coin-stage .pg-coin-hint { margin-top: 6px; font-size: 12px; font-weight: 700; color: var(--sn-muted); }
+.sn-back { display: inline-flex; align-items: center; gap: 2px; height: 36px; padding: 0 14px 0 8px; margin: 2px 0 6px;
+  border-radius: 18px; background: var(--sn-card); border: 1px solid var(--sn-line); color: var(--sn-text);
+  font-size: 15px; font-weight: 700; text-decoration: none; -webkit-tap-highlight-color: transparent; }
+.sn-back:active { transform: scale(.96); }

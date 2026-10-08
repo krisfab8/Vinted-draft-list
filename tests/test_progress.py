@@ -59,6 +59,7 @@ def test_progress_page_and_drafts_chip(monkeypatch, tmp_path):
     client = web.app.test_client()
     page = client.get("/progress").get_data(as_text=True)
     assert "Earn XP" in page and "Rookie" in page and "+25" in page
+    assert 'class="sn-back" href="/drafts"' in page
     drafts = client.get("/drafts").get_data(as_text=True)
     assert 'href="/progress" class="sn-streak sn-xp-chip' in drafts and "35 XP" in drafts
     assert 'draft-premium-tag hot' in drafts
