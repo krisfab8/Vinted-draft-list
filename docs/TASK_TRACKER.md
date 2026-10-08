@@ -364,3 +364,9 @@ Keep IDs stable. Do not rename an open task to hide scope. Split partial work in
 - `POST /listing/<folder>/crosslist` {platform, action: listed|unlisted|removed}; outcome POST returns `delist`.
 - Drafts sheet: "Listed on" chips, "Sold on" picker; after a sale, opens on Sold with "Take it down so it can't sell
   twice"; sold cards show "⚠ Still on …" until ticked. Tests: tests/test_crosslist.py.
+
+## How it works tour
+- `/tour` (app/templates/tour.html): 5 story-style cards animated from the app's screens (Snap it, It writes the
+  listing, Into your Vinted drafts, Sold? We tidy up, Keep your streak). Auto-advance 6.5s, tap left/right, swipe,
+  hold to pause, Skip. Last card "List your first item" opens the camera (`/?camera=1`).
+- Welcome finishes on the tour; Settings → How it works rewatches it. Tests: tests/test_tour.py.

@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#F4F0E8">
+  <title>How it works · Vinted Lister</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='studio.css') }}">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; }
+    body { padding: 0; overflow: hidden; -webkit-font-smoothing: antialiased; background: var(--sn-bg); color: var(--sn-text);
+           font-family: Manrope, system-ui, sans-serif; -webkit-tap-highlight-color: transparent; user-select: none; }
+    .tr { height: 100dvh; max-width: 480px; margin: 0 auto; display: flex; flex-direction: column;
+          padding: calc(12px + env(safe-area-inset-top)) 20px calc(18px + env(safe-area-inset-bottom)); }
+    .tr-bars { display: flex; gap: 5px; }
+    .tr-bars i { flex: 1; height: 4px; border-radius: 2px; background: var(--sn-line2); overflow: hidden; }
+    .tr-bars i b { display: block; height: 100%; width: 0; background: var(--sn-pop); border-radius: 2px; }
+    .tr-bars i.done b { width: 100%; }
+    .tr-bars i.now b { animation: trBar var(--dur, 6.5s) linear forwards; }
+    .tr.paused .tr-bars i.now b { animation-play-state: paused; }
+    @keyframes trBar { to { width: 100%; } }
+    .tr-top { display: flex; justify-content: space-between; align-items: center; height: 44px; margin-top: 6px; }
+    .tr-top small { font-size: 13px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--sn-muted); }
+    .tr-skip { border: 0; background: none; font: 800 15px Manrope, sans-serif; color: var(--sn-muted); padding: 10px 0 10px 16px; }
+    .tr-slides { flex: 1; min-height: 0; position: relative; }
+    .tr-slide { position: absolute; inset: 0; display: flex; flex-direction: column; opacity: 0; pointer-events: none; transition: opacity .25s; }
+    .tr-slide.on { opacity: 1; pointer-events: auto; }
+    .tr-stage { flex: 1; min-height: 0; position: relative; border-radius: 28px; overflow: hidden; background: var(--sn-card);
+                border: 1px solid var(--sn-line); margin-top: 6px; }
+    .tr-copy { padding: 20px 2px 4px; }
+    .tr-copy h1 { font-size: 30px; line-height: 1.05; font-weight: 800; letter-spacing: -.03em; }
+    .tr-copy p { margin-top: 8px; font-size: 16px; line-height: 1.4; font-weight: 600; color: var(--sn-muted); }
+    .tr-copy p b { color: var(--sn-text); }
+    .tr-cta { margin-top: 16px; height: 56px; width: 100%; border: 0; border-radius: 28px; background: var(--sn-pop); color: var(--sn-on-pop);
+              font: 800 17px Manrope, sans-serif; }
+
+    /* The pretend finger that taps through each scene */
+    .tr-finger { position: absolute; width: 34px; height: 34px; margin: -17px; border-radius: 50%; z-index: 5; opacity: 0;
+                 background: rgba(30,42,34,.28); border: 2px solid rgba(255,255,255,.9); box-shadow: 0 4px 14px rgba(0,0,0,.2); }
+
+    /* 1 · Guided camera */
+    .s-cam { position: absolute; inset: 0; background: #1E2A22; }
+    .s-cam svg.tee { position: absolute; left: 50%; top: 42%; width: 62%; transform: translate(-50%, -50%); }
+    .s-cam .flash { position: absolute; inset: 0; background: #fff; opacity: 0; }
+    .s-cam .hint { position: absolute; left: 0; right: 0; top: 16px; text-align: center; color: #F3EDE0; font-size: 14px; font-weight: 800; }
+    .s-cam .shots { position: absolute; left: 12px; right: 12px; bottom: 92px; display: flex; gap: 6px; justify-content: center; flex-wrap: wrap; }
+    .s-cam .shots span { padding: 6px 10px; border-radius: 14px; font-size: 12px; font-weight: 800; background: rgba(243,237,224,.14); color: #F3EDE0; }
+    .s-cam .shutter { position: absolute; left: 50%; bottom: 18px; width: 62px; height: 62px; margin-left: -31px; border-radius: 50%;
+                      border: 4px solid #F3EDE0; background: rgba(243,237,224,.2); }
+    .s-cam .last { position: absolute; left: 18px; bottom: 24px; width: 46px; height: 46px; border-radius: 12px; background: #6E8B6A;
+                   border: 2px solid #F3EDE0; opacity: 0; transform: scale(.4); }
+    .play .s-cam .flash { animation: camFlash 6.5s infinite; }
+    .play .s-cam .last { animation: camLast 6.5s both; }
+    .play .s-cam .shots span { animation: camTick 6.5s both; }
+    .play .s-cam .shots span:nth-child(2) { animation-delay: .9s; } .play .s-cam .shots span:nth-child(3) { animation-delay: 1.8s; }
+    .play .s-cam .shots span:nth-child(4) { animation-delay: 2.7s; } .play .s-cam .shots span:nth-child(5) { animation-delay: 3.6s; }
+    .play .s-cam .tr-finger { animation: camFinger 6.5s both; left: 50%; top: calc(100% - 49px); }
+    @keyframes camFlash { 0%, 21% { opacity: 0; } 22% { opacity: .85; } 27%, 100% { opacity: 0; } }
+    @keyframes camLast { 0%, 23% { opacity: 0; transform: scale(.4); } 28%, 100% { opacity: 1; transform: none; } }
+    @keyframes camTick { 0%, 24% { background: rgba(243,237,224,.14); color: #F3EDE0; } 26%, 100% { background: #F3EDE0; color: #2F4A3A; } }
+    @keyframes camFinger { 0%, 10% { opacity: 0; transform: scale(1.4); } 16% { opacity: 1; transform: none; } 20% { transform: scale(.8); }
+                           24% { transform: none; } 30% { opacity: 1; } 36%, 100% { opacity: 0; } }
+
+    /* 2 · The listing writes itself */
+    .s-list { position: absolute; inset: 0; padding: 18px; display: flex; flex-direction: column; gap: 12px; }
+    .s-list .ph { height: 42%; border-radius: 20px; background: #2B3530; position: relative; overflow: hidden; }
+    .s-list .ph svg { position: absolute; left: 50%; top: 50%; width: 46%; transform: translate(-50%, -50%); }
+    .s-list .scan { position: absolute; left: 0; right: 0; height: 30%; background: linear-gradient(transparent, rgba(201,164,92,.45), transparent); top: -30%; }
+    .s-list .price { position: absolute; right: 12px; bottom: 12px; padding: 8px 14px; border-radius: 16px; background: var(--sn-pop); color: var(--sn-on-pop);
+                     font-size: 20px; font-weight: 800; opacity: 0; transform: scale(.5); }
+    .s-list .line { height: 16px; border-radius: 8px; background: var(--sn-line); position: relative; overflow: hidden; }
+    .s-list .line i { position: absolute; left: 0; top: 0; bottom: 0; width: 0; background: var(--sn-line2); border-radius: 8px; }
+    .s-list .t { font-size: 18px; font-weight: 800; opacity: 0; }
+    .s-list .chips { display: flex; gap: 6px; flex-wrap: wrap; }
+    .s-list .chips span { padding: 6px 10px; border-radius: 12px; background: var(--brand-pale); font-size: 13px; font-weight: 800; opacity: 0; }
+    .play .s-list .scan { animation: scan 1.6s ease-in-out 2 both; }
+    .play .s-list .t { animation: fadeUp .4s 1.9s both; }
+    .play .s-list .l1 i { animation: grow .7s 2.3s both; }
+    .play .s-list .l2 i { animation: grow .7s 2.7s both; }
+    .play .s-list .chips span { animation: fadeUp .35s both; }
+    .play .s-list .chips span:nth-child(1) { animation-delay: 3.3s; } .play .s-list .chips span:nth-child(2) { animation-delay: 3.5s; }
+    .play .s-list .chips span:nth-child(3) { animation-delay: 3.7s; }
+    .play .s-list .price { animation: pop .5s 4.3s cubic-bezier(.2,.9,.3,1.4) both; }
+    @keyframes scan { to { top: 100%; } }
+    @keyframes grow { to { width: var(--w, 100%); } }
+    @keyframes fadeUp { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+    @keyframes pop { to { opacity: 1; transform: none; } }
+
+    /* 3 · Fill Vinted for me → saved as a draft */
+    .s-vin { position: absolute; inset: 0; padding: 18px; display: flex; flex-direction: column; gap: 8px; }
+    .s-vin .bar { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 800; color: var(--sn-muted); margin-bottom: 4px; }
+    .s-vin .bar b { color: #0A8A8A; font-size: 16px; }
+    .s-vin .row { display: flex; justify-content: space-between; align-items: center; padding: 10px 12px; border-radius: 14px;
+                  background: var(--sn-bg); font-size: 14px; font-weight: 700; }
+    .s-vin .row em { font-style: normal; color: var(--sn-pop); font-weight: 800; opacity: 0; }
+    .s-vin .save { margin-top: auto; height: 48px; border-radius: 24px; background: var(--sn-pop); color: var(--sn-on-pop); display: grid;
+                   place-items: center; font-size: 16px; font-weight: 800; }
+    .s-vin .done { position: absolute; left: 18px; right: 18px; bottom: 18px; height: 48px; border-radius: 24px; background: var(--brand-pale);
+                   display: grid; place-items: center; font-size: 15px; font-weight: 800; color: var(--sn-pop); opacity: 0; transform: translateY(10px); }
+    .play .s-vin .row em { animation: fadeUp .3s both; }
+    .play .s-vin .row:nth-of-type(2) em { animation-delay: .5s; } .play .s-vin .row:nth-of-type(3) em { animation-delay: 1s; }
+    .play .s-vin .row:nth-of-type(4) em { animation-delay: 1.5s; } .play .s-vin .row:nth-of-type(5) em { animation-delay: 2s; }
+    .play .s-vin .row:nth-of-type(6) em { animation-delay: 2.5s; }
+    .play .s-vin .tr-finger { animation: vinFinger 6.5s both; left: 50%; top: calc(100% - 42px); }
+    .play .s-vin .done { animation: fadeUp .4s 4.2s both; }
+    @keyframes vinFinger { 0%, 46% { opacity: 0; transform: scale(1.4); } 54% { opacity: 1; transform: none; } 58% { transform: scale(.8); }
+                           62% { transform: none; } 66%, 100% { opacity: 0; } }
+
+    /* 4 · Sold → take it down elsewhere */
+    .s-sold { position: absolute; inset: 0; padding: 18px; display: flex; flex-direction: column; gap: 12px; }
+    .s-sold .card { border-radius: 20px; background: #2B3530; height: 46%; position: relative; }
+    .s-sold .card svg { position: absolute; left: 50%; top: 50%; width: 40%; transform: translate(-50%, -50%); }
+    .s-sold .tag { position: absolute; left: 12px; top: 12px; padding: 5px 10px; border-radius: 12px; background: #F3EDE0; color: var(--sn-pop);
+                   font-size: 12px; font-weight: 800; letter-spacing: .06em; opacity: 0; }
+    .s-sold .warn { position: absolute; left: 12px; top: 44px; padding: 5px 9px; border-radius: 10px; background: #B8552B; color: #FFF8EE;
+                    font-size: 12px; font-weight: 800; opacity: 0; }
+    .s-sold .task { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 12px 14px; border-radius: 16px;
+                    background: #FBF1E4; border: 1px solid #E9C9A0; font-size: 14px; font-weight: 800; opacity: 0; }
+    .s-sold .task span { padding: 8px 12px; border-radius: 16px; background: var(--sn-pop); color: var(--sn-on-pop); font-size: 13px; }
+    .s-sold .clear { text-align: center; font-size: 15px; font-weight: 800; color: var(--sn-pop); opacity: 0; }
+    .play .s-sold .tag { animation: pop .4s .4s both; }
+    .play .s-sold .warn { animation: warnLife 6.5s both; }
+    .play .s-sold .task { animation: taskLife 6.5s both; }
+    .play .s-sold .clear { animation: fadeUp .4s 4.6s both; }
+    .play .s-sold .tr-finger { animation: vinFinger2 6.5s both; right: 48px; top: 66%; }
+    @keyframes warnLife { 0%, 15% { opacity: 0; } 20%, 64% { opacity: 1; } 70%, 100% { opacity: 0; } }
+    @keyframes taskLife { 0%, 22% { opacity: 0; transform: translateY(8px); } 28%, 62% { opacity: 1; transform: none; } 68%, 100% { opacity: 0; } }
+    @keyframes vinFinger2 { 0%, 40% { opacity: 0; transform: scale(1.4); } 48% { opacity: 1; transform: none; } 52% { transform: scale(.8); }
+                            56% { transform: none; } 62%, 100% { opacity: 0; } }
+
+    /* 5 · Streaks, XP and coins */
+    .s-xp { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px; }
+    .s-xp .week { display: flex; gap: 10px; }
+    .s-xp .week span { width: 30px; height: 30px; border-radius: 50%; background: var(--sn-line); display: grid; place-items: center; font-size: 15px; }
+    .s-xp .week span.met { background: #FFE9C7; }
+    .s-xp .week span.today { animation: none; }
+    .play .s-xp .week span.today { animation: todayMet .5s 1.6s both; }
+    .s-xp .plus { font-size: 20px; font-weight: 800; color: var(--sn-pop); opacity: 0; }
+    .play .s-xp .plus { animation: fadeUp .4s 2.2s both; }
+    @keyframes todayMet { to { background: #FFE9C7; transform: scale(1.15); } }
+
+    @media (prefers-reduced-motion: reduce) {
+      .tr-slide * { animation-duration: .01s !important; animation-delay: 0s !important; }
+      .tr-bars i.now b { animation: none; width: 100%; }
+    }
+  </style>
+</head>
+<body>
+<main class="tr" id="tour" aria-roledescription="carousel" aria-label="How it works">
+  <div class="tr-bars" aria-hidden="true">{% for _ in range(5) %}<i><b></b></i>{% endfor %}</div>
+  <div class="tr-top"><small id="trCount">1 of 5</small><button class="tr-skip" type="button" id="trSkip">Skip</button></div>
+  <div class="tr-slides">
+
+    <section class="tr-slide" aria-roledescription="slide" aria-label="1 of 5">
+      <div class="tr-stage"><div class="s-cam">
+        <div class="hint">Photograph the T-shirt about this size</div>
+        <svg class="tee" viewBox="0 0 200 220" fill="none" stroke="#F3EDE0" stroke-width="5" stroke-dasharray="10 9" stroke-linejoin="round" aria-hidden="true">
+          <path d="M70 18 L40 30 L10 70 L38 88 L52 74 L52 205 L148 205 L148 74 L162 88 L190 70 L160 30 L130 18 C124 34 76 34 70 18 Z"/></svg>
+        <div class="flash"></div>
+        <div class="shots"><span>Front</span><span>Back</span><span>Brand</span><span>Size</span><span>Care label</span></div>
+        <div class="last"></div><div class="shutter"></div><div class="tr-finger"></div>
+      </div></div>
+      <div class="tr-copy"><h1>Snap it.</h1><p>The <b>Guided camera</b> shows each shot: front, back and the labels. Keep labels sharp so we can read them.</p></div>
+    </section>
+
+    <section class="tr-slide" aria-roledescription="slide" aria-label="2 of 5">
+      <div class="tr-stage"><div class="s-list">
+        <div class="ph"><svg viewBox="0 0 200 220" aria-hidden="true"><path fill="#6E8B6A" d="M70 18 L40 30 L10 70 L38 88 L52 74 L52 205 L148 205 L148 74 L162 88 L190 70 L160 30 L130 18 C124 34 76 34 70 18 Z"/></svg>
+          <div class="scan"></div><div class="price">£42</div></div>
+        <div class="t">Ralph Lauren Polo T-shirt · Olive · M</div>
+        <div class="line l1"><i style="--w:92%"></i></div><div class="line l2"><i style="--w:64%"></i></div>
+        <div class="chips"><span>100% Cotton</span><span>Very good</span><span>Size M</span></div>
+      </div></div>
+      <div class="tr-copy"><h1>It writes the listing.</h1><p>Title, description, size, materials and a <b>price that sells</b>. Anything unsure is flagged for a quick check.</p></div>
+    </section>
+
+    <section class="tr-slide" aria-roledescription="slide" aria-label="3 of 5">
+      <div class="tr-stage"><div class="s-vin">
+        <div class="bar"><b>Vinted</b> · Sell an item</div>
+        <div class="row">Photos<em>✓</em></div><div class="row">Title &amp; description<em>✓</em></div>
+        <div class="row">Category &amp; brand<em>✓</em></div><div class="row">Size &amp; condition<em>✓</em></div>
+        <div class="row">Price · £42<em>✓</em></div>
+        <div class="save">Save draft</div><div class="done">✓ Saved to your Vinted drafts</div><div class="tr-finger"></div>
+      </div></div>
+      <div class="tr-copy"><h1>Into your Vinted drafts.</h1><p>Tap <b>Fill Vinted for me</b> and the form fills itself. You check it and tap Save draft. <b>Nothing goes live</b> until you publish it.</p></div>
+    </section>
+
+    <section class="tr-slide" aria-roledescription="slide" aria-label="4 of 5">
+      <div class="tr-stage"><div class="s-sold">
+        <div class="card"><svg viewBox="0 0 200 220" aria-hidden="true"><path fill="#C9A45C" d="M70 18 L40 30 L10 70 L38 88 L52 74 L52 205 L148 205 L148 74 L162 88 L190 70 L160 30 L130 18 C124 34 76 34 70 18 Z"/></svg>
+          <div class="tag">SOLD</div><div class="warn">⚠ Still on eBay</div></div>
+        <div class="task">Still live on eBay<span>Removed ✓</span></div>
+        <div class="clear">✓ All clear: it can't sell twice</div><div class="tr-finger"></div>
+      </div></div>
+      <div class="tr-copy"><h1>Sold? We tidy up.</h1><p>Mark it sold and we remind you to take it down everywhere else, so it <b>never sells twice</b>.</p></div>
+    </section>
+
+    <section class="tr-slide" aria-roledescription="slide" aria-label="5 of 5">
+      <div class="tr-stage"><div class="s-xp">
+        <div class="week" aria-hidden="true"><span class="met">🔥</span><span class="met">🔥</span><span class="met">🔥</span><span class="today">🔥</span></div>
+        <span class="coin" id="trCoin" data-coin="idle" style="--coin:120px" aria-hidden="true"></span>
+        <div class="plus">+10 XP</div>
+      </div></div>
+      <div class="tr-copy"><h1>Keep your streak.</h1><p>List every day to grow your 🔥 streak. Every listing earns <b>XP coins</b>; premium pieces earn more.</p>
+        <button type="button" class="tr-cta" id="trStart">List your first item</button></div>
+    </section>
+
+  </div>
+</main>
+<script src="{{ url_for('static', filename='coin.js') }}"></script>
+<script>
+  /* Story-style tour: auto-advances, tap right/left, swipe, hold to pause. Seen once; rewatch from Settings. */
+  (() => {
+    const DUR = 6500, root = document.getElementById("tour");
+    const slides = [...root.querySelectorAll(".tr-slide")], bars = [...root.querySelectorAll(".tr-bars i")];
+    const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+    let index = -1, timer = null, startedAt = 0, left = DUR, paused = false;
+    const done = () => { try { localStorage.setItem("tourSeen", "1"); } catch (_) {} };
+    function show(i) {
+      if (i < 0) i = 0;
+      if (i >= slides.length) return;
+      index = i;
+      slides.forEach((s, k) => { s.classList.toggle("on", k === i); s.classList.remove("play"); });
+      void slides[i].offsetWidth;                      // restart this slide's animations
+      slides[i].classList.add("play");
+      bars.forEach((b, k) => { b.className = k < i ? "done" : k === i ? "now" : ""; });
+      document.getElementById("trCount").textContent = `${i + 1} of ${slides.length}`;
+      document.getElementById("trSkip").textContent = i === slides.length - 1 ? "Done" : "Skip";
+      if (i === slides.length - 1) { done(); setTimeout(() => window.Coin && Coin.earn(document.getElementById("trCoin")), 1500); }
+      left = DUR; schedule();
+    }
+    function schedule() {
+      clearTimeout(timer);
+      if (paused || reduce || index === slides.length - 1) return;   // the last card waits for a tap
+      startedAt = Date.now(); timer = setTimeout(() => show(index + 1), left);
+    }
+    function pause(on) {
+      if (on === paused) return;
+      paused = on; root.classList.toggle("paused", on);
+      if (on) { clearTimeout(timer); left = Math.max(300, left - (Date.now() - startedAt)); } else schedule();
+    }
+    const leave = to => { done(); location.href = to; };
+    // Tap the left third to go back, anywhere else to go forward (buttons work as normal).
+    let swallowClick = false;
+    root.querySelector(".tr-slides").addEventListener("click", e => {
+      if (swallowClick) { swallowClick = false; return; }
+      if (e.target.closest("button")) return;
+      const box = root.getBoundingClientRect();
+      show(index + (e.clientX - box.left < box.width / 3 ? -1 : 1));
+    });
+    document.getElementById("trSkip").addEventListener("click", () => leave("/"));
+    document.getElementById("trStart").addEventListener("click", () => leave("/?camera=1"));
+    // Hold to pause, swipe to move.
+    let x0 = null, y0 = 0, holdTimer = null;
+    root.addEventListener("pointerdown", e => { swallowClick = false; x0 = e.clientX; y0 = e.clientY; holdTimer = setTimeout(() => pause(true), 220); });
+    root.addEventListener("pointerup", e => {
+      clearTimeout(holdTimer);
+      const dx = x0 === null ? 0 : e.clientX - x0; x0 = null;
+      if (paused) { pause(false); swallowClick = true; return; }     // letting go of a hold resumes, it doesn't skip
+      if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(e.clientY - y0)) { swallowClick = true; show(index + (dx < 0 ? 1 : -1)); }
+    });
+    root.addEventListener("pointercancel", () => { clearTimeout(holdTimer); pause(false); });
+    document.addEventListener("keydown", e => { if (e.key === "ArrowRight") show(index + 1); if (e.key === "ArrowLeft") show(index - 1); });
+    root.style.setProperty("--dur", DUR + "ms");
+    show(0);
+  })();
+</script>
+</body>
+</html>

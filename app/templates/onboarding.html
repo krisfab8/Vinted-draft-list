@@ -224,7 +224,7 @@
       if (!response.ok) throw new Error(data.error || 'Could not save. Try again.');
       try { localStorage.setItem('onboarding', JSON.stringify(body)); localStorage.setItem('photoMode', body.photo_mode); } catch (_) {}
       burst(cta);
-      setTimeout(() => location.replace('/'), 900);
+      setTimeout(() => location.replace('/tour'), 900);   // then the short How it works tour
     } catch (error) {
       document.getElementById('obError').textContent = error.message;
       cta.disabled = false; cta.textContent = 'Start listing';

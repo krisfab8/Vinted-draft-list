@@ -404,6 +404,12 @@ def welcome_page():
     return render_template("onboarding.html", profile=profile_svc.load())
 
 
+@app.get("/tour")
+def tour_page():
+    """How it works: a short story-style walkthrough after the welcome (rewatch from Settings)."""
+    return render_template("tour.html")
+
+
 @app.post("/api/onboarding")
 def save_onboarding():
     try:

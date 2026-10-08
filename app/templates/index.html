@@ -3282,6 +3282,11 @@
     onAnalyse: () => createListing(),
   });
   setPhotoMode(getPhotoMode(), {persist: false});
+  // Coming from the tour's "List your first item": open the camera straight away.
+  if (new URLSearchParams(location.search).get("camera") === "1") {
+    history.replaceState(null, "", location.pathname);
+    setTimeout(() => photoCamera.open(), 300);
+  }
   /* Pricing style (from onboarding): every price, reprice and the dial follow it. */
   function setPricingMode(mode, {persist = true} = {}) {
     document.querySelectorAll("[data-pricing-mode]").forEach(btn => {
