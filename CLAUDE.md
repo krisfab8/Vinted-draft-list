@@ -374,3 +374,5 @@ Every improvement should help move the system toward this outcome:
 - Quality is never traded for tokens: always run tests before shipping and confirm the deploy
   is live before telling the owner it is.
 - Replies: short, plain English, what changed + how to check it. No long recaps.
+- After every completed task, end the reply with the live Render link:
+  https://vinted-measurements-test.onrender.com (only once the deploy shows "live").
