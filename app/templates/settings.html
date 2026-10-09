@@ -75,10 +75,31 @@
   <p class="acct-note" id="inviteNote" hidden></p>
   <ul class="acct-sellers" id="sellerList"></ul>
 </section>
+<section class="rv-card acct-card" aria-label="Monthly limits">
+  <h2 class="acct-title">This month</h2>
+  <div class="use-head"><b id="useSpend">—</b><span id="useCap"></span></div>
+  <div class="use-meter" aria-hidden="true"><i id="useBar"></i></div>
+  <form class="use-form" id="limitsForm">
+    <label>AI budget a month<span class="use-in">£<input id="capIn" type="number" min="0" max="1000" step="1" inputmode="numeric"></span></label>
+    <label>Free listings per seller<span class="use-in"><input id="itemsIn" type="number" min="0" max="10000" step="1" inputmode="numeric"></span></label>
+    <button type="submit">Save limits</button>
+  </form>
+</section>
 {% elif account_email %}
 <section class="rv-card acct-card" aria-label="Your account">
   <h2 class="acct-title">Your account</h2>
   <p class="acct-note">Signed in as <b>{{ account_email }}</b>. Your listings are private to you.</p>
+  <div class="use-head" style="margin-top:12px"><b id="useItems">—</b><span>free listings this month</span></div>
+  <div class="use-meter" aria-hidden="true"><i id="useBar"></i></div>
+  <details class="pw-change">
+    <summary>Change password</summary>
+    <form class="use-form" id="pwForm">
+      <input type="hidden" autocomplete="username" value="{{ account_email }}">
+      <label>Current<input id="pwOld" type="password" autocomplete="current-password" required></label>
+      <label>New<input id="pwNew" type="password" autocomplete="new-password" minlength="8" required></label>
+      <button type="submit">Save password</button>
+    </form>
+  </details>
 </section>
 {% endif %}
 <section class="rv-card st-links">
@@ -189,7 +210,29 @@
     const showSellers = () => fetch("/api/accounts").then(r => r.ok ? r.json() : null).then(d => {
       if (!d) return;
       list.innerHTML = "";
-      d.sellers.forEach(s => { const li = document.createElement("li"); li.textContent = `${s.name} · ${s.email}`; list.appendChild(li); });
+      d.sellers.forEach(s => {
+        const li = document.createElement("li"); li.dataset.id = s.id;
+        const text = document.createElement("span"); text.className = "s-text"; text.textContent = `${s.name} · ${s.email}`;
+        const tools = document.createElement("span"); tools.className = "s-tools";
+        const reset = document.createElement("button"); reset.type = "button"; reset.textContent = "Reset password";
+        const remove = document.createElement("button"); remove.type = "button"; remove.textContent = "Remove"; remove.className = "danger";
+        reset.onclick = async () => {
+          const r = await fetch(`/api/accounts/${s.id}/reset`, {method: "POST"}).catch(() => null);
+          const out = r && r.ok ? await r.json() : null;
+          if (!out) return toast("Couldn't make a link");
+          document.getElementById("inviteLink").value = out.link;
+          document.getElementById("inviteOut").hidden = false;
+          const note = document.getElementById("inviteNote");
+          note.textContent = `Password reset link for ${s.name}. Works once, for ${out.hours} hours.`; note.hidden = false;
+        };
+        remove.onclick = async () => {
+          if (!confirm(`Remove ${s.name}? They won't be able to sign in. Their listings are kept.`)) return;
+          const r = await fetch(`/api/accounts/${s.id}/remove`, {method: "POST"}).catch(() => null);
+          if (r && r.ok) { li.remove(); toast(`${s.name} removed`); } else toast("Couldn't remove");
+        };
+        tools.append(reset, remove); li.append(text, tools); list.appendChild(li);
+      });
+      showUsage();
     }).catch(() => {});
     showSellers();
     inviteBtn.addEventListener("click", async () => {
@@ -209,6 +252,51 @@
       catch (_) { document.getElementById("inviteLink").select(); toast("Select and copy the link"); }
     });
   }
+  // This month's AI use. Owner: total spend vs budget, each seller's listings, editable limits.
+  // Seller: "12 / 30" free listings.
+  const money = v => "£" + (Math.round(v * 100) / 100).toFixed(2).replace(/\.00$/, "");
+  async function showUsage() {
+    const r = await fetch("/api/accounts/usage").catch(() => null);
+    const d = r && r.ok ? await r.json() : null;
+    if (!d) return;
+    const bar = document.getElementById("useBar");
+    if (d.limits) {
+      document.getElementById("useSpend").textContent = money(d.total_gbp);
+      document.getElementById("useCap").textContent = `of ${money(d.limits.monthly_cap_gbp)} AI budget`;
+      bar.style.width = Math.min(100, d.limits.monthly_cap_gbp ? d.total_gbp / d.limits.monthly_cap_gbp * 100 : 100) + "%";
+      bar.classList.toggle("full", d.total_gbp >= d.limits.monthly_cap_gbp);
+      const cap = document.getElementById("capIn"), items = document.getElementById("itemsIn");
+      if (document.activeElement !== cap) cap.value = d.limits.monthly_cap_gbp;
+      if (document.activeElement !== items) items.value = d.limits.seller_items;
+      d.sellers.forEach(s => {
+        const text = document.querySelector(`#sellerList li[data-id="${s.id}"] .s-text`);
+        if (text) text.textContent = `${s.name} · ${s.items}/${d.limits.seller_items} listings · ${money(s.spend_gbp)}`;
+      });
+    } else {
+      document.getElementById("useItems").textContent = `${d.items} / ${d.seller_items}`;
+      bar.style.width = Math.min(100, d.seller_items ? d.items / d.seller_items * 100 : 100) + "%";
+      bar.classList.toggle("full", d.items >= d.seller_items);
+    }
+  }
+  const pwForm = document.getElementById("pwForm");
+  if (pwForm) pwForm.addEventListener("submit", async event => {
+    event.preventDefault();
+    const r = await fetch("/api/accounts/password", {method: "POST", headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({current: document.getElementById("pwOld").value, new: document.getElementById("pwNew").value})}).catch(() => null);
+    const d = r ? await r.json().catch(() => ({})) : {};
+    if (!r || !r.ok) return toast(d.error || "Not saved. Try again.");
+    pwForm.reset(); pwForm.closest("details").open = false; toast("Password changed");
+  });
+  const limitsForm = document.getElementById("limitsForm");
+  if (limitsForm) limitsForm.addEventListener("submit", async event => {
+    event.preventDefault();
+    const r = await fetch("/api/accounts/limits", {method: "POST", headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({monthly_cap_gbp: document.getElementById("capIn").value, seller_items: document.getElementById("itemsIn").value})}).catch(() => null);
+    const d = r ? await r.json().catch(() => ({})) : {};
+    if (!r || !r.ok) return toast(d.error || "Not saved. Try again.");
+    toast("Limits saved"); showUsage();
+  });
+  if (document.getElementById("useBar") && !inviteBtn) showUsage();
   if (!window.AndroidBridge) fetch("/auth/status").then(r => r.json()).then(d => {
     document.getElementById("st-vinted").textContent = d.logged_in === "likely" ? "Connected" : "Connect";
   }).catch(() => {});

@@ -258,3 +258,96 @@ def session_version(account: dict) -> str:
 def sellers() -> list[dict]:
     return [{"id": a["id"], "name": a["name"], "email": a["email"], "created": a["created"]}
             for a in sorted(_load()["accounts"].values(), key=lambda a: a["created"]) if not a.get("disabled")]
+
+
+# ── Limits the owner sets (stored with the registry, so they survive restarts) ──
+
+LIMIT_DEFAULTS = {"monthly_cap_gbp": 20.0, "seller_items": 30}
+
+
+def limits() -> dict:
+    stored = _load().get("limits") or {}
+    return {**LIMIT_DEFAULTS, **{k: stored[k] for k in LIMIT_DEFAULTS if k in stored}}
+
+
+def set_limits(monthly_cap_gbp, seller_items) -> dict:
+    try:
+        cap, items = round(float(monthly_cap_gbp), 2), int(seller_items)
+    except (TypeError, ValueError):
+        raise ValueError("Enter numbers for the limits.")
+    if not 0 <= cap <= 1000 or not 0 <= items <= 10000:
+        raise ValueError("Budget must be £0–£1000 and listings 0–10000.")
+    with _lock:
+        data = _load()
+        data["limits"] = {"monthly_cap_gbp": cap, "seller_items": items}
+        _save(data)
+    return limits()
+
+
+# ── Owner tools: remove a seller, one-time password reset links; sellers change their own password ──
+
+RESET_HOURS = 48
+
+
+def remove(account_id: str) -> bool:
+    """Stops sign-in at once (every open session too). Their data stays until deleted."""
+    with _lock:
+        data = _load()
+        account = data["accounts"].get(account_id or "")
+        if not account or account.get("disabled"):
+            return False
+        account["disabled"] = True
+        data["resets"] = {c: r for c, r in data.get("resets", {}).items() if r.get("id") != account_id}
+        _save(data)
+    log.warning("Accounts: seller %s removed", account_id)
+    return True
+
+
+def create_reset(account_id: str, now: float | None = None) -> str:
+    now = now or time.time()
+    if not get(account_id):
+        raise ValueError("No such seller.")
+    code = secrets.token_urlsafe(12)
+    with _lock:
+        data = _load()
+        resets = {c: r for c, r in data.get("resets", {}).items() if r.get("expires", 0) > now and r.get("id") != account_id}
+        resets[code] = {"id": account_id, "expires": now + RESET_HOURS * 3600}
+        data["resets"] = resets
+        _save(data)
+    return code
+
+
+def reset_account(code: str, now: float | None = None) -> dict | None:
+    reset = _load().get("resets", {}).get(code or "")
+    if not reset or reset.get("expires", 0) <= (now or time.time()):
+        return None
+    return get(reset["id"])
+
+
+def _set_password(account_id: str, password: str) -> dict:
+    if len(password or "") < MIN_PASSWORD:
+        raise ValueError(f"Use a password of at least {MIN_PASSWORD} characters.")
+    with _lock:
+        data = _load()
+        account = data["accounts"].get(account_id or "")
+        if not account or account.get("disabled"):
+            raise ValueError("No such seller.")
+        account["password"] = generate_password_hash(password)
+        data["resets"] = {c: r for c, r in data.get("resets", {}).items() if r.get("id") != account_id}
+        _save(data)
+    return account
+
+
+def use_reset(code: str, password: str) -> dict:
+    """Set a new password from a reset link (works once). Signs the seller out everywhere else."""
+    account = reset_account(code)
+    if not account:
+        raise ValueError("This reset link has expired or been used. Ask for a new one.")
+    return _set_password(account["id"], password)
+
+
+def change_password(account_id: str, current: str, new: str) -> dict:
+    account = get(account_id)
+    if not account or not check_password_hash(account["password"], current or ""):
+        raise ValueError("Your current password isn't right.")
+    return _set_password(account_id, new)

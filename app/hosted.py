@@ -24,7 +24,7 @@ _FOLDER = re.compile(r"^[A-Za-z0-9_][A-Za-z0-9_.-]{0,127}$")
 _BROWSER_ROUTES = {"/create-draft", "/edit-draft", "/login/start", "/login/save"}
 _GENERATION_ROUTES = {"/upload", "/create-listing"}
 # Reachable without signing in: the sign-in page itself, health checks, styles/scripts, privacy note.
-_PUBLIC = {"/health", "/signin", "/signup", "/privacy", "/manifest.json", "/favicon.ico"}
+_PUBLIC = {"/health", "/signin", "/signup", "/reset", "/privacy", "/manifest.json", "/favicon.ico"}
 _SIGNIN_LIMIT, _SIGNIN_WINDOW = 8, 300   # attempts per IP per 5 minutes
 _signin_attempts: dict[str, list[float]] = {}
 
@@ -237,6 +237,81 @@ def create_app():
             return jsonify(error="Only the owner can see sellers"), 403
         return jsonify(sellers=accounts.sellers())
 
+    @app.post("/api/accounts/<seller_id>/remove")
+    def account_remove(seller_id):
+        if accounts.current() is not None:
+            return jsonify(error="Only the owner can remove sellers"), 403
+        return (jsonify(removed=True) if accounts.remove(seller_id) else (jsonify(error="No such seller"), 404))
+
+    @app.post("/api/accounts/<seller_id>/reset")
+    def account_reset_link(seller_id):
+        if accounts.current() is not None:
+            return jsonify(error="Only the owner can make reset links"), 403
+        try:
+            code = accounts.create_reset(seller_id)
+        except ValueError as problem:
+            return jsonify(error=str(problem)), 404
+        return jsonify(link=request.host_url.rstrip("/") + "/reset?code=" + code, hours=accounts.RESET_HOURS)
+
+    @app.post("/api/accounts/password")
+    def account_password():
+        """A seller changes their own password (stays signed in here, signed out elsewhere)."""
+        if accounts.current() is None:
+            return jsonify(error="The owner's password is set in Render (APP_PASSWORD)"), 400
+        body = request.get_json(silent=True) or {}
+        try:
+            seller = accounts.change_password(accounts.current(), body.get("current", ""), body.get("new", ""))
+        except ValueError as problem:
+            return jsonify(error=str(problem)), 422
+        session["acct_v"] = accounts.session_version(seller)
+        return jsonify(changed=True)
+
+    @app.route("/reset", methods=["GET", "POST"])
+    def reset_password():
+        """One-time link from the owner: the seller picks a new password and is signed in."""
+        code = request.values.get("code", "")
+        seller = accounts.reset_account(code)
+        if not seller:
+            return render_template("signup.html", invalid=True, reset=True), 404
+        error = None
+        if request.method == "POST":
+            ip = request.headers.get("X-Forwarded-For", request.remote_addr or "").split(",")[0].strip()
+            if _rate_limited(ip):
+                error = "Too many tries. Wait a few minutes."
+            else:
+                _signin_attempts.setdefault(ip, []).append(time.time())
+                try:
+                    seller = accounts.use_reset(code, request.form.get("password", ""))
+                except ValueError as problem:
+                    error = str(problem)
+                else:
+                    session.clear()
+                    session["acct"], session["acct_v"] = seller["id"], accounts.session_version(seller)
+                    session.permanent = True
+                    return redirect("/")
+        return render_template("signup.html", invalid=False, reset=True, error=error, code=code,
+                               email=seller["email"], form={}), (400 if error else 200)
+
+    @app.get("/api/accounts/usage")
+    def account_usage():
+        """This month: the owner sees spend for everyone and the limits; a seller sees their own listings."""
+        from app.services import usage_limits
+        limits = accounts.limits()
+        if accounts.current() is None:
+            return jsonify(limits=limits, **usage_limits.everyone())
+        used = usage_limits.usage()
+        return jsonify(items=used["items"], seller_items=limits["seller_items"])
+
+    @app.post("/api/accounts/limits")
+    def account_limits():
+        if accounts.current() is not None:
+            return jsonify(error="Only the owner can change limits"), 403
+        body = request.get_json(silent=True) or {}
+        try:
+            return jsonify(limits=accounts.set_limits(body.get("monthly_cap_gbp"), body.get("seller_items")))
+        except ValueError as problem:
+            return jsonify(error=str(problem)), 422
+
     @app.post("/signout")
     def signout():
         session.clear()
@@ -245,7 +320,7 @@ def create_app():
     @app.before_request
     def protect_test_app():
         if request.path in _PUBLIC or request.path.startswith("/static/"):
-            if request.method not in {"GET", "HEAD"} and request.path in {"/signin", "/signup"}:
+            if request.method not in {"GET", "HEAD"} and request.path in {"/signin", "/signup", "/reset"}:
                 origin = request.headers.get("Origin")
                 if origin and urlsplit(origin).netloc != request.host:
                     return jsonify(error="Cross-site request rejected"), 403
@@ -285,6 +360,11 @@ def create_app():
             return jsonify(error="Vinted browser operations require the local app", code="LOCAL_BROWSER_REQUIRED"), 503
         if request.path == "/auth/status":
             return jsonify(logged_in="missing", method="local_only", expires_at=None)
+        if request.path in _GENERATION_ROUTES or request.path.startswith("/regen/"):
+            from app.services import usage_limits
+            stop = usage_limits.blocked(account_id, folder)
+            if stop:
+                return jsonify(error=stop, code="USAGE_LIMIT"), 429
         if request.path in _GENERATION_ROUTES or request.path.startswith("/regen/"):
             stages = [("LISTING_PROVIDER", provider_status(config.LISTING_PROVIDER))]
             if request.path in _GENERATION_ROUTES:

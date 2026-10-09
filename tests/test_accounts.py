@@ -145,9 +145,51 @@ with tempfile.TemporaryDirectory() as tmp, moto.mock_aws():
     assert f'users/{seller_id}/items/upload_00000002.zip' in keys, keys
     assert 'accounts/registry.json' in keys
 
+    # Monthly limits: the owner sets them; a seller over their free listings is paused (re-runs still fine),
+    # and the whole-app budget pauses everyone.
+    from datetime import datetime, timezone
+    now=datetime.now(timezone.utc).isoformat()
+    ledger=accounts.root_for(seller_id)/'data'/'model_calls.jsonl'; ledger.parent.mkdir(parents=True, exist_ok=True)
+    ledger.write_text(json.dumps({'id':'e1','item':'upload_00000002','timestamp':now,'model':'gpt-6-luna',
+                                  'input_tokens':1000,'output_tokens':100})+'\n')
+    assert seller.post('/api/accounts/limits',json={'monthly_cap_gbp':5,'seller_items':1}).status_code == 403
+    assert owner.post('/api/accounts/limits',headers=auth,json={'monthly_cap_gbp':'x','seller_items':1}).status_code == 422
+    assert owner.post('/api/accounts/limits',headers=auth,json={'monthly_cap_gbp':5,'seller_items':1}).json['limits'] == {'monthly_cap_gbp':5.0,'seller_items':1}
+    assert seller.get('/api/accounts/usage').json == {'items':1,'seller_items':1}
+    usage=owner.get('/api/accounts/usage',headers=auth).json
+    assert usage['limits']['seller_items'] == 1 and [s['items'] for s in usage['sellers']] == [1]
+    blocked=seller.post('/upload')
+    assert blocked.status_code == 429 and blocked.json['code'] == 'USAGE_LIMIT' and 'free listings' in blocked.json['error']
+    assert seller.post('/create-listing',json={'folder':'upload_00000002'}).json.get('code') != 'USAGE_LIMIT'
+    assert owner.post('/upload',headers=auth).json.get('code') != 'USAGE_LIMIT'          # owner has no listing limit
+    owner.post('/api/accounts/limits',headers=auth,json={'monthly_cap_gbp':0,'seller_items':100})
+    assert owner.post('/upload',headers=auth).json['code'] == 'USAGE_LIMIT'               # budget reached: everyone pauses
+    assert 'budget' in seller.post('/upload').json['error']
+    owner.post('/api/accounts/limits',headers=auth,json={'monthly_cap_gbp':20,'seller_items':30})
+
+    # Password: seller changes it (stays signed in here); owner reset link works once; remove stops sign-in.
+    assert seller.post('/api/accounts/password',json={'current':'wrong','new':'new-password-1'}).status_code == 422
+    assert seller.post('/api/accounts/password',json={'current':'anna-password','new':'new-password-1'}).status_code == 200
+    assert seller.get('/api/listings').status_code == 200                        # still signed in on this phone
+    assert stranger.get('/api/listings').status_code == 401                      # other sessions signed out
+    assert seller.post(f'/api/accounts/{seller_id}/reset').status_code == 403
+    reset=owner.post(f'/api/accounts/{seller_id}/reset',headers=auth).json['link'].split('code=')[1]
+    assert stranger.get('/reset?code=nope').status_code == 404
+    assert b'New' in stranger.get('/reset?code='+reset).data
+    assert stranger.post('/reset?code='+reset,data={'password':'short'}).status_code == 400
+    assert stranger.post('/reset?code='+reset,data={'password':'reset-password-2'}).status_code == 302
+    assert stranger.post('/reset?code='+reset,data={'password':'again-password-3'}).status_code == 404   # once only
+    assert accounts.check('anna@example.com','reset-password-2') and seller.get('/api/listings').status_code == 401
+    assert stranger.get('/api/listings').status_code == 200
+
     # Delete my data (seller) removes only the seller's items.
-    assert seller.post('/api/account/delete-data',json={'confirm':'DELETE'}).status_code == 200
+    assert stranger.post('/api/account/delete-data',json={'confirm':'DELETE'}).status_code == 200   # signed in via the reset
     assert not (seller_items/'upload_00000002').exists() and (items/'upload_00000001').exists()
+    assert seller.post(f'/api/accounts/{seller_id}/remove').status_code in (401, 403)
+    assert owner.post(f'/api/accounts/{seller_id}/remove',headers=auth).json == {'removed': True}
+    assert stranger.get('/api/listings').status_code == 401                      # removed: signed out at once
+    assert owner.post(f'/api/accounts/{seller_id}/remove',headers=auth).status_code == 404
+    assert owner.get('/api/accounts',headers=auth).json['sellers'] == []
     print('ok')
 '''
     env = {**os.environ, "APP_PASSWORD": PASSWORD, "SESSION_COOKIE_SECURE": "0",

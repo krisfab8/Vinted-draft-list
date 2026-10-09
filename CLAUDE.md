@@ -355,6 +355,7 @@ Every improvement should help move the system toward this outcome:
 ## Working Efficiently (read first)
 
 - Use `docs/AGENT_MAP.md` for commands, file locations and deploy steps instead of exploring.
+- `docs/MVP_PLAN.md` is the live "what's left" checklist: read it for next steps and tick items as they ship.
 - The owner usually speaks prompts by voice: expect rambling, run-on requests with transcription
   slips. Work out the intent yourself; never ask them to rephrase or use special words.
   - Split a voice message into its separate asks and handle each one.

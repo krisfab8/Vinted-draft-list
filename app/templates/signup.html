@@ -27,9 +27,20 @@
 <body>
   <img class="si-logo" src="{{ url_for('static', filename='brand-mark.svg') }}" alt="">
   {% if invalid %}
-  <h1 class="sn-title">Invite<br><span>expired<i>.</i></span></h1>
-  <p class="si-note">This invite link has expired or has already been used. Ask the person who sent it for a new one.</p>
+  <h1 class="sn-title">{{ 'Link' if reset else 'Invite' }}<br><span>expired<i>.</i></span></h1>
+  <p class="si-note">This {{ 'reset' if reset else 'invite' }} link has expired or has already been used. Ask the person who sent it for a new one.</p>
   <p class="si-foot"><a href="/signin">Sign in</a> · <a href="/privacy">Privacy</a></p>
+  {% elif reset %}
+  <h1 class="sn-title">New<br><span>password<i>.</i></span></h1>
+  <p class="si-note">For {{ email }}</p>
+  <form class="si-form" method="post" action="/reset?code={{ code | urlencode }}">
+    {% if error %}<div class="si-error" role="alert">{{ error }}</div>{% endif %}
+    <input type="hidden" name="code" value="{{ code }}">
+    <input type="hidden" name="username" value="{{ email }}" autocomplete="username">
+    <label>New password<input name="password" type="password" autocomplete="new-password" minlength="8" required></label>
+    <button type="submit">Save and sign in</button>
+  </form>
+  <p class="si-foot">At least 8 characters · <a href="/privacy">Privacy</a></p>
   {% else %}
   <h1 class="sn-title">You're<br><span>invited<i>.</i></span></h1>
   <p class="si-note">Make your Vinted Lister account. Your listings, photos and sales are yours alone.</p>

@@ -809,6 +809,29 @@ a.pq:active { opacity: .7; }
   font-family: inherit; font-size: 15px; font-weight: 800; color: var(--sn-text); }
 .acct-sellers { list-style: none; margin-top: 10px; font-size: 14px; color: var(--sn-muted); }
 .acct-sellers li { padding: 8px 0; border-top: 1px solid var(--sn-line); }
+.use-head { display: flex; align-items: baseline; gap: 8px; }
+.use-head b { font-size: 26px; font-weight: 800; color: var(--sn-text); }
+.use-head span { font-size: 14px; font-weight: 700; color: var(--sn-muted); }
+.use-meter { height: 8px; border-radius: 4px; background: #DCEAE2; margin: 8px 0 4px; overflow: hidden; }
+.use-meter i { display: block; height: 100%; width: 0; background: #12744F; border-radius: 0 4px 4px 0; transition: width .4s; }
+.use-meter i.full { background: var(--sn-red); }
+.acct-sellers li { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 10px; }
+.acct-sellers .s-text { color: var(--sn-text); font-weight: 700; }
+.acct-sellers .s-tools { display: flex; gap: 6px; }
+.acct-sellers button { height: 32px; padding: 0 10px; border-radius: 10px; border: 1px solid var(--sn-line2); background: var(--sn-card);
+  font-family: inherit; font-size: 13px; font-weight: 700; color: var(--sn-text); }
+.acct-sellers button.danger { color: var(--sn-red); }
+.pw-change { margin-top: 12px; }
+.pw-change summary { cursor: pointer; font-size: 14px; font-weight: 800; color: var(--sn-text); }
+.pw-change input[type=password] { width: 60%; height: 42px; border-radius: 12px; border: 1px solid var(--sn-line2); background: var(--sn-card);
+  padding: 0 10px; font-family: inherit; font-size: 16px; color: var(--sn-text); }
+.use-form { display: grid; gap: 10px; margin-top: 14px; }
+.use-form label { display: flex; align-items: center; justify-content: space-between; gap: 10px; font-size: 15px; font-weight: 700; color: var(--sn-text); }
+.use-in { display: flex; align-items: center; gap: 4px; font-weight: 800; }
+.use-in input { width: 84px; height: 42px; border-radius: 12px; border: 1px solid var(--sn-line2); background: var(--sn-card);
+  padding: 0 10px; font-family: inherit; font-size: 16px; font-weight: 700; color: var(--sn-text); text-align: right; }
+.use-form button { height: 48px; border: 0; border-radius: 999px; background: var(--sn-pop); color: var(--sn-on-pop);
+  font-family: inherit; font-size: 15px; font-weight: 800; }
 .acct-btn b { height: 38px; padding: 0 16px; border-radius: 19px; background: var(--sn-pop); color: var(--sn-on-pop); display: grid; place-items: center;
   font-size: 15px; font-weight: 800; }
 .acct-btn:active { transform: scale(.98); }

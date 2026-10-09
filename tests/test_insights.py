@@ -96,3 +96,11 @@ def test_insights_page_and_sold_link(tmp_path, monkeypatch):
     assert 'aria-current="page">All time' in page
     assert client.get("/insights").status_code == 200
     assert 'href="/insights"' in client.get("/sold").get_data(as_text=True)
+
+
+def test_listing_times_count_for_the_uk_day():
+    from app.services import progress
+    assert progress.uk_day("2026-10-09T23:30:00+00:00") == date(2026, 10, 10)    # 00:30 BST
+    assert progress.uk_day("2026-10-09T23:30:00") == date(2026, 10, 10)          # server time is UTC
+    assert progress.uk_day("2026-01-09T23:30:00Z") == date(2026, 1, 9)           # winter: UK = UTC
+    assert progress.uk_day("2026-10-09") == date(2026, 10, 9) and progress.uk_day("junk") is None

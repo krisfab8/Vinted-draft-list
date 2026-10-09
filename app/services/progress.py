@@ -4,7 +4,8 @@ Deterministic so it survives restarts/restores and can't drift from the real ite
 """
 from __future__ import annotations
 
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
+from zoneinfo import ZoneInfo
 from pathlib import Path
 
 XP_LIST = 10            # every listing created
@@ -43,19 +44,39 @@ TIPS = (
 )
 
 
+_UK = ZoneInfo("Europe/London")
+
+
+def uk_day(value) -> date | None:
+    """The UK calendar day of a saved time. Times without a zone were written in UTC on the server, so
+    00:30 in the UK (23:30 UTC) counts for the right day; plain dates are taken as they are."""
+    if not isinstance(value, str) or len(value) < 10:
+        return None
+    try:
+        if len(value) == 10:
+            return date.fromisoformat(value)
+        moment = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError:
+        try:
+            return date.fromisoformat(value[:10])
+        except ValueError:
+            return None
+    if moment.tzinfo is None:
+        moment = moment.replace(tzinfo=timezone.utc)
+    return moment.astimezone(_UK).date()
+
+
 def created_on(listing: dict, folder: Path | None = None) -> date | None:
     """When the listing was made: saved timestamps first; file time only as a last resort
     (a restore from backup resets file times, which would put everything on one day)."""
     for value in (listing.get("created_at"), (listing.get("run_stats") or {}).get("finished_at"),
                   listing.get("listed_date")):
-        if isinstance(value, str) and len(value) >= 10:
-            try:
-                return date.fromisoformat(value[:10])
-            except ValueError:
-                pass
+        day = uk_day(value)
+        if day:
+            return day
     if folder is not None:
         try:
-            return datetime.fromtimestamp((folder / "listing.json").stat().st_mtime).date()
+            return datetime.fromtimestamp((folder / "listing.json").stat().st_mtime, _UK).date()
         except OSError:
             return None
     return None
@@ -177,12 +198,7 @@ def milestones(run: int) -> dict:
 
 
 def _day(value) -> date | None:
-    if isinstance(value, str) and len(value) >= 10:
-        try:
-            return date.fromisoformat(value[:10])
-        except ValueError:
-            return None
-    return None
+    return uk_day(value)
 
 
 def last_activity(listing: dict, folder: Path | None = None) -> date | None:
