@@ -258,10 +258,14 @@ def create_app():
         """A seller changes their own password (stays signed in here, signed out elsewhere)."""
         if accounts.current() is None:
             return jsonify(error="The owner's password is set in Render (APP_PASSWORD)"), 400
+        limit_key = "pw:" + accounts.current()
+        if _rate_limited(limit_key):
+            return jsonify(error="Too many tries. Wait a few minutes."), 429
         body = request.get_json(silent=True) or {}
         try:
             seller = accounts.change_password(accounts.current(), body.get("current", ""), body.get("new", ""))
         except ValueError as problem:
+            _signin_attempts.setdefault(limit_key, []).append(time.time())
             return jsonify(error=str(problem)), 422
         session["acct_v"] = accounts.session_version(seller)
         return jsonify(changed=True)
@@ -360,14 +364,18 @@ def create_app():
             return jsonify(error="Vinted browser operations require the local app", code="LOCAL_BROWSER_REQUIRED"), 503
         if request.path == "/auth/status":
             return jsonify(logged_in="missing", method="local_only", expires_at=None)
-        if request.path in _GENERATION_ROUTES or request.path.startswith("/regen/"):
+        # Every route that runs the AI: limits first, then the provider checks.
+        regen = request.path.startswith("/regen/")
+        reanalyze = request.path.startswith("/reanalyze/")
+        if request.path in _GENERATION_ROUTES or regen or reanalyze:
             from app.services import usage_limits
-            stop = usage_limits.blocked(account_id, folder)
+            # A correction (regen) is only stopped by the budget; a re-analysis makes a new copy, so it's a new item.
+            stop = usage_limits.blocked(account_id, None if reanalyze else folder, new_item=not regen)
             if stop:
                 return jsonify(error=stop, code="USAGE_LIMIT"), 429
-        if request.path in _GENERATION_ROUTES or request.path.startswith("/regen/"):
+        if request.path in _GENERATION_ROUTES or regen or reanalyze:
             stages = [("LISTING_PROVIDER", provider_status(config.LISTING_PROVIDER))]
-            if request.path in _GENERATION_ROUTES:
+            if request.path in _GENERATION_ROUTES or reanalyze:
                 stages.append(("VISION_PROVIDER", provider_status(config.VISION_PROVIDER)))
             for variable, status in stages:
                 if status["issue"] == "unsupported_provider":

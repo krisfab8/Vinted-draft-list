@@ -225,12 +225,18 @@ def sign_up(code: str, name: str, email: str, password: str, owner_username: str
         invite = data["invites"].get(code or "")
         if not invite or invite.get("used_by") or invite.get("expires", 0) <= time.time():
             raise ValueError("This invite link has expired or been used. Ask for a new one.")
-        if any(a["email"] == email for a in data["accounts"].values()):
+        same = next((a for a in data["accounts"].values() if a["email"] == email), None)
+        if same and not same.get("disabled"):
             raise ValueError("There's already an account with that email. Sign in instead.")
-        account_id = "a" + secrets.token_hex(5)
-        account = {"id": account_id, "name": name, "email": email, "created": time.time(),
-                   "password": generate_password_hash(password)}
-        data["accounts"][account_id] = account
+        if same:   # a removed seller invited back: same account and listings, new password
+            account = same
+            account.update(name=name, password=generate_password_hash(password), disabled=False)
+            account_id = account["id"]
+        else:
+            account_id = "a" + secrets.token_hex(5)
+            account = {"id": account_id, "name": name, "email": email, "created": time.time(),
+                       "password": generate_password_hash(password)}
+            data["accounts"][account_id] = account
         invite["used_by"] = account_id
         _save(data)
     log.warning("Accounts: new seller %s", account_id)
@@ -253,6 +259,11 @@ def get(account_id: str | None) -> dict | None:
 def session_version(account: dict) -> str:
     """Changes when the password changes, which signs that seller out everywhere."""
     return account["password"][-16:]
+
+
+def all_ids() -> list[str]:
+    """Every seller ever invited, removed ones included (their spend is still on the bill)."""
+    return list(_load()["accounts"])
 
 
 def sellers() -> list[dict]:
@@ -339,11 +350,20 @@ def _set_password(account_id: str, password: str) -> dict:
 
 
 def use_reset(code: str, password: str) -> dict:
-    """Set a new password from a reset link (works once). Signs the seller out everywhere else."""
-    account = reset_account(code)
-    if not account:
-        raise ValueError("This reset link has expired or been used. Ask for a new one.")
-    return _set_password(account["id"], password)
+    """Set a new password from a reset link (works once, even if tapped twice at the same moment).
+    Signs the seller out everywhere else."""
+    if len(password or "") < MIN_PASSWORD:
+        raise ValueError(f"Use a password of at least {MIN_PASSWORD} characters.")
+    with _lock:   # check and use the code in one step
+        data = _load()
+        reset = data.get("resets", {}).get(code or "")
+        account = data["accounts"].get((reset or {}).get("id", ""))
+        if not reset or reset.get("expires", 0) <= time.time() or not account or account.get("disabled"):
+            raise ValueError("This reset link has expired or been used. Ask for a new one.")
+        account["password"] = generate_password_hash(password)
+        data["resets"] = {c: r for c, r in data["resets"].items() if r.get("id") != account["id"]}
+        _save(data)
+    return account
 
 
 def change_password(account_id: str, current: str, new: str) -> dict:

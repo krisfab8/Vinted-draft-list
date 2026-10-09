@@ -42,6 +42,39 @@ def test_sign_up_checks_the_form(registry, name, email, password, message):
         accounts.sign_up(accounts.create_invite(), name, email, password, owner_username="kristian")
 
 
+def test_removed_seller_can_be_invited_back(registry):
+    first = accounts.sign_up(accounts.create_invite(), "Anna", "a@example.com", "longenough")
+    assert accounts.remove(first["id"]) and accounts.check("a@example.com", "longenough") is None
+    again = accounts.sign_up(accounts.create_invite(), "Anna B", "a@example.com", "newpassword")
+    assert again["id"] == first["id"] and accounts.check("a@example.com", "newpassword")["name"] == "Anna B"
+    assert first["id"] in accounts.all_ids()
+
+
+def test_reset_link_works_once(registry):
+    seller = accounts.sign_up(accounts.create_invite(), "Anna", "a@example.com", "longenough")
+    code = accounts.create_reset(seller["id"])
+    accounts.use_reset(code, "brand-new-pass")
+    with pytest.raises(ValueError, match="expired or been used"):
+        accounts.use_reset(code, "another-pass-1")
+
+
+def test_failed_ai_calls_dont_use_a_free_listing(registry, tmp_path, monkeypatch):
+    import json as _json
+    from datetime import datetime, timezone
+    from app.services import model_usage, usage_limits
+    ledger = tmp_path / "calls.jsonl"
+    now = datetime.now(timezone.utc).isoformat()
+    ledger.write_text("\n".join(_json.dumps(e) for e in [
+        {"id": "1", "item": "upload_aaaaaaaa", "timestamp": now, "model": "gpt-6-luna", "input_tokens": 1000, "output_tokens": 10},
+        {"id": "2", "item": "upload_bbbbbbbb", "timestamp": now, "model": "gpt-6-luna", "error_type": "APIError"},
+        {"id": "3", "item": "upload_cccccccc", "timestamp": "2001-01-01T00:00:00+00:00", "model": "gpt-6-luna",
+         "input_tokens": 1000, "output_tokens": 10}]) + "\n")
+    monkeypatch.setattr(model_usage, "LEDGER_PATH", ledger)
+    used = usage_limits.usage()
+    assert used["items"] == 1 and used["folders"] == {"upload_aaaaaaaa"}
+    assert usage_limits.usage() == used          # second read comes from the cache
+
+
 def test_one_account_per_email(registry):
     accounts.sign_up(accounts.create_invite(), "Anna", "a@example.com", "longenough")
     with pytest.raises(ValueError, match="already an account"):
@@ -161,6 +194,8 @@ with tempfile.TemporaryDirectory() as tmp, moto.mock_aws():
     blocked=seller.post('/upload')
     assert blocked.status_code == 429 and blocked.json['code'] == 'USAGE_LIMIT' and 'free listings' in blocked.json['error']
     assert seller.post('/create-listing',json={'folder':'upload_00000002'}).json.get('code') != 'USAGE_LIMIT'
+    assert seller.post('/regen/upload_00000002').json.get('code') != 'USAGE_LIMIT'      # corrections never use one up
+    assert seller.post('/reanalyze/upload_00000002').json.get('code') == 'USAGE_LIMIT'  # a re-analysis is a new copy
     assert owner.post('/upload',headers=auth).json.get('code') != 'USAGE_LIMIT'          # owner has no listing limit
     owner.post('/api/accounts/limits',headers=auth,json={'monthly_cap_gbp':0,'seller_items':100})
     assert owner.post('/upload',headers=auth).json['code'] == 'USAGE_LIMIT'               # budget reached: everyone pauses
