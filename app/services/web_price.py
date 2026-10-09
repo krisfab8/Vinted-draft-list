@@ -34,6 +34,11 @@ Reply with ONLY this JSON, no other text:
 Use at most 6 examples. If you find nothing useful, set confidence to "low"."""
 
 
+def available():
+    """The search can run at all (an API key is set), whether or not it's switched on for every item."""
+    return bool(config.ANTHROPIC_API_KEY)
+
+
 def enabled():
     # Off by default: ~4p and ~9s per item for little pricing gain in the first
     # live test (7 Oct 2026). Set ENABLE_WEB_PRICE=1 to try it again.

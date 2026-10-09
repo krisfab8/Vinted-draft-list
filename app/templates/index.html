@@ -1590,7 +1590,10 @@
   const dealtPhotos = new WeakSet();  // photos already animated onto the grid
 
   /* ── Celebration: a burst from the button and today's count ticks up ── */
+  // Quests: note what's done now, so a new listing can toast anything it completes.
+  document.addEventListener("DOMContentLoaded", () => window.Quests?.snapshot());
   function celebrateListing() {
+    setTimeout(() => window.Quests?.check(), 2200);
     const btn = document.getElementById("submitBtn");
     if (btn && !window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
       const colours = ["#2F4A3A", "#C9A45C", "#F3EDE0", "#6E8B6A", "#1E2A22"];

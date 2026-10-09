@@ -204,9 +204,12 @@ def create_listing():
         _t0 = time.perf_counter()
         buy_price = float(body["buy_price_gbp"]) if "buy_price_gbp" in body else None
         pricing_mode = profile_svc.load().get("pricing_mode", "balanced")
+        price_check = _price_check_perk()
         listing, extract_usage, write_usage, extract_log, write_log = pipeline_svc.run_pipeline(
-            item_path, hints, buy_price_gbp=buy_price, pricing_mode=pricing_mode
+            item_path, hints, buy_price_gbp=buy_price, pricing_mode=pricing_mode, price_check=price_check
         )
+        if price_check and listing.get("web_price_perk"):
+            _spend_perk("price_check")
 
         # Save listing JSON next to the photos
         from app.services import review_evidence
@@ -531,9 +534,12 @@ def upload_listing():
         _t0 = time.perf_counter()
         buy_price_gbp = float(buy_price) if buy_price else None
         pricing_mode = profile_svc.load().get("pricing_mode", "balanced")
+        price_check = _price_check_perk()
         listing, extract_usage, write_usage, extract_log, write_log = pipeline_svc.run_pipeline(
-            item_path, hints, buy_price_gbp=buy_price_gbp, pricing_mode=pricing_mode
+            item_path, hints, buy_price_gbp=buy_price_gbp, pricing_mode=pricing_mode, price_check=price_check
         )
+        if price_check and listing.get("web_price_perk"):
+            _spend_perk("price_check")
 
         # upload adds cost fields to the listing (not present in create-listing response)
         cost_usd = _calc_cost_usd(extract_usage) + _calc_cost_usd(write_usage)
@@ -570,8 +576,44 @@ def upload_listing():
 
 def _progress(listings=None) -> dict:
     from app.services import progress, sales_history
+    profile = profile_svc.load()
     return progress.summary(listings if listings is not None else _get_all_listings(), ITEMS_DIR,
-                            profile_svc.daily_goal(profile_svc.load()), sales_history.today())
+                            profile_svc.daily_goal(profile), sales_history.today(),
+                            perks_used=profile.get("perks_used") or {})
+
+
+def _price_check_perk() -> bool:
+    """A Pro price check is waiting (earned from daily chests and level-ups)."""
+    try:
+        return any(p["id"] == "price_check" and p["left"] > 0 for p in _progress()["perks"])
+    except Exception:
+        return False
+
+
+def _spend_perk(perk: str) -> None:
+    profile = profile_svc.load()
+    used = dict(profile.get("perks_used") or {})
+    used[perk] = int(used.get(perk, 0) or 0) + 1
+    profile["perks_used"] = used
+    profile_svc.save(profile)
+
+
+@app.get("/api/progress")
+def progress_api():
+    p = _progress()
+    return jsonify({k: p[k] for k in ("streak", "today_met", "today_count", "goal", "xp", "xp_today", "level",
+                                      "quests", "chest_ready", "badges", "perks")})
+
+
+@app.post("/api/progress/skin")
+def progress_skin():
+    skin = (request.get_json(silent=True) or {}).get("skin")
+    if not any(s["id"] == skin and s["unlocked"] for s in _progress()["skins"]):
+        return jsonify(error="That coin isn't unlocked yet."), 422
+    profile = profile_svc.load()
+    profile["coin_skin"] = skin
+    profile_svc.save(profile)
+    return jsonify(skin=skin)
 
 
 @app.get("/progress")
@@ -718,10 +760,11 @@ def _nav_counts():
                     made_today += progress.created_on(json.loads(listing.read_text()), item_dir) == today
                 except (OSError, ValueError):
                     continue
-    name = profile_svc.load().get("name") or ""
+    profile = profile_svc.load()
+    name = profile.get("name") or ""
     # Route-supplied values (e.g. draft_count) take precedence over these defaults.
     return {"sold_count": sold_count, "today_count": made_today, "draft_count": _draft_count(),
-            "profile_initial": name[:1].upper()}
+            "profile_initial": name[:1].upper(), "coin_skin": profile.get("coin_skin") or "brass"}
 
 
 def _draft_count() -> int:

@@ -176,21 +176,59 @@ def milestones(run: int) -> dict:
     return out
 
 
-def summary(listings: list[dict], root: Path, goal: int, today: date) -> dict:
+def _day(value) -> date | None:
+    if isinstance(value, str) and len(value) >= 10:
+        try:
+            return date.fromisoformat(value[:10])
+        except ValueError:
+            return None
+    return None
+
+
+def summary(listings: list[dict], root: Path, goal: int, today: date, perks_used: dict | None = None) -> dict:
     """Everything the Progress page and chips need, from the item list."""
+    from app.services import quests
     day_counts, xp_total, xp_today, tiers = {}, 0, 0, {"hot": 0, "premium": 0}
+    day_stats: dict = {}                         # per day: listed, full_sets, premium, hot, sold, crosslisted
+    totals = {"listed": 0, "sold": 0, "profit": 0.0, "premium": 0, "full_sets": 0, "crosslisted": 0}
+    bump = lambda day, key: day_stats.setdefault(day, {}).__setitem__(key, day_stats[day].get(key, 0) + 1)
     for listing in listings:
         folder = root / listing["folder"] if listing.get("folder") else None
         made = created_on(listing, folder)
         xp = item_xp(listing, folder)
         xp_total += xp
+        kind = tier(listing)
+        full = folder is not None and _has_full_set(folder)
+        totals["listed"] += 1
+        totals["full_sets"] += full
+        if kind:
+            tiers[kind] += 1
+            totals["premium"] += 1
         if made:
             day_counts[made] = day_counts.get(made, 0) + 1
             if made == today:
                 xp_today += xp
-        kind = tier(listing)
-        if kind:
-            tiers[kind] += 1
+            bump(made, "listed")
+            if full:
+                bump(made, "full_sets")
+            if kind:
+                bump(made, "premium")
+            if kind == "hot":
+                bump(made, "hot")
+        outcome = listing.get("outcome") or {}
+        if outcome.get("status") == "sold":
+            totals["sold"] += 1
+            totals["profit"] += float(outcome.get("profit_gbp") or 0)
+            sold_on = _day(outcome.get("sold_date"))
+            if sold_on:
+                bump(sold_on, "sold")
+        where = listing.get("crosslist") or {}
+        if len(where) >= 2:
+            totals["crosslisted"] += 1
+        for platform, entry in where.items():
+            marked = _day((entry or {}).get("at")) if platform != "Vinted" else None
+            if marked and (entry or {}).get("status") in ("live", "removed", "sold"):
+                bump(marked, "crosslisted")
     info = streak_info(day_counts, goal, today)
     current, today_met = info["run"], info["today_met"]
     frozen = set(info["frozen"])
@@ -201,8 +239,20 @@ def summary(listings: list[dict], root: Path, goal: int, today: date) -> dict:
         week.append({"label": "Today" if offset == 0 else day.strftime("%a")[:1], "count": count,
                      "met": count >= max(1, goal), "today": offset == 0, "frozen": day in frozen})
     saved_yesterday = (today - timedelta(days=1)) in frozen
-    return {"streak": current, "today_met": today_met, "best_streak": max(best_streak(day_counts, goal), info["best"]),
+    best = max(best_streak(day_counts, goal), info["best"])
+    daily = quests.daily_stats(day_stats, goal, today)
+    xp_total += daily["quest_xp"]
+    xp_today += daily["quest_xp_today"]
+    lvl = level(xp_total)
+    level_index = [name for _, name in LEVELS].index(lvl["name"])
+    stats = dict(totals, best_streak=best, chests=daily["chests"])
+    badge_list = quests.badges(stats)
+    unlocked = {b["id"] for b in badge_list if b["unlocked"]}
+    return {"streak": current, "today_met": today_met, "best_streak": best,
             "streak_before_today": info["before_today"], "freezes": info["freezes"], "freeze_saved_yesterday": saved_yesterday,
             "milestone": milestones(current), "tip": TIPS[today.toordinal() % len(TIPS)],
             "today_count": day_counts.get(today, 0), "goal": goal, "xp": xp_total, "xp_today": xp_today,
-            "level": level(xp_total), "week": week, "hot": tiers["hot"], "premium": tiers["premium"]}
+            "level": lvl, "week": week, "hot": tiers["hot"], "premium": tiers["premium"],
+            "quests": daily["quests"], "chest_ready": daily["chest_ready"], "chests": daily["chests"],
+            "chest_xp": quests.CHEST_XP, "badges": badge_list, "perks": quests.perks(daily["chests"], level_index, perks_used),
+            "skins": quests.skins(level_index, unlocked)}

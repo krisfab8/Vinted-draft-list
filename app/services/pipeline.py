@@ -19,6 +19,7 @@ def run_pipeline(
     hints: dict,
     buy_price_gbp: float | None = None,
     pricing_mode: str = "balanced",
+    price_check: bool = False,
 ) -> tuple[dict, dict, dict, dict, dict]:
     """Run extract → write → price for a new item.
 
@@ -58,9 +59,13 @@ def run_pipeline(
         pass
     listing["measurement_proposals"] = item.get("measurement_proposals", [])
     from app.services import web_price
-    if web_price.enabled():
+    # Normally off (cost); a "Pro price check" perk turns it on for this one listing.
+    perk = price_check and not web_price.enabled() and web_price.available()
+    if web_price.enabled() or perk:
         marks.append(("Web price search", time.perf_counter(), len(run_calls)))
         listing["web_price"] = web_price.estimate(listing)
+        if perk and listing["web_price"]:
+            listing["web_price_perk"] = True
     marks.append(("Pricing", time.perf_counter(), len(run_calls)))
     pricing.apply_pricing(listing, pricing_mode=pricing_mode)
     marks.append(("end", time.perf_counter(), len(run_calls)))

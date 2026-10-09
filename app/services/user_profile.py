@@ -24,6 +24,9 @@ DEFAULTS: dict = {
     "marketing_opt_in": False,
     "photo_mode": "guided",             # guided | pro
     "onboarded_at": None,
+    # Gamification: perks spent ({"price_check": 2}) and the chosen coin skin (unlocked by levels/badges).
+    "perks_used": {},
+    "coin_skin": "brass",
 }
 
 # Onboarding answers -> allowed values (anything else is rejected, not guessed).

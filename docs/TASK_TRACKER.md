@@ -378,3 +378,12 @@ Keep IDs stable. Do not rename an open task to hide scope. Split partial work in
 - "🔥 N-day streak" on the Upload and Drafts chips; amber "at risk" pulse after 6pm (streak.js markRisk).
 - Progress: big flame card (streak, status, freezes, milestone bar, "freeze saved you" note), ❄️ on frozen days,
   "Why streaks matter" tip. Celebration overlay when today's goal is hit (Streak.celebrate, once a day).
+
+## Daily quests and rewards (gamification step 2)
+- app/services/quests.py: 3 daily quests (List N always + 2 rotating: full photo set, premium, hot, sale, cross-list),
+  daily chest (+25 XP, +1 Pro price check), 12 badges, perks, coin skins. Deterministic from listings/sales; quest XP
+  is part of total XP. Profile stores only perks_used and coin_skin.
+- Pro price check perk = the sold-price web search (web_price, normally off) for one listing; spent only when it
+  returns a result. Earned from chests and 3 per level-up.
+- Progress: quests card with chest (Open → chest animation), perks, badges grid (new badge pop-up), coin skin picker
+  (Silver/Rose gold/Emerald by level, Quest gold by badge). Upload: quest-complete toasts after a listing.

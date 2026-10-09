@@ -29,6 +29,23 @@
   {% endif %}
 </section>
 
+<section class="pg-card pg-quests" aria-label="Today's quests">
+  <div class="pg-head">Today's quests <span>new ones at midnight</span></div>
+  {% for q in p.quests %}
+  <div class="pq{% if q.done %} done{% endif %}">
+    <span class="pq-ic" aria-hidden="true">{{ q.icon }}</span>
+    <div class="pq-main"><b>{{ q.text }}</b><div class="pq-bar"><i style="width:{{ ((q.have / q.target) * 100)|round(1) }}%"></i></div></div>
+    <span class="pq-xp">{% if q.done %}✓{% else %}{{ q.have }}/{{ q.target }}{% endif %}<small>+{{ q.xp }} XP</small></span>
+  </div>
+  {% endfor %}
+  <div class="pq-chest{% if p.chest_ready %} ready{% endif %}" id="pqChest">
+    <svg class="chest" viewBox="0 0 120 100" aria-hidden="true"><g class="chest-lid"><path d="M14 44 Q14 16 60 16 Q106 16 106 44 Z" fill="#9C6B3A"/><rect x="52" y="16" width="16" height="28" fill="#C9A45C"/></g><rect x="14" y="44" width="92" height="46" rx="6" fill="#B07A44"/><rect x="52" y="44" width="16" height="46" fill="#C9A45C"/><rect x="54" y="52" width="12" height="14" rx="3" fill="#6E4724"/></svg>
+    <div><b id="pqChestTitle">{% if p.chest_ready %}Chest unlocked!{% else %}Daily chest{% endif %}</b>
+      <small>Finish all 3 for +{{ p.chest_xp }} XP and a Pro price check</small></div>
+    {% if p.chest_ready %}<button type="button" class="pq-open" id="pqOpen" data-xp="{{ p.chest_xp }}">Open</button>{% endif %}
+  </div>
+</section>
+
 <section class="pg-card pg-week" aria-label="This week">
   {% for d in p.week %}
   <div class="pg-day{% if d.met %} met{% endif %}{% if d.today %} today{% endif %}{% if d.frozen %} frozen{% endif %}" title="{{ 'Saved by a streak freeze' if d.frozen else d.count ~ ' listed' }}">
@@ -61,6 +78,31 @@
   <div class="pg-tile hot"><strong>{{ p.hot }}</strong><span>🔥 Hot pieces</span></div>
 </div>
 
+<section class="pg-card pg-perks" aria-label="Your perks">
+  <div class="pg-head">Your perks</div>
+  {% for k in p.perks %}
+  <div class="pk"><span class="pk-ic" aria-hidden="true">🔎</span>
+    <div><b>{{ k.name }}</b><small>{{ k.desc }}. Earn more from daily chests and every level-up.</small></div>
+    <span class="pk-n{% if not k.left %} zero{% endif %}" aria-label="{{ k.left }} left">×{{ k.left }}</span></div>
+  {% endfor %}
+</section>
+
+<section class="pg-card" aria-label="Badges">
+  <div class="pg-head">Badges <span>{{ p.badges|selectattr('unlocked')|list|length }} of {{ p.badges|length }}</span></div>
+  <div class="pg-badges">
+    {% for b in p.badges %}<div class="pg-badge{% if not b.unlocked %} locked{% endif %}" title="{{ b.desc }}"><i aria-hidden="true">{{ b.icon }}</i><b>{{ b.name }}</b><small>{{ b.desc }}</small></div>{% endfor %}
+  </div>
+</section>
+
+<section class="pg-card" aria-label="Coin skins">
+  <div class="pg-head">Coin skins <span>just for fun</span></div>
+  <div class="pg-skins" id="pgSkins">
+    {% for k in p.skins %}<button type="button" class="pg-skin{% if not k.unlocked %} locked{% endif %}{% if k.id == coin_skin %} on{% endif %}" data-skin-pick="{{ k.id }}" {% if not k.unlocked %}aria-disabled="true"{% endif %}>
+      <span class="coin" data-coin="still" data-skin="{{ k.id }}" style="--coin:46px" aria-hidden="true"></span>
+      <small>{{ k.name }}</small><em>{{ '✓ Unlocked' if k.unlocked else '🔒 ' ~ k.hint }}</em></button>{% endfor %}
+  </div>
+</section>
+
 <section class="pg-card" aria-label="How to earn XP">
   <div class="pg-head">Earn XP</div>
   {% for label, xp in rules %}<div class="pg-rule"><span>{{ label }}</span><b>+{{ xp }}</b></div>{% endfor %}
@@ -76,6 +118,36 @@
     stage.addEventListener("click", spin);
     stage.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); spin(); } });
     if (stage.querySelector(".pg-coin-hint")) setTimeout(spin, 700);   // XP earned today: a celebratory spin
+
+    // Daily chest: open once a day.
+    const open = document.getElementById("pqOpen"), box = document.getElementById("pqChest");
+    const opened = () => { box.classList.remove("ready"); box.classList.add("opened"); open?.remove();
+                           document.getElementById("pqChestTitle").textContent = "Chest opened ✓ Come back tomorrow"; };
+    let openedToday = false;
+    try { openedToday = localStorage.getItem("chestOpened") === new Date().toLocaleDateString("en-CA"); } catch (_) {}
+    if (open && openedToday) opened();
+    open?.addEventListener("click", () => window.Streak?.chest({xp: open.dataset.xp, onDone: opened}));
+
+    // New badges since last visit get their moment (the first visit only shows the latest one).
+    const unlocked = {{ p.badges|selectattr('unlocked')|map(attribute='id')|list|tojson }};
+    const info = {{ p.badges|tojson }};
+    let seen = null;
+    try { seen = JSON.parse(localStorage.getItem("badgesSeen") || "null"); } catch (_) {}
+    const fresh = unlocked.filter(id => !(seen || []).includes(id));
+    const show = seen ? fresh : fresh.slice(-1);
+    show.forEach((id, i) => setTimeout(() => window.Streak?.badge(info.find(b => b.id === id)), 900 + i * 2600));
+    try { localStorage.setItem("badgesSeen", JSON.stringify(unlocked)); } catch (_) {}
+
+    // Coin skins: tap an unlocked one to wear it everywhere.
+    document.getElementById("pgSkins").addEventListener("click", async e => {
+      const btn = e.target.closest("[data-skin-pick]");
+      if (!btn || btn.getAttribute("aria-disabled")) return;
+      const r = await fetch("/api/progress/skin", {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({skin: btn.dataset.skinPick})});
+      if (!r.ok) return;
+      document.documentElement.dataset.coinSkin = btn.dataset.skinPick;
+      document.querySelectorAll(".pg-skin").forEach(b => b.classList.toggle("on", b === btn));
+      window.Coin && Coin.earn(document.getElementById("pgCoin"));
+    });
   })();
 </script>
 {% endblock %}
