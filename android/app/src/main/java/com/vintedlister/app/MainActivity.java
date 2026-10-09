@@ -45,6 +45,9 @@ public class MainActivity extends Activity {
     private volatile String currentUrl = "";
     private volatile String pendingPayload;
     private volatile String pendingLogin;   // "vinted": tap Vinted's own Log in button once the page loads
+    private long loginUntil;                // keep trying to reach Vinted's login until this time (ms)
+    private int loginRun;                   // each new page restarts the attempts; older runs stop
+    private boolean loginClicked;
     private String filler;
     private ValueCallback<Uri[]> fileCallback;
     private PermissionRequest pendingPermission;
@@ -93,8 +96,14 @@ public class MainActivity extends Activity {
                 backToApp.setVisibility(isMarketplace(currentUrl) ? View.VISIBLE : View.GONE);
                 if (onVinted && "vinted".equals(pendingLogin)) {
                     pendingLogin = null;
-                    // Vinted's login address changes; its header "Log in" button doesn't. Tap it, then the modal's Log in.
-                    view.postDelayed(() -> view.evaluateJavascript(LOGIN_TAP, null), 1200);
+                    loginUntil = System.currentTimeMillis() + 25000;
+                    loginClicked = false;
+                }
+                if (onVinted && System.currentTimeMillis() < loginUntil) {
+                    // Vinted's login address changes; its "Log in" buttons don't. Vinted draws its page late,
+                    // so keep looking for them (header, then the pop-up's Log in) until the login options show.
+                    int run = ++loginRun;
+                    view.postDelayed(() -> loginStep(view, run, 0), 1000);
                 }
                 if (onVinted && pendingPayload != null && currentUrl.contains("/items/new") && filler != null) {
                     // Give Vinted's page a moment to render its form, then fill it.
@@ -132,10 +141,31 @@ public class MainActivity extends Activity {
         if (state != null) web.restoreState(state); else web.loadUrl(APP_URL);
     }
 
-    private static final String LOGIN_TAP =
-        "(function(){var f=function(exact){return Array.prototype.slice.call(document.querySelectorAll('a,button,[role=button]'))"
-        + ".find(function(e){var t=(e.innerText||'').trim();return exact?/^log in$/i.test(t):/log in/i.test(t);});};"
-        + "var a=f(false);if(a)a.click();setTimeout(function(){var b=f(true);if(b&&b!==a)b.click();},900);})();";
+    /** One look at Vinted's page: "form" = login options showing, "tapped"/"opened" = clicked a Log in, "none". */
+    private static final String LOGIN_STEP =
+        "(function(){var els=Array.prototype.slice.call(document.querySelectorAll('a,button,[role=button]'))"
+        + ".filter(function(e){return e.getClientRects().length&&!e.dataset.vlTapped"
+        + "&&!(e.closest('form')&&(e.type==='submit'||e.closest('form').querySelector('input[type=password]')));});"
+        + "var txt=function(e){return (e.innerText||e.textContent||'').trim();};"
+        + "var exact=els.find(function(e){return /^log ?in$/i.test(txt(e));});"
+        + "if(exact){exact.dataset.vlTapped='1';exact.click();return 'tapped';}"
+        + "if(document.querySelector('input[type=password],input[name=username],input[type=email]')"
+        + "||els.some(function(e){return /log in with email|continue with (google|apple|facebook)/i.test(txt(e));}))return 'form';"
+        + "var any=els.find(function(e){return /log ?in/i.test(txt(e));});"
+        + "if(any){any.dataset.vlTapped='1';any.click();return 'opened';}return 'none';})()";
+
+    private void loginStep(WebView view, int run, int attempt) {
+        if (run != loginRun || System.currentTimeMillis() > loginUntil || !isVinted(currentUrl)) return;
+        view.evaluateJavascript(LOGIN_STEP, result -> {
+            if (run != loginRun) return;
+            String r = result == null ? "" : result.replace("\"", "");
+            if (r.equals("tapped") || r.equals("opened")) loginClicked = true;
+            if (r.equals("form")) { loginUntil = 0; return; }   // login options are showing: done
+            if (attempt < 14) { view.postDelayed(() -> loginStep(view, run, attempt + 1), 800); return; }
+            loginUntil = 0;
+            if (!loginClicked) Toast.makeText(this, "No Log in button on Vinted: you're probably logged in already", Toast.LENGTH_LONG).show();
+        });
+    }
 
     /** Vinted, eBay or Depop: shows the "← Lister" button so you can always get back. */
     private static boolean isMarketplace(String url) {
