@@ -44,7 +44,8 @@ public class MainActivity extends Activity {
     private Button backToApp;
     private volatile String currentUrl = "";
     private volatile String pendingPayload;
-    private volatile String pendingLogin;   // "vinted": tap Vinted's own Log in button once the page loads
+    private volatile String pendingLogin;   // "vinted"/"ebay": tap that site's own Log in / Sign in once the page loads
+    private String loginSite = "vinted";
     private long loginUntil;                // keep trying to reach Vinted's login until this time (ms)
     private int loginRun;                   // each new page restarts the attempts; older runs stop
     private boolean loginClicked;
@@ -94,18 +95,20 @@ public class MainActivity extends Activity {
                 currentUrl = url == null ? "" : url;
                 boolean onVinted = isVinted(currentUrl);
                 backToApp.setVisibility(isMarketplace(currentUrl) ? View.VISIBLE : View.GONE);
-                if (onVinted && "vinted".equals(pendingLogin)) {
+                boolean onMarket = isMarketplace(currentUrl);
+                if (onMarket && pendingLogin != null) {
+                    loginSite = pendingLogin;
                     pendingLogin = null;
                     loginUntil = System.currentTimeMillis() + 45000;
                     loginClicked = false;
                     loginNavDone = false;
                     loginSteps.setLength(0);
                     lastLoginStep = "";
-                    Toast.makeText(MainActivity.this, "Finding Vinted's Log in\u2026", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(MainActivity.this, "Finding " + siteName() + "'s " + loginWord() + "\u2026", Toast.LENGTH_SHORT).show();
                 }
-                if (onVinted && System.currentTimeMillis() < loginUntil) {
-                    // Vinted's login address changes; its "Log in" buttons don't. Vinted draws its page late,
-                    // so keep looking for them (header, then the pop-up's Log in) until the login options show.
+                if (onMarket && System.currentTimeMillis() < loginUntil) {
+                    // Login addresses change (and eBay's errors when opened cold); the sites' own buttons don't.
+                    // Pages draw late, so keep looking (header, menu, pop-ups) until the login options show.
                     int run = ++loginRun;
                     view.postDelayed(() -> loginStep(view, run, 0), 1000);
                 }
@@ -150,30 +153,30 @@ public class MainActivity extends Activity {
      *  and it only exists once opened), "nav" = followed a login link, "cookies" = chose essential cookies,
      *  "country"/"country-ok" = picked United Kingdom, otherwise "none|what it saw". */
     private static final String LOGIN_STEP =
-        "(function(allowNav){var all=Array.prototype.slice.call(document.querySelectorAll('a,button,[role=button]'));"
+        "(function(allowNav,site){var vinted=site!=='ebay';var all=Array.prototype.slice.call(document.querySelectorAll('a,button,[role=button]'));"
         + "var shown=function(e){var r=e.getBoundingClientRect();return r.width>0&&r.height>0&&r.right>0&&r.left<innerWidth"
         + "&&getComputedStyle(e).visibility!=='hidden';};"
         + "var els=all.filter(function(e){return shown(e)&&!e.dataset.vlTapped"
         + "&&!(e.closest('form')&&(e.type==='submit'||e.closest('form').querySelector('input[type=password]')));});"
         + "var txt=function(e){return (e.innerText||e.textContent||'').trim();};"
         // Cookie pop-up: essential only (never accept advertising cookies for the seller); then the menu may be retried.
-        + "var ck=els.find(function(e){return /^(choose essential|essential only|reject all|accept essential( cookies)?)$/i.test(txt(e));});"
+        + "var ck=els.find(function(e){return /^(choose essential|essential only|reject all|decline all|decline|accept essential( cookies)?|use necessary cookies only)$/i.test(txt(e));});"
         + "if(ck){ck.dataset.vlTapped='1';ck.click();delete document.documentElement.dataset.vlMenu;return 'cookies';}"
         // Country picker: United Kingdom, then its Continue/Confirm.
         + "var de=document.documentElement,body=(document.body&&document.body.innerText)||'';"
-        + "if(/countr/i.test(body)){var uk=Array.prototype.slice.call(document.querySelectorAll('a,button,[role=button],[role=option],[role=radio],li,label,span,div'))"
+        + "if(vinted&&/countr/i.test(body)){var uk=Array.prototype.slice.call(document.querySelectorAll('a,button,[role=button],[role=option],[role=radio],li,label,span,div'))"
         + ".filter(function(e){return shown(e)&&!e.dataset.vlTapped&&/^united kingdom$/i.test(txt(e));}).pop();"
         + "if(uk&&!de.dataset.vlCountry){uk.dataset.vlTapped='1';uk.click();de.dataset.vlCountry=1;return 'country';}"
         + "if(de.dataset.vlCountry){var go=els.find(function(e){return /^(continue|confirm|save|done|next)$/i.test(txt(e));});"
         + "if(go){delete de.dataset.vlCountry;go.dataset.vlTapped='1';go.click();return 'country-ok';}}}"
         + "var exact=els.find(function(e){return /^(log ?in|sign ?in)$/i.test(txt(e));});"
         + "if(exact){exact.dataset.vlTapped='1';exact.click();return 'tapped';}"
-        + "if(document.querySelector('input[type=password],input[name=username],input[type=email]')"
+        + "if(document.querySelector('input[type=password],input[name=username],input[name=userid],input[type=email]')"
         + "||els.some(function(e){return /log in with email|continue with (google|apple|facebook)/i.test(txt(e));}))return 'form';"
         + "var any=els.find(function(e){return /log ?in|sign ?in/i.test(txt(e));});"
         + "if(any){any.dataset.vlTapped='1';any.click();return 'opened';}"
-        + "if(document.querySelector('a[href*=inbox],[data-testid*=user-menu],[data-testid*=header-user]'))return 'in';"
-        + "if(!document.documentElement.dataset.vlMenu){var hdr=document.querySelector('header')||document.body;"
+        + "if(vinted&&document.querySelector('a[href*=inbox],[data-testid*=user-menu],[data-testid*=header-user]'))return 'in';"
+        + "if(vinted&&!document.documentElement.dataset.vlMenu){var hdr=document.querySelector('header')||document.body;"
         + "var lbl=function(e){return (e.getAttribute('aria-label')||'')+' '+(e.getAttribute('data-testid')||'')+' '+(e.className||'');};"
         + "var menu=els.find(function(e){return /menu|burger|navigation|hamburger/i.test(lbl(e));})"
         + "||Array.prototype.slice.call(hdr.querySelectorAll('button,[role=button],a')).filter(function(e){"
@@ -189,9 +192,12 @@ public class MainActivity extends Activity {
     private final StringBuilder loginSteps = new StringBuilder();
     private String lastLoginStep = "";
 
+    private String siteName() { return "ebay".equals(loginSite) ? "eBay" : "Vinted"; }
+    private String loginWord() { return "ebay".equals(loginSite) ? "Sign in" : "Log in"; }
+
     private void loginStep(WebView view, int run, int attempt) {
-        if (run != loginRun || System.currentTimeMillis() > loginUntil || !isVinted(currentUrl)) return;
-        view.evaluateJavascript(LOGIN_STEP + "(" + !loginNavDone + ")", result -> {
+        if (run != loginRun || System.currentTimeMillis() > loginUntil || !isMarketplace(currentUrl)) return;
+        view.evaluateJavascript(LOGIN_STEP + "(" + !loginNavDone + ",'" + loginSite + "')", result -> {
             if (run != loginRun) return;
             String r = result == null ? "" : result.replaceAll("^\"|\"$", "").replace("\\\"", "\"");
             if (r.equals("tapped") || r.equals("opened") || r.equals("menu")) loginClicked = true;
@@ -204,13 +210,13 @@ public class MainActivity extends Activity {
             if (r.equals("form")) { loginUntil = 0; return; }   // login options are showing: done
             if (r.equals("in")) {
                 loginUntil = 0;
-                Toast.makeText(this, "You're already logged in to Vinted \u2713", Toast.LENGTH_LONG).show();
+                Toast.makeText(this, "You're already logged in to " + siteName() + " \u2713", Toast.LENGTH_LONG).show();
                 return;
             }
             if (attempt < 30) { view.postDelayed(() -> loginStep(view, run, attempt + 1), 800); return; }
             loginUntil = 0;
             String saw = r.startsWith("none|") ? r.substring(5) : "";
-            Toast.makeText(this, "Couldn't reach Vinted's Log in: tap \u2630 then Sign up | Log in. (Tried: " + loginSteps
+            Toast.makeText(this, "Couldn't reach " + siteName() + "'s " + loginWord() + ": tap it yourself. (Tried: " + loginSteps
                 + (saw.isEmpty() ? "" : "; saw: " + saw) + ")", Toast.LENGTH_LONG).show();
         });
     }
@@ -281,7 +287,7 @@ public class MainActivity extends Activity {
         public void openSite(String platform) {
             if (!currentUrl.startsWith(APP_URL)) return;
             final String url;
-            if ("ebay".equals(platform)) url = "https://signin.ebay.co.uk/ws/eBayISAPI.dll?SignIn";
+            if ("ebay".equals(platform)) { url = "https://www.ebay.co.uk/"; pendingLogin = "ebay"; }
             else if ("depop".equals(platform)) url = "https://www.depop.com/login/";
             else { url = "https://www.vinted.co.uk/"; pendingLogin = "vinted"; }
             runOnUiThread(() -> web.loadUrl(url));
