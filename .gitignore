@@ -73,3 +73,4 @@ android/local.properties
 
 # Invited sellers: their listings, photos, sales and the account registry (runtime data)
 accounts/
+data/vinted_fill_reports.jsonl

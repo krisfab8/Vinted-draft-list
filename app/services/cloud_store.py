@@ -27,6 +27,7 @@ PREFIX = "items/"
 META_PREFIX = "meta/"  # small per-item summaries used for fast, cheap restores
 PROFILE_KEY = "profile/user_profile.json"  # onboarding answers (name, email, preferences)
 REMOVED_KEY = "profile/removed_items.json"  # items removed on purpose; must survive restarts
+LEDGER_KEY = "profile/model_calls.jsonl"  # AI usage record: the monthly limits are counted from it
 REQUIRED = ("B2_KEY_ID", "B2_APP_KEY", "B2_BUCKET", "B2_ENDPOINT")
 SYNC_INTERVAL_SECONDS = 60
 DEBOUNCE_SECONDS = 2
@@ -82,7 +83,8 @@ def _signature(folder_path):
 
 
 class CloudStore:
-    def __init__(self, client, bucket, items_dir, on_restored=None, profile_path=None, prefix="", account_id=None):
+    def __init__(self, client, bucket, items_dir, on_restored=None, profile_path=None, prefix="", account_id=None,
+                 ledger_path=None):
         # prefix: "" for the owner, "users/<id>/" for an invited seller (their own copies, never mixed).
         # account_id: the background sync thread works inside that seller's files.
         self.prefix = prefix
@@ -92,6 +94,8 @@ class CloudStore:
         self.items_dir = Path(items_dir)
         self.on_restored = on_restored
         self.profile_path = Path(profile_path) if profile_path else None
+        self.ledger_path = Path(ledger_path) if ledger_path else None
+        self._ledger_sig = None
         self._profile_sig = None
         self._known = {}  # folder -> signature last uploaded or restored ("stub" for summaries)
         self._meta = set()  # folders whose summary is in the bucket
@@ -186,6 +190,7 @@ class CloudStore:
                     self._fail(f"restore {folder}", error)
             self.status["restored"] += len(restored)
             self._restore_profile()
+            self._restore_ledger()
         log.warning("Cloud storage: %d stored drafts, %d restored", len(remote), len(restored))
         return restored
 
@@ -203,6 +208,50 @@ class CloudStore:
         except Exception as error:
             if "NoSuchKey" not in f"{type(error).__name__} {error}":
                 self._fail("restore profile", error)
+
+    def _restore_ledger(self):
+        """Merge the stored usage record into the local one (by event id), so limits survive restarts."""
+        if not self.ledger_path:
+            return
+        try:
+            body = self.client.get_object(Bucket=self.bucket, Key=self.prefix + LEDGER_KEY)["Body"].read()
+        except Exception as error:
+            if "NoSuchKey" not in f"{type(error).__name__} {error}" and "404" not in str(error):
+                self._fail("restore usage record", error)
+            return
+        local = self.ledger_path.read_text().splitlines() if self.ledger_path.exists() else []
+        seen, lines = set(), []
+        for line in body.decode("utf-8", "replace").splitlines() + local:
+            try:
+                event = json.loads(line)
+            except ValueError:
+                continue
+            if isinstance(event, dict) and isinstance(event.get("id"), str) and event["id"] not in seen:
+                seen.add(event["id"])
+                lines.append(json.dumps(event))
+        self.ledger_path.parent.mkdir(parents=True, exist_ok=True)
+        self.ledger_path.write_text("".join(line + "\n" for line in lines))
+        self._ledger_sig = self._ledger_signature()
+
+    def _ledger_signature(self):
+        try:
+            stat = self.ledger_path.stat()
+            return (stat.st_size, stat.st_mtime_ns)
+        except OSError:
+            return None
+
+    def _sync_ledger(self):
+        if not self.ledger_path:
+            return
+        signature = self._ledger_signature()
+        if signature is None or signature == self._ledger_sig:
+            return
+        try:
+            self.client.put_object(Bucket=self.bucket, Key=self.prefix + LEDGER_KEY,
+                                   Body=self.ledger_path.read_bytes(), ContentType="application/x-ndjson")
+            self._ledger_sig = signature
+        except Exception as error:
+            self._fail("upload usage record", error)
 
     def _profile_signature(self):
         stat = self.profile_path.stat()
@@ -296,6 +345,7 @@ class CloudStore:
                     self._fail(f"delete {folder}", error)
             self._sync_profile()
             self._sync_removed()
+            self._sync_ledger()
 
     def _put_summary(self, folder, path):
         try:
@@ -350,7 +400,7 @@ class CloudStore:
         log.error("Cloud storage: %s", message)
 
 
-def from_environment(items_dir, on_restored=None, profile_path=None):
+def from_environment(items_dir, on_restored=None, profile_path=None, ledger_path=None):
     """Return a started CloudStore, or None when B2 is not configured."""
     missing = missing_settings()
     if missing:
@@ -359,7 +409,8 @@ def from_environment(items_dir, on_restored=None, profile_path=None):
         else:
             log.warning("Cloud storage not configured; drafts are lost when the server restarts")
         return None
-    store = CloudStore(make_client(), os.environ["B2_BUCKET"].strip(), items_dir, on_restored, profile_path)
+    store = CloudStore(make_client(), os.environ["B2_BUCKET"].strip(), items_dir, on_restored, profile_path,
+                       ledger_path=ledger_path)
     store.restore_all()
     store.sync()
     store.start()

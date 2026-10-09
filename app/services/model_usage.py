@@ -30,12 +30,19 @@ def run(folder):
 
 def cost_usd(event):
     rate = RATES.get(event.get('model'))
-    if rate is None or event.get('input_tokens') is None or event.get('output_tokens') is None:
+    def count(name, required):
+        value = event.get(name)
+        if value is None:
+            return None if required else 0
+        return value if isinstance(value, int) and not isinstance(value, bool) and value >= 0 else None
+    numbers = [count('input_tokens', True), count('output_tokens', True), count('cache_creation_input_tokens', False),
+               count('cache_read_input_tokens', False), count('web_search_requests', False)]
+    if rate is None or None in numbers:   # unknown model or a damaged record: unknown cost, never a crash
         return None
     # Cache writes and hits have separate rates on Anthropic.
     return ((event['input_tokens'] * rate[0] + event['output_tokens'] * rate[1]
-             + event.get('cache_creation_input_tokens', 0) * rate[0] * 1.25
-             + event.get('cache_read_input_tokens', 0) * rate[0] * .1) / 1_000_000
+             + (event.get('cache_creation_input_tokens') or 0) * rate[0] * 1.25
+             + (event.get('cache_read_input_tokens') or 0) * rate[0] * .1) / 1_000_000
             + (event.get('web_search_requests') or 0) * WEB_SEARCH_USD)
 
 

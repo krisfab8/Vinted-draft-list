@@ -11,6 +11,7 @@ import os
 import re
 import time
 from datetime import timedelta
+from pathlib import Path
 from urllib.parse import urlsplit
 
 from flask import g, jsonify, redirect, render_template, request, session
@@ -34,11 +35,34 @@ def _safe_next(target):
     return target if isinstance(target, str) and target.startswith("/") and not target.startswith("//") else "/"
 
 
-def _rate_limited(ip):
+_OWNER_FAILS_LIMIT = 30          # wrong owner passwords per 5 minutes from anywhere (spoofed IPs can't dodge it)
+
+
+def _client_ip():
+    return request.headers.get("X-Forwarded-For", request.remote_addr or "").split(",")[0].strip()
+
+
+def _rate_limited(ip, limit=_SIGNIN_LIMIT):
     now = time.time()
     recent = [t for t in _signin_attempts.get(ip, []) if now - t < _SIGNIN_WINDOW]
-    _signin_attempts[ip] = recent
-    return len(recent) >= _SIGNIN_LIMIT
+    if recent:
+        _signin_attempts[ip] = recent
+    else:
+        _signin_attempts.pop(ip, None)
+    if len(_signin_attempts) > 5000:      # many spoofed addresses: forget the oldest rather than grow forever
+        for key in sorted(_signin_attempts, key=lambda k: max(_signin_attempts[k]))[:2500]:
+            _signin_attempts.pop(key, None)
+    return len(recent) >= limit
+
+
+def _owner_guess_blocked():
+    return _rate_limited("__owner__", _OWNER_FAILS_LIMIT)
+
+
+def _note_owner_fail(ip):
+    now = time.time()
+    _signin_attempts.setdefault(ip, []).append(now)
+    _signin_attempts.setdefault("__owner__", []).append(now)
 
 
 def web_items_dir():
@@ -78,9 +102,10 @@ def _start_cloud_store():
     status_after_restore = _status_after_restore
 
     try:
-        from app.services import user_profile
+        from app.services import model_usage, user_profile
         return cloud_store.from_environment(web.ITEMS_DIR, on_restored=status_after_restore,
-                                            profile_path=user_profile._PATH.resolve())
+                                            profile_path=user_profile._PATH.resolve(),
+                                            ledger_path=Path(model_usage.LEDGER_PATH).resolve())
     except Exception as error:
         cloud_store.log.error("Cloud storage failed to start (%s)", type(error).__name__)
         return None
@@ -118,7 +143,9 @@ def create_app():
     app.config["HOSTED_TEST"] = True
     accounts.install_scoped_paths()   # per-person paths follow whoever is signed in
     # Session cookie for the sign-in page. Changing APP_PASSWORD signs everyone out.
-    app.secret_key = os.getenv("SECRET_KEY") or hmac.new(password.encode(), b"vinted-session", hashlib.sha256).hexdigest()
+    # Session signing key: SECRET_KEY, else a random key kept with the account registry (set below once the
+    # cloud copy is attached). Never derived from APP_PASSWORD: a signed cookie must not help guess it.
+    app.secret_key = os.getenv("SECRET_KEY") or None
     app.config.update(SESSION_COOKIE_SECURE=os.getenv("SESSION_COOKIE_SECURE", "1") == "1",
                       SESSION_COOKIE_HTTPONLY=True, SESSION_COOKIE_SAMESITE="Lax",
                       PERMANENT_SESSION_LIFETIME=timedelta(days=30))
@@ -132,6 +159,8 @@ def create_app():
     _tidy_duplicates(cloud)
     if cloud:
         accounts.attach_cloud(cloud.client, cloud.bucket)
+    if not app.secret_key:
+        app.secret_key = accounts.session_secret()
     seller_stores = {}
 
     def store_for(account_id):
@@ -144,7 +173,8 @@ def create_app():
             root = accounts.root_for(account_id)
             store = cloud_store.CloudStore(cloud.client, cloud.bucket, root / "items", _status_after_restore,
                                            root / "data" / "user_profile.json",
-                                           prefix=f"users/{account_id}/", account_id=account_id)
+                                           prefix=f"users/{account_id}/", account_id=account_id,
+                                           ledger_path=root / "data" / "model_calls.jsonl")
             seller_stores[account_id] = store
             try:
                 store.restore_all()
@@ -158,9 +188,14 @@ def create_app():
     def signed_in_account():
         """"owner", a seller's id, or None. Owner: the session token or basic auth; seller: session + version."""
         auth = request.authorization
-        if hmac.compare_digest(str(session.get("auth", "")).encode(), session_token.encode()) \
-                or (auth and auth.type == "basic" and credentials_ok(auth.username, auth.password)):
+        if hmac.compare_digest(str(session.get("auth", "")).encode(), session_token.encode()):
             return "owner"
+        if auth and auth.type == "basic":   # scripts/tests; limited like the sign-in form
+            ip = _client_ip()
+            if not (_rate_limited(ip) or _owner_guess_blocked()):
+                if credentials_ok(auth.username, auth.password):
+                    return "owner"
+                _note_owner_fail(ip)
         account = accounts.get(session.get("acct"))
         if account and hmac.compare_digest(str(session.get("acct_v", "")).encode(), accounts.session_version(account).encode()):
             return account["id"]
@@ -180,8 +215,8 @@ def create_app():
     def signin():
         error = None
         if request.method == "POST":
-            ip = request.headers.get("X-Forwarded-For", request.remote_addr or "").split(",")[0].strip()
-            if _rate_limited(ip):
+            ip = _client_ip()
+            if _rate_limited(ip) or _owner_guess_blocked():
                 error = "Too many tries. Wait a few minutes."
             elif credentials_ok(request.form.get("username", "").strip(), request.form.get("password", "")):
                 session.clear()
@@ -194,7 +229,7 @@ def create_app():
                 session.permanent = True
                 return redirect(_safe_next(request.args.get("next")))
             else:
-                _signin_attempts.setdefault(ip, []).append(time.time())
+                _note_owner_fail(ip)
                 error = "That username or password isn't right."
         return render_template("signin.html", error=error), (401 if error else 200)
 
@@ -206,7 +241,7 @@ def create_app():
             return render_template("signup.html", invalid=True), 404
         error = None
         if request.method == "POST":
-            ip = request.headers.get("X-Forwarded-For", request.remote_addr or "").split(",")[0].strip()
+            ip = _client_ip()
             if _rate_limited(ip):
                 error = "Too many tries. Wait a few minutes."
             else:
@@ -279,7 +314,7 @@ def create_app():
             return render_template("signup.html", invalid=True, reset=True), 404
         error = None
         if request.method == "POST":
-            ip = request.headers.get("X-Forwarded-For", request.remote_addr or "").split(",")[0].strip()
+            ip = _client_ip()
             if _rate_limited(ip):
                 error = "Too many tries. Wait a few minutes."
             else:
@@ -384,6 +419,12 @@ def create_app():
                 if not status["ready"]:
                     return jsonify(error=f"The server cannot detect {status['key_variable']}. Add it in Render Environment and save and deploy.",
                                    code="PROVIDER_KEY_MISSING"), 503
+
+    # Flask runs before_request hooks in order; web.py's item lock was registered first, so it ran before
+    # sign-in and before the seller's folders were active. Put the sign-in/scope hook at the front.
+    hooks = app.before_request_funcs.setdefault(None, [])
+    hooks.remove(protect_test_app)
+    hooks.insert(0, protect_test_app)
 
     @app.teardown_request
     def leave_account(_error=None):

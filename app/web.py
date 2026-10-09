@@ -148,6 +148,8 @@ _PRICES = {
 _USD_TO_GBP = 0.79
 
 COST_LOG = ROOT / "cost_log.csv"
+FILL_REPORTS = ROOT / "data" / "vinted_fill_reports.jsonl"
+FILL_REPORTS_MAX_BYTES = 2 * 1024 * 1024
 
 
 def _model_key(model: str) -> str:
@@ -367,6 +369,10 @@ _UPLOAD_MAX_DIM = 2048   # px — phone photos are typically 4000+ px wide
 _UPLOAD_MAX_BYTES = 8 * 1024 * 1024   # 8 MB — Vinted rejects anything ≥ 9 MB
 
 
+class PhotoTooLarge(ValueError):
+    """More pixels than the server can safely open (a small file can expand to gigabytes)."""
+
+
 def _resize_photo(path: Path, *, prepared: bool = False) -> Path:
     """Resize a photo to ≤ _UPLOAD_MAX_DIM px and ≤ _UPLOAD_MAX_BYTES in-place.
 
@@ -376,7 +382,10 @@ def _resize_photo(path: Path, *, prepared: bool = False) -> Path:
     try:
         from PIL import Image, ImageOps
         orig_bytes = path.stat().st_size
+        from app.services.photo_prepare import MAX_PIXELS
         with Image.open(path) as source:
+            if source.width * source.height > MAX_PIXELS:
+                raise PhotoTooLarge(path.name)
             safe_info = {"jfif", "jfif_version", "jfif_unit", "jfif_density", "progressive", "progression"}
             if (prepared and source.format == "JPEG" and source.mode == "RGB"
                     and max(source.size) <= _UPLOAD_MAX_DIM and orig_bytes <= _UPLOAD_MAX_BYTES
@@ -400,6 +409,8 @@ def _resize_photo(path: Path, *, prepared: bool = False) -> Path:
         if jpg_path != path:
             path.unlink(missing_ok=True)
         return jpg_path
+    except PhotoTooLarge:
+        raise
     except Exception:
         return path  # Pillow unavailable or corrupt file — keep original
 
@@ -507,7 +518,11 @@ def upload_listing():
             continue
         temp_dest = item_path / f"_temp_{i:02d}{ext}"
         f.save(temp_dest)
-        temp_dest = _resize_photo(temp_dest, prepared=request.form.get("prepared_photos") == "1")
+        try:
+            temp_dest = _resize_photo(temp_dest, prepared=request.form.get("prepared_photos") == "1")
+        except PhotoTooLarge:
+            temp_dest.unlink(missing_ok=True)   # never decoded; skip it like an unsupported file
+            continue
         temp_paths.append(temp_dest)
 
     if not temp_paths:
@@ -1785,10 +1800,11 @@ def vinted_fill_report():
                                        "draft_url", "error", "errors")}
     keep["at"] = datetime.now().isoformat(timespec="seconds")
     line = json.dumps(keep, default=str)[:20000]
-    path = ROOT / "data" / "vinted_fill_reports.jsonl"
+    path = Path(FILL_REPORTS)
     path.parent.mkdir(parents=True, exist_ok=True)
-    with path.open("a") as out:
-        out.write(line + "\n")
+    if not path.exists() or path.stat().st_size < FILL_REPORTS_MAX_BYTES:   # a debugging log, capped
+        with path.open("a") as out:
+            out.write(line + "\n")
     app.logger.warning("Vinted fill report: %s", line[:1500])
     folder, draft_url = str(keep.get("folder") or ""), keep.get("draft_url")
     host = urlsplit(draft_url).netloc if isinstance(draft_url, str) else ""

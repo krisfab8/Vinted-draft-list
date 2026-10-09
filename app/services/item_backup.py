@@ -1,6 +1,7 @@
 """Restore an authenticated operator's item backup; never import configuration/auth."""
 import io
 import json
+from datetime import datetime
 import re
 import tempfile
 import zipfile
@@ -206,6 +207,18 @@ def restore(data, items_dir):
              'cache_creation_input_tokens','cache_read_input_tokens','cost_gbp','cost_usd',
              'error_type','stop_reason','latency_ms','rate_version','usd_to_gbp','billing_status',
              'web_search_requests'}
+    def well_formed(event):
+        counts=('input_tokens','output_tokens','cache_creation_input_tokens','cache_read_input_tokens','web_search_requests')
+        if any(event.get(k) is not None and (not isinstance(event[k],int) or isinstance(event[k],bool) or not 0<=event[k]<10**9)
+               for k in counts):
+            return False
+        try:
+            datetime.fromisoformat(str(event.get('timestamp','')).replace('Z','+00:00'))
+        except ValueError:
+            return False
+        return all(event.get(k) is None or (isinstance(event[k],(int,float)) and not isinstance(event[k],bool) and 0<=event[k]<1000)
+                   for k in ('cost_gbp','cost_usd'))
+    events=[e for e in events if well_formed(e)]
     existing={e['id'] for e in model_usage.read_events()}
     if events:
         model_usage.LEDGER_PATH.parent.mkdir(parents=True,exist_ok=True)

@@ -246,3 +246,19 @@ def test_older_items_get_a_summary_and_failed_fetch_keeps_the_stub(s3, tmp_path)
     store.restore_all()
     s3.delete_object(Bucket=BUCKET, Key=f"items/{FOLDER}.zip")
     assert store.hydrate(FOLDER) is False and item_backup.is_stub(third / FOLDER)
+
+
+def test_usage_record_survives_a_wiped_server(s3, tmp_path):
+    """The monthly limits are counted from the usage record, so a restart must not reset them."""
+    ledger = tmp_path / "server1" / "model_calls.jsonl"
+    ledger.parent.mkdir()
+    ledger.write_text('{"id": "e1", "item": "upload_0123abcd"}\n{"id": "e2"}\n')
+    first = store_for(s3, tmp_path / "items1", ledger_path=ledger, prefix="users/a0123456789/")
+    first.sync()
+    assert s3.get_object(Bucket=BUCKET, Key="users/a0123456789/profile/model_calls.jsonl")["Body"].read()
+    fresh = tmp_path / "server2" / "model_calls.jsonl"
+    fresh.parent.mkdir()
+    fresh.write_text('{"id": "e3"}\n{"id": "e1", "item": "upload_0123abcd"}\n')   # written before the restore ran
+    store_for(s3, tmp_path / "items2", ledger_path=fresh, prefix="users/a0123456789/").restore_all()
+    ids = [json.loads(line)["id"] for line in fresh.read_text().splitlines()]
+    assert sorted(ids) == ["e1", "e2", "e3"]

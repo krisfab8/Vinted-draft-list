@@ -46,6 +46,7 @@ public class MainActivity extends Activity {
     private volatile String pendingPayload;
     private volatile String pendingLogin;   // "vinted"/"ebay": tap that site's own Log in / Sign in once the page loads
     private String loginSite = "vinted";
+    private volatile String bridgeKey;       // given to our Vinted filler only; required by getPayload/report
     private long loginUntil;                // keep trying to reach Vinted's login until this time (ms)
     private int loginRun;                   // each new page restarts the attempts; older runs stop
     private boolean loginClicked;
@@ -114,7 +115,11 @@ public class MainActivity extends Activity {
                 }
                 if (onVinted && pendingPayload != null && currentUrl.contains("/items/new") && filler != null) {
                     // Give Vinted's page a moment to render its form, then fill it.
-                    view.postDelayed(() -> view.evaluateJavascript(filler + "\n;window.VintedFiller && window.VintedFiller.run();", null), 2500);
+                    // A fresh one-time key, handed only to our filler (inside its own function, not on window),
+                    // so adverts or other frames on Vinted's page can't use the bridge.
+                    bridgeKey = java.util.UUID.randomUUID().toString();
+                    final String run = "(function(__vlKey){" + filler + "\n;window.VintedFiller && window.VintedFiller.run();})('" + bridgeKey + "');";
+                    view.postDelayed(() -> view.evaluateJavascript(run, null), 2500);
                 }
             }
         });
@@ -135,7 +140,10 @@ public class MainActivity extends Activity {
             @Override
             public void onPermissionRequest(PermissionRequest request) {
                 // The upload page's live camera. Only our own site gets the camera.
-                if (!request.getOrigin().toString().startsWith(APP_URL.replaceAll("/$", ""))) { request.deny(); return; }
+                Uri origin = request.getOrigin(), ours = Uri.parse(APP_URL);
+                if (!"https".equals(origin.getScheme()) || origin.getHost() == null || !origin.getHost().equals(ours.getHost())) {
+                    request.deny(); return;   // exact host: a lookalike like ours.evil.tld never gets the camera
+                }
                 if (checkSelfPermission(Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) {
                     request.grant(request.getResources());
                 } else {
@@ -272,11 +280,16 @@ public class MainActivity extends Activity {
 
         /** Vinted's sell page asks for the listing (only there, only once). */
         @JavascriptInterface
-        public String getPayload() {
-            if (!isVinted(currentUrl)) return null;
+        public String getPayload(String key) {
+            if (!isVinted(currentUrl) || !keyOk(key)) return null;
             String p = pendingPayload;
             pendingPayload = null;
             return p;
+        }
+
+        private boolean keyOk(String key) {
+            String expected = bridgeKey;
+            return expected != null && key != null && java.security.MessageDigest.isEqual(expected.getBytes(), key.getBytes());
         }
 
         @JavascriptInterface
@@ -295,8 +308,8 @@ public class MainActivity extends Activity {
 
         /** What the filler found/filled; sent to our server for checking, with the app's sign-in. */
         @JavascriptInterface
-        public void report(String reportJson) {
-            if (!isVinted(currentUrl)) return;
+        public void report(String key, String reportJson) {
+            if (!isVinted(currentUrl) || !keyOk(key)) return;
             new Thread(() -> postReport(reportJson)).start();
         }
     }

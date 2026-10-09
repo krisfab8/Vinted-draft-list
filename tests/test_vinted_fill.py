@@ -12,6 +12,7 @@ def item(tmp_path, monkeypatch):
     items = tmp_path / "items"; items.mkdir()
     monkeypatch.setattr(web, "ITEMS_DIR", items)
     monkeypatch.setattr(web, "ROOT", tmp_path)
+    monkeypatch.setattr(web, "FILL_REPORTS", tmp_path / "data" / "vinted_fill_reports.jsonl")
     folder = items / "upload_abcdef12"; folder.mkdir()
     (folder / "listing.json").write_text(json.dumps(dict(
         title="Barbour Bedale Wax Jacket Size Large", description="Lovely.", brand="Barbour", item_type="wax jacket",

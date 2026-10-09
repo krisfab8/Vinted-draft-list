@@ -416,3 +416,16 @@ Keep IDs stable. Do not rename an open task to hide scope. Split partial work in
 - Charts are plain HTML/CSS (single-series bars in #12744F; listed/sold pair #12744F/#D0901C, validated for
   colour-blindness; amber needs the legend + table, both present). Tap/hover/focus tooltip; numbers table.
 - Tests: tests/test_insights.py.
+
+## Code review hardening (2026-10-10)
+- Limits: /reanalyze gated; removed sellers' spend counted; failed calls don't use a free listing; corrections
+  only budget-limited; UK month; cached ledger reads. Usage ledger kept on "Delete my data" and backed up to B2
+  (profile/model_calls.jsonl per prefix), merged by id on restore.
+- Restored usage events validated (non-negative int tokens, real timestamp); cost_usd never crashes on bad data.
+- Auth: sign-in/scope hook runs before item locks; Basic auth + sign-in share per-IP and global owner-guess
+  limits; session key is random (registry "secret", or SECRET_KEY), not derived from APP_PASSWORD (signs
+  everyone out once); reset links atomic; removed sellers can be re-invited; password change rate-limited.
+- Giant photos refused before decoding (photo_prepare.MAX_PIXELS). Alias memory and fill reports per account;
+  fill-report log capped at 2 MB.
+- Android: camera only for the exact app host; bridge getPayload/report need a one-time key passed only to
+  the injected filler (not on window).

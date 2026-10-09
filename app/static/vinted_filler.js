@@ -165,13 +165,15 @@
       box.remove();
     };
   }
+  // The phone app wraps this script in a function that receives a one-time key (never put on window).
+  function bridgeKey() { return typeof __vlKey === 'string' ? __vlKey : ''; }
   function send(report) {
-    try { window.AndroidBridge?.report(JSON.stringify(report)); } catch (_) {}
+    try { window.AndroidBridge?.report(bridgeKey(), JSON.stringify(report)); } catch (_) {}
   }
 
   async function run() {
     let payload;
-    try { payload = JSON.parse(window.AndroidBridge.getPayload() || 'null'); } catch (_) { payload = null; }
+    try { payload = JSON.parse(window.AndroidBridge.getPayload(bridgeKey()) || 'null'); } catch (_) { payload = null; }
     const report = {url: location.href, ua: navigator.userAgent, found: {}, steps: {}, filled: 0, total: 0, folder: payload?.folder};
     for (const id of FIELDS) report.found[id] = !!byId(id);
     if (!payload) { report.error = 'no listing to fill'; send(report); return report; }

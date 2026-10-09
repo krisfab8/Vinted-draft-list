@@ -49,6 +49,8 @@ SCOPED = [   # (module, attribute, where it lives inside a seller's folder)
     ("app.services.model_usage", "LEDGER_PATH", "data/model_calls.jsonl"),
     ("app.run_logger", "_DATA_DIR", "data"), ("app.run_logger", "LOG_PATH", "data/run_logs.jsonl"),
     ("app.run_logger", "CORRECTIONS_PATH", "data/corrections.jsonl"),
+    ("app.services.alias_memory", "_ALIAS_FILE", "data/alias_memory.json"),
+    ("app.web", "FILL_REPORTS", "data/vinted_fill_reports.jsonl"),
 ]
 
 
@@ -371,3 +373,13 @@ def change_password(account_id: str, current: str, new: str) -> dict:
     if not account or not check_password_hash(account["password"], current or ""):
         raise ValueError("Your current password isn't right.")
     return _set_password(account_id, new)
+
+
+def session_secret() -> str:
+    """A random key for signing sign-in cookies, made once and kept with the registry (and its cloud copy)."""
+    with _lock:
+        data = _load()
+        if not data.get("secret"):
+            data["secret"] = secrets.token_hex(32)
+            _save(data)
+        return data["secret"]

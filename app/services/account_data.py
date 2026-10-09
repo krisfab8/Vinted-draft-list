@@ -29,7 +29,9 @@ def wipe(items_dir: Path, cloud=None) -> dict:
         shutil.rmtree(folder, ignore_errors=True)
     _empty_sqlite(Path(sales_history.DB_PATH))
     _empty_sqlite(Path(item_store.DB_PATH))
-    for path in (user_profile._PATH, run_logger.LOG_PATH, run_logger.CORRECTIONS_PATH, model_usage.LEDGER_PATH):
+    # The AI usage record (model_usage.LEDGER_PATH) stays: it holds no personal data, only token counts,
+    # and the monthly limits are counted from it, so a wipe can't reset someone's free listings.
+    for path in (user_profile._PATH, run_logger.LOG_PATH, run_logger.CORRECTIONS_PATH):
         Path(path).unlink(missing_ok=True)
     from app import web
     Path(web.COST_LOG).unlink(missing_ok=True)
