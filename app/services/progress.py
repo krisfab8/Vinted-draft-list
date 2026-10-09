@@ -185,12 +185,28 @@ def _day(value) -> date | None:
     return None
 
 
+def last_activity(listing: dict, folder: Path | None = None) -> date | None:
+    """When the item was listed or last repriced, whichever is later."""
+    days = [created_on(listing, folder)] + [_day(c.get("changed_at")) for c in listing.get("price_history") or [] if isinstance(c, dict)]
+    days = [d for d in days if d]
+    return max(days) if days else None
+
+
+def stale_days(listing: dict, folder: Path | None, today: date) -> int:
+    """Days an unsold item has gone without a new listing or price change (0 for sold items)."""
+    if (listing.get("outcome") or {}).get("status") == "sold":
+        return 0
+    last = last_activity(listing, folder)
+    return (today - last).days if last else 0
+
+
 def summary(listings: list[dict], root: Path, goal: int, today: date, perks_used: dict | None = None) -> dict:
     """Everything the Progress page and chips need, from the item list."""
     from app.services import quests
     day_counts, xp_total, xp_today, tiers = {}, 0, 0, {"hot": 0, "premium": 0}
     day_stats: dict = {}                         # per day: listed, full_sets, premium, hot, sold, crosslisted
     totals = {"listed": 0, "sold": 0, "profit": 0.0, "premium": 0, "full_sets": 0, "crosslisted": 0}
+    stale = unpriced = still_live = 0
     bump = lambda day, key: day_stats.setdefault(day, {}).__setitem__(key, day_stats[day].get(key, 0) + 1)
     for listing in listings:
         folder = root / listing["folder"] if listing.get("folder") else None
@@ -215,8 +231,20 @@ def summary(listings: list[dict], root: Path, goal: int, today: date, perks_used
                 bump(made, "premium")
             if kind == "hot":
                 bump(made, "hot")
+        for change in listing.get("price_history") or []:
+            when = _day((change or {}).get("changed_at")) if isinstance(change, dict) else None
+            try:
+                dropped = float(change.get("to_gbp")) < float(change.get("from_gbp"))
+            except (TypeError, ValueError, AttributeError):
+                dropped = False
+            if when and dropped:
+                bump(when, "drops")
+        if stale_days(listing, folder, today) >= quests.STALE_DAYS:
+            stale += 1
+        still_live += bool(listing.get("still_live"))
         outcome = listing.get("outcome") or {}
         if outcome.get("status") == "sold":
+            unpriced += outcome.get("buy_price_gbp") is None
             totals["sold"] += 1
             totals["profit"] += float(outcome.get("profit_gbp") or 0)
             sold_on = _day(outcome.get("sold_date"))
@@ -226,9 +254,11 @@ def summary(listings: list[dict], root: Path, goal: int, today: date, perks_used
         if len(where) >= 2:
             totals["crosslisted"] += 1
         for platform, entry in where.items():
-            marked = _day((entry or {}).get("at")) if platform != "Vinted" else None
-            if marked and (entry or {}).get("status") in ("live", "removed", "sold"):
+            marked = _day((entry or {}).get("at"))
+            if marked and platform != "Vinted" and (entry or {}).get("status") in ("live", "removed", "sold"):
                 bump(marked, "crosslisted")
+            if marked and (entry or {}).get("status") == "removed":
+                bump(marked, "takedowns")
     info = streak_info(day_counts, goal, today)
     current, today_met = info["run"], info["today_met"]
     frozen = set(info["frozen"])
@@ -240,9 +270,10 @@ def summary(listings: list[dict], root: Path, goal: int, today: date, perks_used
                      "met": count >= max(1, goal), "today": offset == 0, "frozen": day in frozen})
     saved_yesterday = (today - timedelta(days=1)) in frozen
     best = max(best_streak(day_counts, goal), info["best"])
-    daily = quests.daily_stats(day_stats, goal, today)
-    xp_total += daily["quest_xp"]
-    xp_today += daily["quest_xp_today"]
+    daily = quests.history(day_stats, goal, today)
+    xp_total += daily["upkeep_xp"]
+    xp_today += daily["xp_today"]
+    jobs = quests.jobs(day_stats.get(today, {}), goal, stale, unpriced, still_live)
     lvl = level(xp_total)
     level_index = [name for _, name in LEVELS].index(lvl["name"])
     stats = dict(totals, best_streak=best, chests=daily["chests"])
@@ -253,6 +284,6 @@ def summary(listings: list[dict], root: Path, goal: int, today: date, perks_used
             "milestone": milestones(current), "tip": TIPS[today.toordinal() % len(TIPS)],
             "today_count": day_counts.get(today, 0), "goal": goal, "xp": xp_total, "xp_today": xp_today,
             "listed": totals["listed"], "sold": totals["sold"], "level": lvl, "week": week, "hot": tiers["hot"], "premium": tiers["premium"],
-            "quests": daily["quests"], "chest_ready": daily["chest_ready"], "chests": daily["chests"],
+            "quests": jobs, "chest_ready": daily["chest_ready"], "chests": daily["chests"], "stale": stale,
             "chest_xp": quests.CHEST_XP, "badges": badge_list, "perks": quests.perks(daily["chests"], level_index, perks_used),
             "skins": quests.skins(level_index, unlocked)}

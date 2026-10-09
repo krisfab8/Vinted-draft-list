@@ -739,3 +739,10 @@ button.st-link { width: 100%; background: none; border: 0; font: inherit; font-w
 .pg-how summary::-webkit-details-marker { display: none; }
 .pg-how summary::after { content: ' ›'; }
 .pg-how[open] summary { margin-bottom: 6px; }
+
+a.pq { text-decoration: none; color: inherit; }
+a.pq:active { opacity: .7; }
+.pq-xp { font-size: 11.5px; line-height: 1.2; max-width: 74px; }
+.stale-tag { position: absolute; left: 10px; bottom: 10px; z-index: 2; padding: 4px 8px; border-radius: 10px; background: rgba(30,42,34,.78);
+  color: #F3EDE0; font-size: 11.5px; font-weight: 800; }
+.draft-card[hidden] { display: none !important; }

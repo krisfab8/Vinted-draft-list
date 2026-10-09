@@ -664,9 +664,10 @@
 {% else %}
   <div class="drafts-grid">
     {% for item in listings %}
-    <div class="draft-card" id="card-{{ item.folder }}" data-folder="{{ item.folder }}" data-status="{{ item.inventory_status }}" data-search="{{ ((item.brand or '') ~ ' ' ~ (item.title or '') ~ ' ' ~ (item.normalized_size or ''))|lower }}" role="button" tabindex="0" aria-label="View {{ item.title or 'listing' }}" onclick="openSheet({{ loop.index0 }})" onkeydown="if(event.target===this &amp;&amp; (event.key==='Enter' || event.key===' ')){event.preventDefault();openSheet({{ loop.index0 }});}">
+    <div class="draft-card" id="card-{{ item.folder }}" data-folder="{{ item.folder }}" data-status="{{ item.inventory_status }}" data-stale="{{ item.stale_days or 0 }}" data-search="{{ ((item.brand or '') ~ ' ' ~ (item.title or '') ~ ' ' ~ (item.normalized_size or ''))|lower }}" role="button" tabindex="0" aria-label="View {{ item.title or 'listing' }}" onclick="openSheet({{ loop.index0 }})" onkeydown="if(event.target===this &amp;&amp; (event.key==='Enter' || event.key===' ')){event.preventDefault();openSheet({{ loop.index0 }});}">
       <div class="draft-thumb">
         {% if item.inventory_status == 'sold' %}<div class="sold-tag">SOLD</div>{% endif %}
+        {% if not sold_mode and (item.stale_days or 0) >= 30 %}<div class="stale-tag" title="Unsold {{ item.stale_days }} days: try a price drop">💤 {{ item.stale_days }}d</div>{% endif %}
         {% if item.still_live %}<div class="still-live-tag" title="Take it down on {{ item.still_live|join(', ') }}">⚠ Still on {{ item.still_live|join(', ') }}</div>{% endif %}
         {% if item.thumbnail_url %}
           <img src="{{ item.thumbnail_url }}" alt="{{ item.title }}" loading="lazy" onerror="this.hidden=true;this.nextElementSibling.hidden=false">
@@ -1297,6 +1298,12 @@ async function createDraftFromSheet(folder) {
 
 document.addEventListener("DOMContentLoaded", () => {
   if (location.pathname !== '/sold') checkAuthOnLoad();
+  // From the "drop the price" job: show only items unsold 30+ days.
+  if (new URLSearchParams(location.search).get('stale') === '1') {
+    document.querySelectorAll('.draft-card').forEach(card => { if (+card.dataset.stale < 30) card.hidden = true; });
+    const badge = document.getElementById('review-count-badge');
+    if (badge) badge.innerHTML = 'Unsold 30+ days<i>.</i>';
+  }
   const openFolder = new URLSearchParams(location.search).get('open');
   if (openFolder) {
     const idx = LISTINGS.findIndex(item => item.folder === openFolder);

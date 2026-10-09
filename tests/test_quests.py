@@ -8,22 +8,22 @@ from app.services import item_store, progress, quests, sales_history, user_profi
 DAY = date(2026, 10, 20)
 
 
-def test_three_quests_a_day_always_starting_with_listing():
-    for offset in range(30):
-        picked = quests.pick(DAY + timedelta(days=offset))
-        assert picked[0] == "list" and len(set(picked)) == 3
-    assert quests.pick(DAY) == quests.pick(DAY)               # same quests on every load
+def test_jobs_only_show_real_work_that_applies():
+    jobs = quests.jobs({}, 1, stale=0, unpriced=0, still_live=0)
+    assert [j["id"] for j in jobs] == ["list"] and not jobs[0]["done"]
+    jobs = {j["id"]: j for j in quests.jobs({"listed": 1, "drops": 1}, 1, stale=4, unpriced=2, still_live=1)}
+    assert jobs["list"]["done"] and jobs["stale"]["have"] == 1 and jobs["stale"]["target"] == 3 and not jobs["stale"]["done"]
+    assert jobs["takedown"]["href"] == "/sold" and jobs["costs"]["target"] == 2
+    assert quests.jobs({"drops": 3}, 1, stale=2, unpriced=0, still_live=0)[1]["done"]       # 3 price drops today: done
 
 
-def test_finishing_all_three_opens_the_chest_and_pays_xp():
-    picked = quests.pick(DAY)
-    everything = {"listed": 5, "full_sets": 1, "premium": 1, "hot": 1, "sold": 1, "crosslisted": 1}
-    out = quests.daily_stats({DAY: everything}, 1, DAY)
-    assert out["chest_ready"] and out["chests"] == 1
-    expected = sum(quests.QUEST_POOL[q][2] for q in picked) + quests.CHEST_XP
-    assert out["quest_xp"] == expected == out["quest_xp_today"]
-    half = quests.daily_stats({DAY: {"listed": 1}}, 1, DAY)
-    assert not half["chest_ready"] and half["quests"][0]["have"] == 1 and half["quests"][0]["target"] == 2
+def test_upkeep_xp_and_the_daily_chest():
+    xp, chest = quests.day_xp({"listed": 1, "drops": 12, "takedowns": 1}, 1)
+    assert xp == quests.DROP_XP * quests.DROP_CAP + quests.TAKEDOWN_XP and chest
+    assert quests.day_xp({"listed": 1}, 1) == (0, False)                     # listing alone: no chest
+    assert quests.day_xp({"drops": 2}, 1)[1] is False                        # upkeep without the goal: no chest
+    h = quests.history({DAY: {"listed": 1, "sold": 1}, DAY - timedelta(days=1): {"listed": 2, "drops": 1}}, 1, DAY)
+    assert h["chests"] == 2 and h["chest_ready"] and h["upkeep_xp"] == quests.DROP_XP + 2 * quests.CHEST_XP
 
 
 def test_badges_perks_and_skins():
@@ -37,12 +37,20 @@ def test_badges_perks_and_skins():
     assert {s["id"]: s["unlocked"] for s in quests.skins(0, {"quest_master"})}["gold"]
 
 
-def test_summary_counts_todays_quests_from_real_listings(tmp_path):
-    listings = [dict(folder=f"upload_{i:08x}", brand="Barbour", price_gbp=45, created_at=DAY.isoformat()) for i in range(3)]
+def test_summary_builds_jobs_from_stale_stock_and_sales(tmp_path):
+    old = (DAY - timedelta(days=40)).isoformat()
+    listings = [dict(folder="upload_00000001", brand="Gap", price_gbp=10, created_at=old),
+                dict(folder="upload_00000002", brand="Gap", price_gbp=12, created_at=old,
+                     price_history=[{"from_gbp": 15, "to_gbp": 12, "changed_at": DAY.isoformat()}]),
+                dict(folder="upload_00000003", brand="Gap", price_gbp=9, created_at=DAY.isoformat(),
+                     outcome={"status": "sold", "sold_date": DAY.isoformat(), "buy_price_gbp": None, "profit_gbp": None},
+                     still_live=["eBay"])]
     s = progress.summary(listings, tmp_path, 1, DAY)
-    q = {x["id"]: x for x in s["quests"]}
-    assert q["list"]["done"] and s["xp"] > sum(progress.item_xp(l) for l in listings)   # quest XP on top
-    assert s["badges"][0]["unlocked"] and s["perks"][0]["id"] == "price_check" and s["skins"][0]["unlocked"]
+    jobs = {j["id"]: j for j in s["quests"]}
+    assert s["stale"] == 1 and jobs["stale"]["have"] == 1                     # one stale left, one dropped today
+    assert jobs["takedown"]["target"] == 1 and jobs["costs"]["target"] == 1
+    assert s["chest_ready"]                                                  # goal hit + a price drop and a sale
+    assert progress.stale_days(listings[0], None, DAY) == 40 and progress.stale_days(listings[1], None, DAY) == 0
 
 
 def test_progress_api_skin_choice_and_perk_spending(tmp_path, monkeypatch):
@@ -53,7 +61,7 @@ def test_progress_api_skin_choice_and_perk_spending(tmp_path, monkeypatch):
     monkeypatch.setattr(item_store, "DB_PATH", tmp_path / "items.db")
     client = web.app.test_client()
     body = client.get("/api/progress").json
-    assert len(body["quests"]) == 3 and "perks" in body
+    assert body["quests"][0]["id"] == "list" and "perks" in body
     assert client.post("/api/progress/skin", json={"skin": "emerald"}).status_code == 422   # locked
     assert client.post("/api/progress/skin", json={"skin": "brass"}).status_code == 200
     assert user_profile.load()["coin_skin"] == "brass"

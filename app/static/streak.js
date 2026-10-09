@@ -123,7 +123,7 @@
     if (!now || !questsBefore) { questsBefore = now; return; }
     const was = new Set(questsBefore.quests.filter(q => q.done).map(q => q.id));
     const fresh = now.quests.filter(q => q.done && !was.has(q.id));
-    fresh.forEach((q, i) => setTimeout(() => toast(`✓ Quest complete · <b>${esc(q.text)}</b> <em>+${q.xp} XP</em>`), 400 + i * 3000));
+    fresh.forEach((q, i) => setTimeout(() => toast(`✓ Job done · <b>${esc(q.text)}</b>`), 400 + i * 3000));
     if (now.chest_ready && !questsBefore.chest_ready) setTimeout(() => toast('🎁 <b>Daily chest unlocked</b> · open it on Progress'), 400 + fresh.length * 3000);
     questsBefore = now;
   }

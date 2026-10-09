@@ -11,17 +11,15 @@ from __future__ import annotations
 import random
 from datetime import date, timedelta
 
-QUEST_POOL = {
-    # id: (text, icon, xp)
-    "list": ("List {n} items", "📸", 15),
-    "full_set": ("Take a full photo set", "🖼️", 10),
-    "premium": ("List a ★ premium piece", "★", 20),
-    "hot": ("List a 🔥 hot piece", "🔥", 35),
-    "sale": ("Record a sale", "💷", 25),
-    "crosslist": ("Cross-list an item", "🔁", 15),
-}
+STALE_DAYS = 30            # unsold this long (since listing or the last price change) = worth a price drop
+DROP_XP, DROP_CAP = 5, 10  # per price drop, counted up to 10 a day
+TAKEDOWN_XP = 10           # taking a sold item down elsewhere
+CROSSLIST_XP = 5           # marking an item listed on another site
 CHEST_XP = 25
 CHEST_PERKS = {"price_check": 1}
+LEVEL_UP_PERKS = {"price_check": 3}
+
+PERKS = {"price_check": 1}
 LEVEL_UP_PERKS = {"price_check": 3}
 
 PERKS = {
@@ -54,40 +52,47 @@ SKINS = [
 ]
 
 
-def pick(day: date) -> list[str]:
-    """Today's three quests: always a listing goal, plus two that rotate daily (same for everyone, every load)."""
-    rest = [q for q in QUEST_POOL if q != "list"]
-    return ["list"] + random.Random(day.toordinal()).sample(rest, 2)
+def day_xp(d: dict, goal: int) -> tuple[int, bool]:
+    """XP from upkeep actions on one day, and whether that day's chest was earned:
+    hit the listing goal and did at least one real upkeep job (price drop, take-down, sale, cross-list)."""
+    xp = DROP_XP * min(DROP_CAP, d.get("drops", 0)) + TAKEDOWN_XP * d.get("takedowns", 0) + CROSSLIST_XP * d.get("crosslisted", 0)
+    upkeep = d.get("drops", 0) + d.get("takedowns", 0) + d.get("sold", 0) + d.get("crosslisted", 0)
+    return xp, d.get("listed", 0) >= max(1, goal) and upkeep > 0
 
 
-def _day_quests(day: date, d: dict, goal: int) -> list[dict]:
-    n = max(2, goal + 1)
-    counts = {"list": d.get("listed", 0), "full_set": d.get("full_sets", 0), "premium": d.get("premium", 0),
-              "hot": d.get("hot", 0), "sale": d.get("sold", 0), "crosslist": d.get("crosslisted", 0)}
-    out = []
-    for qid in pick(day):
-        text, icon, xp = QUEST_POOL[qid]
-        target = n if qid == "list" else 1
-        have = min(target, counts[qid])
-        out.append({"id": qid, "text": text.format(n=n), "icon": icon, "xp": xp, "have": have, "target": target,
-                    "done": have >= target})
+def jobs(today_stats: dict, goal: int, stale: int, unpriced: int, still_live: int) -> list[dict]:
+    """Today's jobs: only real work, only what applies. Done jobs stay ticked for the day."""
+    listed, out = today_stats.get("listed", 0), []
+    out.append({"id": "list", "icon": "🔥", "text": f"List {max(1, goal)} today to keep your streak" if listed < goal else "Daily goal hit",
+                "have": min(listed, goal), "target": max(1, goal), "done": listed >= goal, "xp": "+10 each", "href": "/"})
+    drops = today_stats.get("drops", 0)
+    if stale or drops:
+        target = min(3, stale + drops) or 1
+        out.append({"id": "stale", "icon": "💤", "text": f"Drop the price on {stale} item{'s' if stale != 1 else ''} unsold {STALE_DAYS}+ days" if stale else "Stale items refreshed",
+                    "have": min(drops, target), "target": target, "done": not stale or drops >= target, "xp": f"+{DROP_XP} each",
+                    "href": "/drafts?stale=1"})
+    takedowns = today_stats.get("takedowns", 0)
+    if still_live or takedowns:
+        out.append({"id": "takedown", "icon": "⚠️", "text": f"Take down {still_live} sold item{'s' if still_live != 1 else ''} still live elsewhere" if still_live else "Nothing left to take down",
+                    "have": takedowns, "target": takedowns + still_live, "done": not still_live, "xp": f"+{TAKEDOWN_XP} each", "href": "/sold"})
+    if unpriced:
+        out.append({"id": "costs", "icon": "🧾", "text": f"Add what you paid for {unpriced} sale{'s' if unpriced != 1 else ''}",
+                    "have": 0, "target": unpriced, "done": False, "xp": "better profit stats", "href": "/sold"})
     return out
 
 
-def daily_stats(day_stats: dict, goal: int, today: date) -> dict:
-    """Today's quests plus totals over every active day: quest XP, chests opened."""
-    quest_xp = chests = 0
+def history(day_stats: dict, goal: int, today: date) -> dict:
+    """Upkeep XP and chests over every active day (deterministic from timestamps)."""
+    total = chests = 0
     for day, d in day_stats.items():
         if day > today:
             continue
-        qs = _day_quests(day, d, goal)
-        quest_xp += sum(q["xp"] for q in qs if q["done"])
-        if all(q["done"] for q in qs):
-            chests += 1
-            quest_xp += CHEST_XP
-    today_q = _day_quests(today, day_stats.get(today, {}), goal)
-    return {"quests": today_q, "chest_ready": all(q["done"] for q in today_q), "quest_xp": quest_xp, "chests": chests,
-            "quest_xp_today": sum(q["xp"] for q in today_q if q["done"]) + (CHEST_XP if all(q["done"] for q in today_q) else 0)}
+        xp, chest = day_xp(d, goal)
+        total += xp + (CHEST_XP if chest else 0)
+        chests += chest
+    xp_today, chest_today = day_xp(day_stats.get(today, {}), goal)
+    return {"upkeep_xp": total, "chests": chests, "chest_ready": chest_today,
+            "xp_today": xp_today + (CHEST_XP if chest_today else 0)}
 
 
 def badges(stats: dict) -> list[dict]:

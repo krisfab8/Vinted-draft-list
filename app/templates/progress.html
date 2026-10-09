@@ -29,21 +29,21 @@
   {% endif %}
 </section>
 
-<section class="pg-card pg-quests" aria-label="Today's quests">
-  <div class="pg-head">Daily quests <span id="pqLeft">⏱ today</span></div>
+<section class="pg-card pg-quests" aria-label="Today's jobs">
+  <div class="pg-head">Today's jobs <span id="pqLeft">⏱ today</span></div>
   {% for q in p.quests %}
-  <div class="pq{% if q.done %} done{% endif %}">
+  <a class="pq{% if q.done %} done{% endif %}" href="{{ q.href }}">
     <span class="pq-ic" aria-hidden="true">{{ q.icon }}</span>
     <div class="pq-main"><b>{{ q.text }}</b>
-      <div class="pq-bar" aria-label="{{ q.have }} of {{ q.target }}"><i style="width:{{ ((q.have / q.target) * 100)|round(1) }}%"></i><em>{{ '✓' if q.done else q.have ~ ' / ' ~ q.target }}</em></div></div>
-    <span class="pq-xp">+{{ q.xp }}</span>
-  </div>
+      <div class="pq-bar" aria-label="{{ q.have }} of {{ q.target }}"><i style="width:{{ ((q.have / q.target) * 100)|round(1) if q.target else 100 }}%"></i><em>{{ '✓' if q.done else q.have ~ ' / ' ~ q.target }}</em></div></div>
+    <span class="pq-xp">{{ q.xp }}</span>
+  </a>
   {% endfor %}
   <div class="pq-chest{% if p.chest_ready %} ready{% endif %}" id="pqChest">
     <svg class="chest" viewBox="0 0 120 100" aria-hidden="true"><g class="chest-lid"><path d="M14 44 Q14 16 60 16 Q106 16 106 44 Z" fill="#9C6B3A"/><rect x="52" y="16" width="16" height="28" fill="#C9A45C"/></g><rect x="14" y="44" width="92" height="46" rx="6" fill="#B07A44"/><rect x="52" y="44" width="16" height="46" fill="#C9A45C"/><rect x="54" y="52" width="12" height="14" rx="3" fill="#6E4724"/></svg>
     <div><b id="pqChestTitle">{% if p.chest_ready %}Chest unlocked!{% else %}Daily chest{% endif %}</b>
-      <small>+{{ p.chest_xp }} XP · 🔎 Pro price check</small></div>
-    {% if p.chest_ready %}<button type="button" class="pq-open" id="pqOpen" data-xp="{{ p.chest_xp }}">Open</button>{% else %}<span class="pq-lock">{{ p.quests|selectattr('done')|list|length }}/3</span>{% endif %}
+      <small>Goal + one upkeep job · +{{ p.chest_xp }} XP · 🔎</small></div>
+    {% if p.chest_ready %}<button type="button" class="pq-open" id="pqOpen" data-xp="{{ p.chest_xp }}">Open</button>{% else %}<span class="pq-lock">🔒</span>{% endif %}
   </div>
 </section>
 
@@ -88,7 +88,9 @@
   <summary>How XP works</summary>
   {% for label, xp in rules %}<div class="pg-rule"><span>{{ label }}</span><b>+{{ xp }}</b></div>{% endfor %}
   <div class="pg-rule"><span>Profit when sold</span><b>+1 per £1</b></div>
-  <div class="pg-rule"><span>Daily quests · chest</span><b>+10 to +35 · +{{ p.chest_xp }}</b></div>
+  <div class="pg-rule"><span>Price drop on a stale item</span><b>+5</b></div>
+  <div class="pg-rule"><span>Take a sold item down elsewhere</span><b>+10</b></div>
+  <div class="pg-rule"><span>Daily chest (goal + an upkeep job)</span><b>+{{ p.chest_xp }}</b></div>
 </details>
 {% endblock %}
 {% block scripts %}

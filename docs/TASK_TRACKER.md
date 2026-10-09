@@ -387,3 +387,10 @@ Keep IDs stable. Do not rename an open task to hide scope. Split partial work in
   returns a result. Earned from chests and 3 per level-up.
 - Progress: quests card with chest (Open → chest animation), perks, badges grid (new badge pop-up), coin skin picker
   (Silver/Rose gold/Emerald by level, Quest gold by badge). Upload: quest-complete toasts after a listing.
+
+## Today's jobs (replaces invented daily quests)
+- quests.jobs(): only real work that applies — list for the streak, drop the price on items unsold 30+ days
+  (since listing or last price change), take down sold items still live elsewhere, add buy prices to sales.
+  Each links to the page that does it (/drafts?stale=1 shows only stale items, tagged "💤 40d").
+- XP from timestamped actions: price drop +5 (max 10/day), take-down +10, cross-list mark +5. Daily chest =
+  listing goal + one upkeep job (price drop, take-down, sale or cross-list): +25 XP and a Pro price check.

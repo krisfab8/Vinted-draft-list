@@ -782,8 +782,9 @@ def _get_all_listings() -> list[dict]:
     listings = []
     if not ITEMS_DIR.exists():
         return listings
-    from app.services import sales_history, crosslist
+    from app.services import sales_history, crosslist, progress as progress_svc
     outcomes = {row['folder']: row for row in sales_history.read_all()}
+    today = sales_history.today()
     dirs = sorted(ITEMS_DIR.iterdir(), key=lambda p: p.stat().st_mtime, reverse=True)
     for item_dir in dirs:
         if not item_dir.is_dir() or item_dir.name.startswith("_"):
@@ -797,6 +798,7 @@ def _get_all_listings() -> list[dict]:
             listing['outcome'] = outcomes.get(item_dir.name)
             listing['inventory_status'] = (listing['outcome'] or {}).get('status', 'draft')
             crosslist.decorate(listing, listing['outcome'])
+            listing['stale_days'] = progress_svc.stale_days(listing, item_dir, today)
             # A saved thumbnail URL may outlive its file after a restore.
             listing.pop("thumbnail_url", None)
             for role in ["front", "back", "brand"]:
