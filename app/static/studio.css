@@ -746,3 +746,27 @@ a.pq:active { opacity: .7; }
 .stale-tag { position: absolute; left: 10px; bottom: 10px; z-index: 2; padding: 4px 8px; border-radius: 10px; background: rgba(30,42,34,.78);
   color: #F3EDE0; font-size: 11.5px; font-weight: 800; }
 .draft-card[hidden] { display: none !important; }
+
+/* Platform marks (brand-coloured, not official logos) with a state dot */
+.pf { position: relative; display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: 7px; flex: none;
+  font-family: inherit; font-size: 13px; font-weight: 900; line-height: 1; color: #fff; letter-spacing: -.02em; font-style: normal; }
+.pf-vinted { background: #09B1BA; }
+.pf-depop { background: #FF2300; }
+.pf-other { background: #8E8B82; }
+.pf-ebay { background: #fff; box-shadow: inset 0 0 0 1px var(--sn-line2); display: inline-flex; gap: 0; font-size: 8.5px; letter-spacing: -.04em; }
+.pf-ebay i { font-style: normal; } .pf-ebay .e { color: #E53238; } .pf-ebay .b { color: #0064D2; } .pf-ebay .a { color: #F5AF02; } .pf-ebay .y { color: #86B817; }
+.pf-st { position: absolute; right: -4px; bottom: -4px; width: 12px; height: 12px; border-radius: 50%; border: 2px solid var(--sn-card);
+  display: grid; place-items: center; font-style: normal; font-size: 7px; font-weight: 900; color: #fff; }
+.pf[data-state="live"] .pf-st { background: #2E9E5B; } .pf[data-state="live"] .pf-st::after { content: '✓'; }
+.pf[data-state="sold"] .pf-st { background: #C9A45C; } .pf[data-state="sold"] .pf-st::after { content: '£'; }
+.pf[data-state="off"] { filter: grayscale(1); opacity: .45; }
+.pf[data-state="off"] .pf-st { background: #9A968C; } .pf[data-state="off"] .pf-st::after { content: '✕'; }
+.pf[data-state="removed"] { filter: grayscale(1); opacity: .45; }
+.xl-chip { display: inline-flex; align-items: center; gap: 8px; height: 42px; padding: 0 14px 0 10px; background: var(--sn-card); }
+.xl-chip.on { background: var(--brand-pale); border-color: var(--sn-pop); color: var(--sn-text); }
+.xl-chip.on span { font-weight: 800; }
+.draft-brand { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
+.pf-row { display: inline-flex; gap: 6px; flex: none; }
+.pf-row .pf { width: 18px; height: 18px; border-radius: 6px; font-size: 11px; }
+.pf-row .pf-ebay { font-size: 7px; }
+.pf-row .pf-st { width: 10px; height: 10px; right: -3px; bottom: -3px; font-size: 6px; }

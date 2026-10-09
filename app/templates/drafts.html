@@ -681,7 +681,11 @@
         {% elif item.tier == 'premium' %}<div class="draft-premium-tag" title="Premium · +15 XP" aria-label="Premium, 15 XP">★<small>+15</small></div>{% endif %}
       </div>
       <div class="draft-info">
-        <div class="draft-brand">{{ item.brand or "Unknown" }}</div>
+        <div class="draft-brand">{{ item.brand or "Unknown" }}
+          {%- set marks = (item.crosslist or {}).items()|selectattr('1.status', 'in', ['live', 'sold'])|list %}
+          {%- if marks %}<span class="pf-row" aria-label="Listed on {{ marks|map(attribute=0)|join(', ') }}">
+            {%- for name, e in marks %}<span class="pf pf-{{ name|lower }}" data-state="{{ e.status }}" aria-hidden="true">
+              {%- if name == 'eBay' %}<i class="e">e</i><i class="b">b</i><i class="a">a</i><i class="y">y</i>{% elif name == 'Vinted' %}V{% elif name == 'Depop' %}d{% else %}•{% endif %}<em class="pf-st"></em></span>{% endfor %}</span>{% endif %}</div>
         {% if not sold_mode %}<div class="inventory-chip">{{ 'Live' if item.inventory_status == 'listed' else item.inventory_status|capitalize }}</div>{% endif %}
         {% set card_date = (item.outcome.sold_date if sold_mode else ((item.run_stats or {}).finished_at or item.listed_date)) or '' %}
         <div class="draft-meta">
@@ -1003,6 +1007,9 @@ document.addEventListener('keydown', event => {
 
 /* ── Cross-listing: where it's listed, and what to take down once it sells ── */
 const XL_PLATFORMS = ['Vinted', 'eBay', 'Depop', 'Other'];
+// Small brand-coloured marks (not the official logos) with a state dot: live ✓, sold £, not listed ✕.
+const PF_INNER = {Vinted: 'V', eBay: '<i class="e">e</i><i class="b">b</i><i class="a">a</i><i class="y">y</i>', Depop: 'd', Other: '•'};
+const pfMark = (p, state) => `<span class="pf pf-${p.toLowerCase()}" data-state="${state}" aria-hidden="true">${PF_INNER[p] || '•'}<em class="pf-st"></em></span>`;
 function soldOnDefault(item) {
   if (item.outcome?.platform) return item.outcome.platform;
   const live = Object.entries(item.crosslist || {}).filter(([, e]) => e.status === 'live').map(([p]) => p);
@@ -1025,10 +1032,10 @@ function crosslistPanel(item, idx) {
   return `<section class="xl-panel" aria-label="Listed on"><h3>Listed on</h3><div class="xl-chips">
     ${XL_PLATFORMS.map(p => {
       const on = where[p]?.status === 'live', fixed = p === 'Vinted' && !!item.draft_url;
-      return `<button type="button" class="xl-chip${on ? ' on' : ''}" aria-pressed="${on}" ${fixed ? 'disabled title="Has a Vinted draft"' : ''}
-        onclick="crosslistSet(${idx},'${p}','${on ? 'unlisted' : 'listed'}',this)">${on ? '✓ ' : ''}${p}</button>`;
+      return `<button type="button" class="xl-chip${on ? ' on' : ''}" aria-pressed="${on}" aria-label="${p}: ${on ? 'listed' : 'not listed'}" ${fixed ? 'disabled title="Has a Vinted draft"' : ''}
+        onclick="crosslistSet(${idx},'${p}','${on ? 'unlisted' : 'listed'}',this)">${pfMark(p, on ? 'live' : 'off')}<span>${p}</span></button>`;
     }).join('')}</div>
-    <p class="sale-note">When it sells on one, we'll remind you to take it down on the others.</p></section>`;
+    <p class="sale-note">Tap where it's listed. When it sells, we'll remind you to take it down elsewhere.</p></section>`;
 }
 async function crosslistSet(idx, platform, action, btn) {
   const item = LISTINGS[idx];
