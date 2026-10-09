@@ -98,6 +98,7 @@ public class MainActivity extends Activity {
                     pendingLogin = null;
                     loginUntil = System.currentTimeMillis() + 25000;
                     loginClicked = false;
+                    loginNavDone = false;
                 }
                 if (onVinted && System.currentTimeMillis() < loginUntil) {
                     // Vinted's login address changes; its "Log in" buttons don't. Vinted draws its page late,
@@ -141,29 +142,47 @@ public class MainActivity extends Activity {
         if (state != null) web.restoreState(state); else web.loadUrl(APP_URL);
     }
 
-    /** One look at Vinted's page: "form" = login options showing, "tapped"/"opened" = clicked a Log in, "none". */
+    /** One look at Vinted's page: "form" = login options showing, "tapped"/"opened" = clicked a Log in,
+     *  "nav" = followed a (hidden) login link, "in" = already logged in, otherwise "none|what the page shows". */
     private static final String LOGIN_STEP =
-        "(function(){var els=Array.prototype.slice.call(document.querySelectorAll('a,button,[role=button]'))"
-        + ".filter(function(e){return e.getClientRects().length&&!e.dataset.vlTapped"
+        "(function(allowNav){var all=Array.prototype.slice.call(document.querySelectorAll('a,button,[role=button]'));"
+        + "var els=all.filter(function(e){return e.getClientRects().length&&!e.dataset.vlTapped"
         + "&&!(e.closest('form')&&(e.type==='submit'||e.closest('form').querySelector('input[type=password]')));});"
-        + "var txt=function(e){return (e.innerText||e.textContent||'').trim();};"
-        + "var exact=els.find(function(e){return /^log ?in$/i.test(txt(e));});"
+        + "var txt=function(e){return (e.innerText||e.textContent||e.getAttribute('aria-label')||'').trim();};"
+        + "var exact=els.find(function(e){return /^(log ?in|sign ?in)$/i.test(txt(e));});"
         + "if(exact){exact.dataset.vlTapped='1';exact.click();return 'tapped';}"
         + "if(document.querySelector('input[type=password],input[name=username],input[type=email]')"
         + "||els.some(function(e){return /log in with email|continue with (google|apple|facebook)/i.test(txt(e));}))return 'form';"
-        + "var any=els.find(function(e){return /log ?in/i.test(txt(e));});"
-        + "if(any){any.dataset.vlTapped='1';any.click();return 'opened';}return 'none';})()";
+        + "var any=els.find(function(e){return /log ?in|sign ?in/i.test(txt(e))||/login/i.test(e.getAttribute('data-testid')||'');});"
+        + "if(any){any.dataset.vlTapped='1';any.click();return 'opened';}"
+        + "if(document.querySelector('a[href*=inbox],[data-testid*=user-menu],[data-testid*=header-user]'))return 'in';"
+        + "var link=all.find(function(e){var h=e.getAttribute('href')||'';return /select_type|\\/login|\\/signin|\\/auth/i.test(h)"
+        + "||/login|log in/i.test((e.getAttribute('data-testid')||'')+' '+(e.textContent||''));});"
+        + "if(allowNav&&link&&link.href){location.href=link.href;return 'nav';}"
+        + "return 'none|'+els.map(txt).filter(function(t){return t&&t.length<24;}).slice(0,10).join(', ');})";
+
+    private boolean loginNavDone;
 
     private void loginStep(WebView view, int run, int attempt) {
         if (run != loginRun || System.currentTimeMillis() > loginUntil || !isVinted(currentUrl)) return;
-        view.evaluateJavascript(LOGIN_STEP, result -> {
+        view.evaluateJavascript(LOGIN_STEP + "(" + !loginNavDone + ")", result -> {
             if (run != loginRun) return;
-            String r = result == null ? "" : result.replace("\"", "");
+            String r = result == null ? "" : result.replaceAll("^\"|\"$", "").replace("\\\"", "\"");
             if (r.equals("tapped") || r.equals("opened")) loginClicked = true;
+            if (r.equals("nav")) { loginNavDone = true; loginClicked = true; return; }   // new page restarts the search
             if (r.equals("form")) { loginUntil = 0; return; }   // login options are showing: done
+            if (r.equals("in")) {
+                loginUntil = 0;
+                Toast.makeText(this, "You're already logged in to Vinted \u2713", Toast.LENGTH_LONG).show();
+                return;
+            }
             if (attempt < 14) { view.postDelayed(() -> loginStep(view, run, attempt + 1), 800); return; }
             loginUntil = 0;
-            if (!loginClicked) Toast.makeText(this, "No Log in button on Vinted: you're probably logged in already", Toast.LENGTH_LONG).show();
+            if (!loginClicked) {
+                String saw = r.startsWith("none|") ? r.substring(5) : "";
+                Toast.makeText(this, "Couldn't find Vinted's Log in. Tap it at the top yourself."
+                    + (saw.isEmpty() ? "" : " (Saw: " + saw + ")"), Toast.LENGTH_LONG).show();
+            }
         });
     }
 

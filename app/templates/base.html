@@ -368,8 +368,7 @@
   {% endif %}
   {% block scripts %}{% endblock %}
   <script>
-    // Inside the phone app, "Connect Vinted" means the app's own Vinted window (log in once on the phone);
-    // the desktop connect page can't work there.
+    // Inside the phone app the Vinted chip opens /connect: your selling accounts, each with its own Log in.
     // "Log in" buttons for Vinted/eBay: straight to that site's login inside the app.
     document.addEventListener("click", e => {
       const btn = e.target.closest(".acct-btn");
@@ -382,12 +381,6 @@
         : 'Logging in works in the Vinted Lister phone app: <a href="https://github.com/krisfab8/Vinted-draft-list/releases/tag/android-prototype">get the Android app</a>.';
     });
     if (window.AndroidBridge) {
-      document.addEventListener("click", e => {
-        const link = e.target.closest('a[href="/connect"]');
-        if (!link) return;
-        e.preventDefault();
-        window.AndroidBridge.openVinted();
-      }, true);
       const chip = document.getElementById("header-vinted-status");
       if (chip) chip.classList.add("in-app");
       const st = document.getElementById("st-vinted");
