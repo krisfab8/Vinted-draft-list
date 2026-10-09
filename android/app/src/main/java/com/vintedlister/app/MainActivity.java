@@ -99,6 +99,9 @@ public class MainActivity extends Activity {
                     loginUntil = System.currentTimeMillis() + 25000;
                     loginClicked = false;
                     loginNavDone = false;
+                    loginSteps.setLength(0);
+                    lastLoginStep = "";
+                    Toast.makeText(MainActivity.this, "Finding Vinted's Log in\u2026", Toast.LENGTH_SHORT).show();
                 }
                 if (onVinted && System.currentTimeMillis() < loginUntil) {
                     // Vinted's login address changes; its "Log in" buttons don't. Vinted draws its page late,
@@ -143,40 +146,50 @@ public class MainActivity extends Activity {
     }
 
     /** One look at Vinted's page: "form" = login options showing, "tapped"/"opened" = clicked a Log in,
-     *  "nav" = followed a (hidden) login link, "in" = already logged in, "menu" = opened the menu (on phones
-     *  Vinted keeps Sign up | Log in in its menu, which only exists once opened), otherwise "none|what it saw". */
+     *  "in" = already logged in, "menu" = opened the \u2630 menu (on phones Vinted keeps Sign up | Log in there,
+     *  and it only exists once opened), "nav" = followed a login link, otherwise "none|what it saw". */
     private static final String LOGIN_STEP =
         "(function(allowNav){var all=Array.prototype.slice.call(document.querySelectorAll('a,button,[role=button]'));"
-        + "var els=all.filter(function(e){return e.getClientRects().length&&!e.dataset.vlTapped"
+        + "var shown=function(e){var r=e.getBoundingClientRect();return r.width>0&&r.height>0&&r.right>0&&r.left<innerWidth"
+        + "&&getComputedStyle(e).visibility!=='hidden';};"
+        + "var els=all.filter(function(e){return shown(e)&&!e.dataset.vlTapped"
         + "&&!(e.closest('form')&&(e.type==='submit'||e.closest('form').querySelector('input[type=password]')));});"
-        + "var txt=function(e){return (e.innerText||e.textContent||e.getAttribute('aria-label')||'').trim();};"
+        + "var txt=function(e){return (e.innerText||e.textContent||'').trim();};"
         + "var exact=els.find(function(e){return /^(log ?in|sign ?in)$/i.test(txt(e));});"
         + "if(exact){exact.dataset.vlTapped='1';exact.click();return 'tapped';}"
         + "if(document.querySelector('input[type=password],input[name=username],input[type=email]')"
         + "||els.some(function(e){return /log in with email|continue with (google|apple|facebook)/i.test(txt(e));}))return 'form';"
-        + "var any=els.find(function(e){return /log ?in|sign ?in/i.test(txt(e))||/login/i.test(e.getAttribute('data-testid')||'');});"
+        + "var any=els.find(function(e){return /log ?in|sign ?in/i.test(txt(e));});"
         + "if(any){any.dataset.vlTapped='1';any.click();return 'opened';}"
         + "if(document.querySelector('a[href*=inbox],[data-testid*=user-menu],[data-testid*=header-user]'))return 'in';"
-        + "var link=all.find(function(e){var h=e.getAttribute('href')||'';return /select_type|\\/login|\\/signin|\\/auth/i.test(h)"
-        + "||/login|log in/i.test((e.getAttribute('data-testid')||'')+' '+(e.textContent||''));});"
-        + "if(allowNav&&link&&link.href){location.href=link.href;return 'nav';}"
         + "if(!document.documentElement.dataset.vlMenu){var hdr=document.querySelector('header')||document.body;"
-        + "var menu=els.find(function(e){return /menu|burger|navigation/i.test((e.getAttribute('aria-label')||'')+' '+(e.getAttribute('data-testid')||''));})"
-        + "||Array.prototype.slice.call(hdr.querySelectorAll('button,[role=button]')).filter(function(e){"
-        + "return e.getClientRects().length&&!txt(e)&&e.querySelector('svg,span,i');}).pop();"
+        + "var lbl=function(e){return (e.getAttribute('aria-label')||'')+' '+(e.getAttribute('data-testid')||'')+' '+(e.className||'');};"
+        + "var menu=els.find(function(e){return /menu|burger|navigation|hamburger/i.test(lbl(e));})"
+        + "||Array.prototype.slice.call(hdr.querySelectorAll('button,[role=button],a')).filter(function(e){"
+        + "return shown(e)&&!txt(e)&&e.querySelector('svg,span,i,img');}).pop();"
         + "if(menu){document.documentElement.dataset.vlMenu=1;menu.click();return 'menu';}}"
-        + "return 'none|'+els.map(txt).filter(function(t){return t&&t.length<24;}).slice(0,10).join(', ');})";
+        + "var here=location.href.split('#')[0];"
+        + "var link=all.find(function(e){var h=e.href||'';return /^https?:/.test(h)&&h.split('#')[0]!==here"
+        + "&&/select_type|\\/login|\\/signin|\\/auth/i.test(h);});"
+        + "if(allowNav&&link){location.href=link.href;return 'nav';}"
+        + "return 'none|'+els.map(txt).filter(function(t){return t&&t.length<24;}).slice(0,8).join(', ');})";
 
     private boolean loginNavDone;
+    private final StringBuilder loginSteps = new StringBuilder();
+    private String lastLoginStep = "";
 
     private void loginStep(WebView view, int run, int attempt) {
         if (run != loginRun || System.currentTimeMillis() > loginUntil || !isVinted(currentUrl)) return;
         view.evaluateJavascript(LOGIN_STEP + "(" + !loginNavDone + ")", result -> {
             if (run != loginRun) return;
             String r = result == null ? "" : result.replaceAll("^\"|\"$", "").replace("\\\"", "\"");
-            if (r.equals("tapped") || r.equals("opened")) loginClicked = true;
+            if (r.equals("tapped") || r.equals("opened") || r.equals("menu")) loginClicked = true;
             // "menu": opened Vinted's \u2630 menu; the next look finds its Log in.
-            if (r.equals("nav")) { loginNavDone = true; loginClicked = true; return; }   // new page restarts the search
+            if (r.equals("nav")) loginNavDone = true;   // a new page restarts the search; keep looking meanwhile
+            String step = r.split("\\|")[0];
+            if (!step.equals(lastLoginStep) && loginSteps.length() < 120)
+                loginSteps.append(loginSteps.length() == 0 ? "" : " \u203a ").append(step.isEmpty() ? "?" : step);
+            lastLoginStep = step;
             if (r.equals("form")) { loginUntil = 0; return; }   // login options are showing: done
             if (r.equals("in")) {
                 loginUntil = 0;
@@ -185,11 +198,9 @@ public class MainActivity extends Activity {
             }
             if (attempt < 14) { view.postDelayed(() -> loginStep(view, run, attempt + 1), 800); return; }
             loginUntil = 0;
-            if (!loginClicked) {
-                String saw = r.startsWith("none|") ? r.substring(5) : "";
-                Toast.makeText(this, "Couldn't find Vinted's Log in. Tap it at the top yourself."
-                    + (saw.isEmpty() ? "" : " (Saw: " + saw + ")"), Toast.LENGTH_LONG).show();
-            }
+            String saw = r.startsWith("none|") ? r.substring(5) : "";
+            Toast.makeText(this, "Couldn't reach Vinted's Log in: tap \u2630 then Sign up | Log in. (Tried: " + loginSteps
+                + (saw.isEmpty() ? "" : "; saw: " + saw) + ")", Toast.LENGTH_LONG).show();
         });
     }
 
