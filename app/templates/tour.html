@@ -271,7 +271,7 @@
 <script>
   /* Story-style tour: auto-advances, tap right/left, swipe, hold to pause. Seen once; rewatch from Settings. */
   (() => {
-    const DUR = 6500, root = document.getElementById("tour");
+    const DUR = 6500, SPEED = 0.5, root = document.getElementById("tour");   // SPEED 0.5 = half speed
     const slides = [...root.querySelectorAll(".tr-slide")], bars = [...root.querySelectorAll(".tr-bars i")];
     const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
     let index = -1, timer = null, startedAt = 0, left = DUR, paused = false;
@@ -283,11 +283,13 @@
       slides.forEach((s, k) => { s.classList.toggle("on", k === i); s.classList.remove("play"); });
       void slides[i].offsetWidth;                      // restart this slide's animations
       slides[i].classList.add("play");
+      // Play every animation on this card at SPEED (times in the CSS are written for full speed).
+      requestAnimationFrame(() => slides[i].getAnimations({subtree: true}).forEach(a => { a.playbackRate = SPEED; }));
       bars.forEach((b, k) => { b.className = k < i ? "done" : k === i ? "now" : ""; });
       document.getElementById("trCount").textContent = `${i + 1} of ${slides.length}`;
       document.getElementById("trSkip").textContent = i === slides.length - 1 ? "Done" : "Skip";
-      if (i === slides.length - 1) { done(); setTimeout(() => window.Coin && Coin.earn(document.getElementById("trCoin")), 1500); }
-      left = +slides[i].dataset.dur || DUR;            // longer cards set their own length
+      if (i === slides.length - 1) { done(); setTimeout(() => window.Coin && Coin.earn(document.getElementById("trCoin")), 1500 / SPEED); }
+      left = (+slides[i].dataset.dur || DUR) / SPEED;   // longer cards set their own length
       root.style.setProperty("--dur", left + "ms");
       schedule();
     }
