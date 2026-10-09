@@ -166,17 +166,13 @@
 {% if config.get('HOSTED_TEST') %}
 {# Online the server can't open a browser for you: Vinted connects inside the phone app instead. #}
 <div class="page-title">Vinted Account</div>
-<div class="connect-steps-card" id="appConnect">
-  <div class="connect-step">
-    <div class="step-num">📱</div>
-    <div class="step-body">
-      <div class="step-label">Vinted connects in the phone app</div>
-      <div class="step-desc" id="appConnectText">Open this page in the Vinted Lister app on your phone, then tap the button to log in to Vinted once. Your Vinted login stays on your phone.</div>
-      <button class="btn-connect-start" id="btnApp" hidden onclick="window.AndroidBridge.openVinted()">Log in to Vinted ↗</button>
-      <a class="btn-connect-start" id="btnGetApp" href="https://github.com/krisfab8/Vinted-draft-list/releases/tag/android-prototype" style="display:inline-block;text-decoration:none;text-align:center">Get the Android app</a>
-    </div>
-  </div>
-</div>
+<div id="appConnect"></div>
+<section class="rv-card acct-card" aria-label="Your selling accounts">
+  <h2 class="acct-title">Your selling accounts</h2>
+  <button type="button" class="acct-btn" data-site="vinted"><span class="wm wm-vinted">Vinted</span><b>Log in</b></button>
+  <button type="button" class="acct-btn" data-site="ebay"><span class="wm wm-ebay"><i class="e">e</i><i class="b">b</i><i class="a">a</i><i class="y">y</i></span><b>Log in</b></button>
+  <p class="acct-note" id="acctNote">Log in once in the app. Your logins stay on your phone.</p>
+</section>
 {% else %}
 <div class="page-title">Vinted Account</div>
 <div class="page-subtitle">Connect your Vinted account to create and manage listings.</div>
@@ -316,12 +312,6 @@ async function connectSave() {
 }
 
 if (document.getElementById("appConnect")) {
-  // In the app: show the login button (and open Vinted straight away); in a browser: point to the app.
-  if (window.AndroidBridge) {
-    document.getElementById("btnApp").hidden = false;
-    document.getElementById("btnGetApp").hidden = true;
-    document.getElementById("appConnectText").textContent = "Log in to Vinted once in the window that opens. Then tap ← Lister to come back.";
-  }
 } else {
   document.addEventListener("DOMContentLoaded", loadStatus);
 }

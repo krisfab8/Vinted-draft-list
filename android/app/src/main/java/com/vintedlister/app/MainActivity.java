@@ -44,6 +44,7 @@ public class MainActivity extends Activity {
     private Button backToApp;
     private volatile String currentUrl = "";
     private volatile String pendingPayload;
+    private volatile String pendingLogin;   // "vinted": tap Vinted's own Log in button once the page loads
     private String filler;
     private ValueCallback<Uri[]> fileCallback;
     private PermissionRequest pendingPermission;
@@ -89,7 +90,12 @@ public class MainActivity extends Activity {
             public void onPageFinished(WebView view, String url) {
                 currentUrl = url == null ? "" : url;
                 boolean onVinted = isVinted(currentUrl);
-                backToApp.setVisibility(onVinted ? View.VISIBLE : View.GONE);
+                backToApp.setVisibility(isMarketplace(currentUrl) ? View.VISIBLE : View.GONE);
+                if (onVinted && "vinted".equals(pendingLogin)) {
+                    pendingLogin = null;
+                    // Vinted's login address changes; its header "Log in" button doesn't. Tap it, then the modal's Log in.
+                    view.postDelayed(() -> view.evaluateJavascript(LOGIN_TAP, null), 1200);
+                }
                 if (onVinted && pendingPayload != null && currentUrl.contains("/items/new") && filler != null) {
                     // Give Vinted's page a moment to render its form, then fill it.
                     view.postDelayed(() -> view.evaluateJavascript(filler + "\n;window.VintedFiller && window.VintedFiller.run();", null), 2500);
@@ -124,6 +130,23 @@ public class MainActivity extends Activity {
         });
 
         if (state != null) web.restoreState(state); else web.loadUrl(APP_URL);
+    }
+
+    private static final String LOGIN_TAP =
+        "(function(){var f=function(exact){return Array.prototype.slice.call(document.querySelectorAll('a,button,[role=button]'))"
+        + ".find(function(e){var t=(e.innerText||'').trim();return exact?/^log in$/i.test(t):/log in/i.test(t);});};"
+        + "var a=f(false);if(a)a.click();setTimeout(function(){var b=f(true);if(b&&b!==a)b.click();},900);})();";
+
+    /** Vinted, eBay or Depop: shows the "← Lister" button so you can always get back. */
+    private static boolean isMarketplace(String url) {
+        try {
+            String host = Uri.parse(url).getHost();
+            if (host == null) return false;
+            return host.equals("vinted.co.uk") || host.endsWith(".vinted.co.uk") || host.equals("ebay.co.uk")
+                || host.endsWith(".ebay.co.uk") || host.equals("depop.com") || host.endsWith(".depop.com");
+        } catch (Exception e) {
+            return false;
+        }
     }
 
     private static boolean isVinted(String url) {
@@ -169,9 +192,17 @@ public class MainActivity extends Activity {
         }
 
         @JavascriptInterface
-        public void openVinted() {
+        public void openVinted() { openSite("vinted"); }
+
+        /** Log in buttons in our Settings: go straight to that marketplace's login (only from our site). */
+        @JavascriptInterface
+        public void openSite(String platform) {
             if (!currentUrl.startsWith(APP_URL)) return;
-            runOnUiThread(() -> web.loadUrl("https://www.vinted.co.uk/"));
+            final String url;
+            if ("ebay".equals(platform)) url = "https://signin.ebay.co.uk/ws/eBayISAPI.dll?SignIn";
+            else if ("depop".equals(platform)) url = "https://www.depop.com/login/";
+            else { url = "https://www.vinted.co.uk/"; pendingLogin = "vinted"; }
+            runOnUiThread(() -> web.loadUrl(url));
         }
 
         /** What the filler found/filled; sent to our server for checking, with the app's sign-in. */
