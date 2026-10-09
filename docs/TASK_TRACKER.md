@@ -407,8 +407,11 @@ Keep IDs stable. Do not rename an open task to hide scope. Split partial work in
 
 ## Insights page
 - Tap the sales chart on Sold (or "Insights ›") → /insights?period=30d|90d|12m|all.
-- `app/services/insights.py` (deterministic, no AI): per item type sold/for-sale counts, average/median/low/high
-  price, days to sell, average profit; top brands; listed vs sold per week (≤90 days) or month. Types are
+- Redesigned visual-first (owner feedback: less text, no "median"): big Sales/Profit line chart, four tiles
+  (avg sale, sell-through %, days to sell, listed per week), By type bars + avg price, Listed vs sold columns,
+  top brands, "All numbers" table. Sell-through = sold ÷ (sold + still for sale).
+- `app/services/insights.py` (deterministic, no AI): per item type sold/for-sale counts, average/low/high
+  price, sell-through, days to sell, average profit; top brands; listed/sold/takings/profit per week or month. Types are
   grouped from free text (tee/t shirt → T-shirt, trainer/sneakers → Trainers); past 8 groups fold into "Other".
 - Charts are plain HTML/CSS (single-series bars in #12744F; listed/sold pair #12744F/#D0901C, validated for
   colour-blindness; amber needs the legend + table, both present). Tap/hover/focus tooltip; numbers table.

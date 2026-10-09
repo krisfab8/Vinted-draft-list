@@ -1,254 +1,240 @@
 {% extends "base.html" %}
 {% block title %}Insights — Vinted Lister{% endblock %}
-{% macro gbp(v, dp=0) %}{% if v is none %}—{% elif dp == 0 and v >= 100 %}£{{ '%.0f'|format(v) }}{% else %}£{{ ('%.2f'|format(v)).replace('.00', '') }}{% endif %}{% endmacro %}
+{% macro gbp(v) %}{% if v is none %}—{% else %}£{{ '%.0f'|format(v) }}{% endif %}{% endmacro %}
 {% set h = data.headline %}
+{% macro xlab(r) %}{{ r.label }}{% if data.rhythm.unit == 'month' and ' ' not in r.label %} {{ r.start[2:4] }}{% endif %}{% endmacro %}
 {% set names = {'30d': '30 days', '90d': '90 days', '12m': '12 months', 'all': 'All time'} %}
 {% block content %}
 <style>
-  .in-wrap { --in-a: #12744F; --in-b: #D0901C; --in-grid: var(--sn-line); }
-  .in-filter { display: flex; gap: 6px; margin: 4px 0 18px; overflow-x: auto; scrollbar-width: none; }
-  .in-filter a { flex: none; height: 38px; padding: 0 14px; border-radius: 19px; border: 1px solid var(--sn-line2); background: var(--sn-card);
+  .in-wrap { --in-a: #12744F; --in-b: #D0901C; }
+  .in-filter { display: flex; gap: 6px; margin: 4px 0 16px; overflow-x: auto; scrollbar-width: none; }
+  .in-filter a { flex: none; height: 36px; padding: 0 14px; border-radius: 18px; border: 1px solid var(--sn-line2); background: var(--sn-card);
     display: grid; place-items: center; font-size: 14px; font-weight: 700; color: var(--sn-text); text-decoration: none; }
   .in-filter a[aria-current] { background: var(--sn-pop); border-color: var(--sn-pop); color: var(--sn-on-pop); }
-  .in-hero { margin: 0 2px 14px; }
-  .in-hero b { display: block; font-size: 48px; font-weight: 800; letter-spacing: -.03em; line-height: 1; color: var(--sn-text); }
-  .in-hero span { font-size: 15px; font-weight: 600; color: var(--sn-muted); }
-  .in-tiles { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-bottom: 14px; }
-  .in-tile { background: var(--sn-card); border: 1px solid var(--sn-line); border-radius: 16px; padding: 12px 10px; }
-  .in-tile b { display: block; font-size: 19px; font-weight: 800; color: var(--sn-text); }
-  .in-tile span { font-size: 12px; font-weight: 600; color: var(--sn-muted); }
-  .in-card { background: var(--sn-card); border: 1px solid var(--sn-line); border-radius: 22px; padding: 16px 16px 14px; margin-bottom: 12px; }
-  .in-card h2 { font-size: 17px; font-weight: 800; color: var(--sn-text); margin: 0; }
-  .in-card > p { font-size: 13px; color: var(--sn-muted); margin: 3px 0 12px; line-height: 1.4; }
-  .in-empty { font-size: 14px; color: var(--sn-muted); padding: 8px 0 4px; }
-  /* Horizontal bars: square at the baseline, 4px rounded data end, value at the tip. */
-  .in-bars { display: grid; gap: 9px; position: relative; }
-  .in-row { display: grid; grid-template-columns: 92px 1fr; align-items: center; gap: 10px; min-height: 26px; cursor: default; }
-  .in-row > span { font-size: 13px; font-weight: 700; color: var(--sn-text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .in-track { position: relative; height: 26px; display: flex; align-items: center; }
-  .in-bar { height: 14px; background: var(--in-a); border-radius: 0 4px 4px 0; min-width: 2px; }
-  .in-val { margin-left: 6px; font-size: 13px; font-weight: 700; color: var(--sn-text); white-space: nowrap; font-variant-numeric: tabular-nums; }
-  .in-val small { font-weight: 600; color: var(--sn-muted); }
-  .in-ref { position: absolute; top: -4px; bottom: -4px; width: 1px; background: var(--sn-muted); opacity: .55; }
-  .in-ref-label { font-size: 12px; font-weight: 700; color: var(--sn-muted); margin: 0 0 8px; }
-  /* Price range: hairline low→high, median dot (ringed), average tick. */
-  .in-row-range { grid-template-columns: 92px 1fr 64px; }
-  .in-span { font-size: 12px; font-weight: 700; color: var(--sn-muted); text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
-  .in-range { position: absolute; top: 12px; height: 3px; background: #CDBFA8; border-radius: 2px; }
-  .in-dot { position: absolute; top: 7px; width: 12px; height: 12px; margin-left: -6px; border-radius: 50%; background: var(--in-a); box-shadow: 0 0 0 2px var(--sn-card); }
-  .in-tick { position: absolute; top: 5px; width: 3px; height: 16px; margin-left: -1.5px; border-radius: 2px; background: var(--sn-text); }
-  .in-key { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 12px; font-weight: 700; color: var(--sn-muted); margin-bottom: 10px; }
-  .in-key i { display: inline-block; vertical-align: -1px; margin-right: 5px; }
-  .in-key .k-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--in-a); }
-  .in-key .k-tick { width: 3px; height: 12px; border-radius: 2px; background: var(--sn-text); }
-  .in-key .k-line { width: 18px; height: 2px; background: var(--sn-line2); vertical-align: 3px; }
-  .in-key .k-a { width: 10px; height: 10px; border-radius: 3px; background: var(--in-a); }
-  .in-key .k-b { width: 10px; height: 10px; border-radius: 3px; background: var(--in-b); }
-  /* Rhythm: grouped columns, square at the baseline, 4px rounded tops, 2px gap between the pair. */
-  .in-cols { display: flex; align-items: flex-end; gap: 6px; height: 150px; border-bottom: 1px solid var(--in-grid); position: relative; padding: 18px 0 0 18px; }
-  .in-col { position: relative; z-index: 1; flex: 1; display: flex; align-items: flex-end; justify-content: center; gap: 2px; height: 100%; cursor: default; }
-  .in-col i { width: 100%; max-width: 12px; border-radius: 4px 4px 0 0; min-height: 0; }
+  .in-card { background: var(--sn-card); border: 1px solid var(--sn-line); border-radius: 22px; padding: 16px; margin-bottom: 12px; }
+  .in-card h2 { font-size: 13px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--sn-muted); margin: 0 0 12px; }
+  .in-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+  .in-big { font-size: 44px; font-weight: 800; letter-spacing: -.03em; line-height: 1; color: var(--sn-text); }
+  .in-sub { font-size: 14px; font-weight: 700; color: var(--sn-muted); margin-top: 4px; }
+  .in-switch { display: flex; background: var(--sn-bg); border-radius: 14px; padding: 3px; flex: none; }
+  .in-switch button { border: 0; background: none; height: 30px; padding: 0 12px; border-radius: 11px; font: inherit; font-size: 13px; font-weight: 800; color: var(--sn-muted); }
+  .in-switch button[aria-pressed="true"] { background: var(--sn-text); color: #fff; }
+  .in-line { position: relative; margin-top: 14px; touch-action: pan-y; }
+  .in-line svg { display: block; width: 100%; height: 170px; overflow: visible; }
+  .in-xaxis { display: flex; justify-content: space-between; font-size: 11px; font-weight: 700; color: var(--sn-muted); margin-top: 6px; }
+  .in-tiles { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px; }
+  .in-tile { background: var(--sn-card); border: 1px solid var(--sn-line); border-radius: 18px; padding: 14px; }
+  .in-tile b { display: block; font-size: 28px; font-weight: 800; letter-spacing: -.02em; color: var(--sn-text); line-height: 1.05; }
+  .in-tile b small { font-size: 15px; font-weight: 800; color: var(--sn-muted); margin-left: 2px; }
+  .in-tile span { font-size: 13px; font-weight: 700; color: var(--sn-muted); }
+  .in-meter { height: 6px; border-radius: 3px; background: #DCEAE2; margin-top: 8px; overflow: hidden; }
+  .in-meter i { display: block; height: 100%; background: var(--in-a); border-radius: 0 3px 3px 0; }
+  .in-empty { font-size: 14px; color: var(--sn-muted); padding: 6px 0; }
+  .in-bars { display: grid; gap: 10px; }
+  .in-row { display: grid; grid-template-columns: 84px 1fr 48px; align-items: center; gap: 10px; cursor: default; }
+  .in-row > span { font-size: 14px; font-weight: 700; color: var(--sn-text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .in-track { display: flex; align-items: center; gap: 6px; height: 24px; }
+  .in-bar { height: 14px; background: var(--in-a); border-radius: 0 4px 4px 0; min-width: 3px; }
+  .in-n { font-size: 13px; font-weight: 700; color: var(--sn-muted); font-variant-numeric: tabular-nums; }
+  .in-price { text-align: right; font-size: 14px; font-weight: 800; color: var(--sn-text); font-variant-numeric: tabular-nums; }
+  .in-key { display: flex; gap: 14px; font-size: 12px; font-weight: 700; color: var(--sn-muted); margin: -4px 0 10px; }
+  .in-key i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 5px; vertical-align: -1px; }
+  .in-cols { display: flex; align-items: flex-end; gap: 6px; height: 120px; border-bottom: 1px solid var(--sn-line); }
+  .in-col { flex: 1; display: flex; align-items: flex-end; justify-content: center; gap: 2px; height: 100%; cursor: default; }
+  .in-col i { width: 100%; max-width: 12px; border-radius: 4px 4px 0 0; }
   .in-col .a { background: var(--in-a); } .in-col .b { background: var(--in-b); }
-  .in-grid { position: absolute; left: 0; right: 0; height: 1px; background: var(--in-grid); }
-  .in-grid span { position: absolute; left: 0; top: -7px; background: var(--sn-card); padding-right: 3px; font-size: 11px; color: var(--sn-muted); font-variant-numeric: tabular-nums; }
-  .in-xaxis { display: flex; gap: 6px; margin-top: 5px; padding-left: 18px; }
-  .in-xaxis span { flex: 1; text-align: center; font-size: 10px; font-weight: 600; color: var(--sn-muted); white-space: nowrap; overflow: hidden; }
-  .in-table { width: 100%; border-collapse: collapse; font-size: 13px; font-variant-numeric: tabular-nums; }
+  .in-more summary { cursor: pointer; font-size: 14px; font-weight: 800; color: var(--sn-text); }
+  .in-table { width: 100%; border-collapse: collapse; font-size: 13px; font-variant-numeric: tabular-nums; margin-top: 10px; }
   .in-table th { text-align: right; font-size: 11px; font-weight: 700; color: var(--sn-muted); padding: 6px 4px; border-bottom: 1px solid var(--sn-line); }
   .in-table td { text-align: right; padding: 8px 4px; border-bottom: 1px solid var(--sn-line); color: var(--sn-text); }
   .in-table th:first-child, .in-table td:first-child { text-align: left; font-weight: 700; }
-  .in-more summary { cursor: pointer; font-size: 14px; font-weight: 800; color: var(--sn-text); padding: 4px 0; }
-  .in-scroll { overflow-x: auto; margin-top: 10px; }
   .in-tip { position: fixed; z-index: 50; pointer-events: none; background: var(--sn-text); color: var(--sn-card); border-radius: 10px;
-    padding: 7px 10px; font-size: 12px; line-height: 1.45; max-width: 220px; box-shadow: 0 6px 20px rgba(0,0,0,.18); }
-  .in-tip strong { font-size: 14px; }
+    padding: 7px 10px; font-size: 12px; line-height: 1.45; box-shadow: 0 6px 20px rgba(0,0,0,.18); }
+  .in-tip strong { display: block; font-size: 15px; }
   .in-tip .row { display: flex; align-items: center; gap: 6px; }
-  .in-tip .row i { width: 10px; height: 2px; border-radius: 1px; display: inline-block; }
+  .in-tip .row i { width: 10px; height: 2px; border-radius: 1px; }
 </style>
 
 <div class="in-wrap">
 <a class="sn-back" href="/sold" onclick="if (document.referrer.startsWith(location.origin)) { history.back(); return false; }">
   <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>Back</a>
-<div class="sn-hero"><h1 class="sn-title">Insights.<br><span>What sells<i>.</i></span></h1></div>
+<div class="sn-hero"><h1 class="sn-title">Insights<i>.</i></h1></div>
 
 <nav class="in-filter" aria-label="Time period">
   {% for p in data.periods %}<a href="/insights?period={{ p }}" {% if p == data.period %}aria-current="page"{% endif %}>{{ names[p] }}</a>{% endfor %}
 </nav>
 
-<div class="in-hero"><b>{{ gbp(h.revenue) }}</b><span>from {{ h.sold }} sale{{ '' if h.sold == 1 else 's' }} · {{ names[data.period]|lower if data.period != 'all' else 'all time' }}</span></div>
+{# Takings over time: the one big chart. #}
+<section class="in-card" aria-label="Sales over time">
+  <div class="in-top">
+    <div><div class="in-big" id="lineTotal">{{ gbp(h.revenue) }}</div><div class="in-sub" id="lineSub">{{ h.sold }} sold</div></div>
+    <div class="in-switch" role="group" aria-label="Show">
+      <button type="button" aria-pressed="true" data-mode="revenue">Sales</button><button type="button" aria-pressed="false" data-mode="profit">Profit</button>
+    </div>
+  </div>
+  <div class="in-line" id="lineChart" role="img" aria-label="Sales each {{ data.rhythm.unit }}; numbers in the table at the bottom"></div>
+  <div class="in-xaxis" aria-hidden="true"><span>{{ xlab(data.rhythm.rows[0]) }}</span><span>{{ xlab(data.rhythm.rows[-1]) }}</span></div>
+</section>
+
 <div class="in-tiles">
-  <div class="in-tile"><b>{{ gbp(h.avg, 2) }}</b><span>Average sale</span></div>
-  <div class="in-tile"><b>{{ gbp(h.median, 2) }}</b><span>Median sale</span></div>
-  <div class="in-tile"><b>{{ gbp(h.high, 2) }}</b><span>Highest</span></div>
-  <div class="in-tile"><b>{{ gbp(h.low, 2) }}</b><span>Lowest</span></div>
-  <div class="in-tile"><b>{{ h.avg_days if h.avg_days is not none else '—' }}{% if h.avg_days is not none %}<small style="font-size:13px"> days</small>{% endif %}</b><span>To sell</span></div>
-  <div class="in-tile"><b>{{ h.listed_per_week }}</b><span>Listed a week</span></div>
+  <div class="in-tile"><b>{{ gbp(h.avg) }}</b><span>Avg sale</span></div>
+  <div class="in-tile"><b>{{ h.sell_through if h.sell_through is not none else '—' }}<small>%</small></b><span>Sell-through</span>
+    {% if h.sell_through is not none %}<div class="in-meter" aria-hidden="true"><i style="width:{{ h.sell_through }}%"></i></div>{% endif %}</div>
+  <div class="in-tile"><b>{{ h.avg_days|round|int if h.avg_days is not none else '—' }}<small>days</small></b><span>To sell</span></div>
+  <div class="in-tile"><b>{{ h.listed_per_week }}<small>/wk</small></b><span>Listed</span></div>
 </div>
-{% if h.best_type %}<p class="in-ref-label" style="margin:0 2px 14px">★ Best earner: <b style="color:var(--sn-text)">{{ h.best_type.name }}</b> at {{ gbp(h.best_type.avg, 2) }} average</p>{% endif %}
 
 {% set sold_types = data.types|selectattr('sold')|list %}
 {% set max_sold = (sold_types|map(attribute='sold')|max) if sold_types else 1 %}
-<section class="in-card" aria-labelledby="in-what">
-  <h2 id="in-what">What you sell</h2>
-  <p>Items sold by type{{ ', with how many are still for sale' if data.types|selectattr('for_sale')|list }}.</p>
+<section class="in-card" aria-labelledby="in-type">
+  <h2 id="in-type">By type</h2>
   {% if sold_types %}
   <div class="in-bars">
     {% for t in sold_types %}
-    <div class="in-row" tabindex="0" data-tip="{{ t.name }}|{{ t.sold }} sold|{{ t.for_sale }} still for sale|{{ gbp(t.revenue) }} taken">
+    <div class="in-row" tabindex="0" data-tip="{{ t.name }}|{{ t.sold }} sold · {{ gbp(t.avg) }} avg|{{ t.sell_through }}% sell-through{% if t.avg_days is not none %}|{{ t.avg_days|round|int }} days to sell{% endif %}{% if t.avg_profit is not none %}|{{ gbp(t.avg_profit) }} avg profit{% endif %}">
       <span>{{ t.name }}</span>
-      <div class="in-track"><div class="in-bar" style="width:calc((100% - 96px) * {{ (t.sold / max_sold)|round(4) }})"></div><span class="in-val">{{ t.sold }}{% if t.for_sale %} <small>· {{ t.for_sale }} live</small>{% endif %}</span></div>
+      <div class="in-track"><div class="in-bar" style="width:calc((100% - 28px) * {{ (t.sold / max_sold)|round(4) }})"></div><span class="in-n">{{ t.sold }}</span></div>
+      <b class="in-price">{{ gbp(t.avg) }}</b>
     </div>
     {% endfor %}
   </div>
-  {% else %}<p class="in-empty">No sales in this period yet. Mark items as sold on the Drafts page and they'll show up here.</p>{% endif %}
-</section>
-
-{% set priced = sold_types|selectattr('avg')|list %}
-{% set max_avg = (priced|map(attribute='avg')|max) if priced else 1 %}
-<section class="in-card" aria-labelledby="in-avg">
-  <h2 id="in-avg">Average sale price by type</h2>
-  <p>The line is your overall median sale ({{ gbp(h.median, 2) }}): types to the right of it earn you more.</p>
-  {% if priced %}
-  <div class="in-bars">
-    {% for t in priced|sort(attribute='avg', reverse=True) %}
-    <div class="in-row" tabindex="0" data-tip="{{ t.name }}|{{ gbp(t.avg, 2) }} average|{{ gbp(t.median, 2) }} median|{{ t.sold }} sold">
-      <span>{{ t.name }}</span>
-      <div class="in-track"><div class="in-bar" style="width:calc((100% - 56px) * {{ (t.avg / max_avg)|round(4) }})"></div><span class="in-val">{{ gbp(t.avg) }}</span></div>
-    </div>
-    {% endfor %}
-    {% if h.median %}<div class="in-ref" aria-hidden="true" style="left:calc(102px + ({{ [h.median / max_avg, 1]|min|round(4) }}) * (100% - 102px - 56px))"></div>{% endif %}
-  </div>
-  {% else %}<p class="in-empty">Sale prices appear here once you've sold something.</p>{% endif %}
-</section>
-
-{% set lows = priced|map(attribute='low')|list %}{% set highs = priced|map(attribute='high')|list %}
-{% set lo = ((lows|min) * 0.9)|round(0, 'floor') if priced else 0 %}
-{% set span = [((highs|max) * 1.04) - lo, 1]|max if priced else 1 %}
-<section class="in-card" aria-labelledby="in-range">
-  <h2 id="in-range">Price range by type</h2>
-  <p>Lowest to highest sale for each type, with the median and average.</p>
-  {% if priced %}
-  <div class="in-key" aria-hidden="true"><span><i class="k-line"></i>Lowest – highest</span><span><i class="k-dot"></i>Median</span><span><i class="k-tick"></i>Average</span></div>
-  <div class="in-bars" style="gap:10px">
-    {% for t in priced|sort(attribute='median', reverse=True) %}
-    <div class="in-row in-row-range" tabindex="0" data-tip="{{ t.name }}|{{ gbp(t.low, 2) }} lowest|{{ gbp(t.median, 2) }} median|{{ gbp(t.avg, 2) }} average|{{ gbp(t.high, 2) }} highest">
-      <span>{{ t.name }}</span>
-      <div class="in-track">
-        <div class="in-range" style="left:{{ ((t.low - lo) / span * 100)|round(2) }}%;width:{{ ([(t.high - t.low) / span * 100, 0.8]|max)|round(2) }}%"></div>
-        <div class="in-tick" style="left:{{ ((t.avg - lo) / span * 100)|round(2) }}%"></div>
-        <div class="in-dot" style="left:{{ ((t.median - lo) / span * 100)|round(2) }}%"></div>
-      </div>
-      <b class="in-span">{{ gbp(t.low) }}{% if t.high != t.low %}–{{ gbp(t.high)|replace('£', '') }}{% endif %}</b>
-    </div>
-    {% endfor %}
-  </div>
-  {% else %}<p class="in-empty">Ranges appear once you've sold something.</p>{% endif %}
+  {% else %}<p class="in-empty">No sales yet</p>{% endif %}
 </section>
 
 {% set rows = data.rhythm.rows %}
 {% set top = [rows|map(attribute='listed')|max, rows|map(attribute='sold')|max, 1]|max %}
-{% set step = 1 if top <= 4 else (2 if top <= 10 else (5 if top <= 25 else (10 if top <= 50 else 25))) %}
-{% set ceiling = ((top / step)|round(0, 'ceil') * step)|int %}
 <section class="in-card" aria-labelledby="in-rhythm">
-  <h2 id="in-rhythm">How often you list and sell</h2>
-  <p>Items listed and sold each {{ data.rhythm.unit }}. On average you list {{ h.listed_per_week }} a week.</p>
-  <div class="in-key"><span><i class="k-a"></i>Listed</span><span><i class="k-b"></i>Sold</span></div>
-  <div class="in-cols" role="img" aria-label="Listed and sold per {{ data.rhythm.unit }}; full numbers in the table below">
-    {% for g in range(step, ceiling + 1, step) %}<div class="in-grid" style="bottom:{{ (g / ceiling * 132)|round(1) }}px"><span>{{ g }}</span></div>{% endfor %}
+  <h2 id="in-rhythm">Listed vs sold</h2>
+  <div class="in-key"><span><i style="background:var(--in-a)"></i>Listed</span><span><i style="background:var(--in-b)"></i>Sold</span></div>
+  <div class="in-cols" role="img" aria-label="Listed and sold each {{ data.rhythm.unit }}">
     {% for r in rows %}
     <div class="in-col" tabindex="0" data-tip="{{ ('Week of ' ~ r.label) if data.rhythm.unit == 'week' else r.label }}|#a{{ r.listed }} listed|#b{{ r.sold }} sold">
-      <i class="a" style="height:{{ (r.listed / ceiling * 132)|round(1) }}px"></i><i class="b" style="height:{{ (r.sold / ceiling * 132)|round(1) }}px"></i>
+      <i class="a" style="height:{{ (r.listed / top * 100)|round(1) }}%"></i><i class="b" style="height:{{ (r.sold / top * 100)|round(1) }}%"></i>
     </div>
     {% endfor %}
   </div>
-  <div class="in-xaxis" aria-hidden="true">{% for r in rows %}<span>{{ r.label if loop.first or loop.last or (rows|length <= 8) or loop.index0 % ((rows|length // 4) or 1) == 0 else '' }}</span>{% endfor %}</div>
+  <div class="in-xaxis" aria-hidden="true"><span>{{ xlab(rows[0]) }}</span><span>{{ xlab(rows[-1]) }}</span></div>
 </section>
-
-{% set timed = sold_types|selectattr('avg_days', 'ne', none)|list %}
-{% if timed %}
-{% set max_days = [timed|map(attribute='avg_days')|max, 1]|max %}
-<section class="in-card" aria-labelledby="in-days">
-  <h2 id="in-days">How fast each type sells</h2>
-  <p>Average days from listing to sale. Shorter is better.</p>
-  <div class="in-bars">
-    {% for t in timed|sort(attribute='avg_days') %}
-    <div class="in-row" tabindex="0" data-tip="{{ t.name }}|{{ t.avg_days }} days on average|{{ t.sold }} sold">
-      <span>{{ t.name }}</span>
-      <div class="in-track"><div class="in-bar" style="width:calc((100% - 64px) * {{ (t.avg_days / max_days)|round(4) }})"></div><span class="in-val">{{ t.avg_days }}d</span></div>
-    </div>
-    {% endfor %}
-  </div>
-</section>
-{% endif %}
 
 {% if data.brands %}
+{% set max_b = data.brands|map(attribute='sold')|max %}
 <section class="in-card" aria-labelledby="in-brands">
   <h2 id="in-brands">Top brands</h2>
-  <p>Your best-selling brands in this period.</p>
-  <table class="in-table">
-    <thead><tr><th scope="col">Brand</th><th scope="col">Sold</th><th scope="col">Average</th><th scope="col">Total</th></tr></thead>
-    <tbody>{% for b in data.brands %}<tr><td>{{ b.name }}</td><td>{{ b.sold }}</td><td>{{ gbp(b.avg, 2) }}</td><td>{{ gbp(b.revenue) }}</td></tr>{% endfor %}</tbody>
-  </table>
+  <div class="in-bars">
+    {% for b in data.brands %}
+    <div class="in-row" tabindex="0" data-tip="{{ b.name }}|{{ b.sold }} sold · {{ gbp(b.avg) }} avg|{{ gbp(b.revenue) }} total">
+      <span>{{ b.name }}</span>
+      <div class="in-track"><div class="in-bar" style="width:calc((100% - 28px) * {{ (b.sold / max_b)|round(4) }})"></div><span class="in-n">{{ b.sold }}</span></div>
+      <b class="in-price">{{ gbp(b.avg) }}</b>
+    </div>
+    {% endfor %}
+  </div>
 </section>
 {% endif %}
 
 <section class="in-card in-more">
   <details>
-    <summary>See all the numbers</summary>
-    <div class="in-scroll">
+    <summary>All numbers</summary>
+    <div style="overflow-x:auto">
       <table class="in-table">
-        <thead><tr><th scope="col">Type</th><th scope="col">Sold</th><th scope="col">Live</th><th scope="col">Avg</th><th scope="col">Median</th><th scope="col">Low</th><th scope="col">High</th><th scope="col">Days</th><th scope="col">Profit</th></tr></thead>
-        <tbody>{% for t in data.types %}<tr><td>{{ t.name }}</td><td>{{ t.sold }}</td><td>{{ t.for_sale }}</td><td>{{ gbp(t.avg, 2) }}</td><td>{{ gbp(t.median, 2) }}</td><td>{{ gbp(t.low, 2) }}</td><td>{{ gbp(t.high, 2) }}</td><td>{{ t.avg_days if t.avg_days is not none else '—' }}</td><td>{{ gbp(t.avg_profit, 2) }}</td></tr>{% endfor %}</tbody>
+        <thead><tr><th scope="col">Type</th><th scope="col">Sold</th><th scope="col">Live</th><th scope="col">Avg</th><th scope="col">Low</th><th scope="col">High</th><th scope="col">Sell-through</th><th scope="col">Days</th><th scope="col">Profit</th></tr></thead>
+        <tbody>{% for t in data.types %}<tr><td>{{ t.name }}</td><td>{{ t.sold }}</td><td>{{ t.for_sale }}</td><td>{{ gbp(t.avg) }}</td><td>{{ gbp(t.low) }}</td><td>{{ gbp(t.high) }}</td><td>{{ (t.sell_through|string) ~ '%' if t.sell_through is not none else '—' }}</td><td>{{ t.avg_days|round|int if t.avg_days is not none else '—' }}</td><td>{{ gbp(t.avg_profit) }}</td></tr>{% endfor %}</tbody>
       </table>
-      <table class="in-table" style="margin-top:14px">
-        <thead><tr><th scope="col">{{ data.rhythm.unit|capitalize }} of</th><th scope="col">Listed</th><th scope="col">Sold</th></tr></thead>
-        <tbody>{% for r in rows %}<tr><td>{{ r.label }}</td><td>{{ r.listed }}</td><td>{{ r.sold }}</td></tr>{% endfor %}</tbody>
+      <table class="in-table">
+        <thead><tr><th scope="col">{{ data.rhythm.unit|capitalize }}</th><th scope="col">Listed</th><th scope="col">Sold</th><th scope="col">Sales</th><th scope="col">Profit</th></tr></thead>
+        <tbody>{% for r in rows %}<tr><td>{{ r.label }}</td><td>{{ r.listed }}</td><td>{{ r.sold }}</td><td>{{ gbp(r.revenue) }}</td><td>{{ gbp(r.profit) }}</td></tr>{% endfor %}</tbody>
       </table>
     </div>
-    <p class="in-empty" style="font-size:12px">Profit is the average where you've added what you paid. <a href="/api/sales/export.csv">Download sales data</a></p>
+    <p class="in-empty" style="font-size:12px"><a href="/api/sales/export.csv">Download sales data</a></p>
   </details>
 </section>
 </div>
+<script id="lineData" type="application/json">{{ {"rows": data.rhythm.rows, "unit": data.rhythm.unit, "revenue": h.revenue, "profit": h.profit, "sold": h.sold, "profit_known": h.profit_known} | tojson }}</script>
 {% endblock %}
 
 {% block scripts %}
 <script>
-/* One tooltip for every chart: hover, tap or keyboard focus. Text only (labels are user data). */
 (() => {
+  const A = "#12744F", B = "#D0901C";
   const tip = document.createElement("div");
   tip.className = "in-tip"; tip.hidden = true; tip.setAttribute("role", "status");
   document.body.appendChild(tip);
-  let current = null;
-  function show(el) {
-    current = el;
-    const [title, ...lines] = el.dataset.tip.split("|");
+  const money = v => "£" + Math.round(v).toLocaleString("en-GB");
+  function fill(title, lines) {
     tip.replaceChildren();
     const head = document.createElement("strong"); head.textContent = title; tip.appendChild(head);
     lines.forEach(line => {
       const row = document.createElement("div"); row.className = "row";
       const series = line.match(/^#([ab])/);
-      if (series) {
-        const key = document.createElement("i");
-        key.style.background = series[1] === "a" ? "#12744F" : "#D0901C";
-        row.appendChild(key); line = line.slice(2);
-      }
+      if (series) { const k = document.createElement("i"); k.style.background = series[1] === "a" ? A : B; row.appendChild(k); line = line.slice(2); }
       row.appendChild(document.createTextNode(line)); tip.appendChild(row);
     });
     tip.hidden = false;
-    const box = el.getBoundingClientRect(), w = tip.offsetWidth, hgt = tip.offsetHeight;
-    const x = Math.min(Math.max(8, box.left + box.width / 2 - w / 2), innerWidth - w - 8);
-    const y = box.top - hgt - 8 > 8 ? box.top - hgt - 8 : box.bottom + 8;
-    tip.style.left = x + "px"; tip.style.top = y + "px";
   }
-  function hide() { tip.hidden = true; current = null; }
-  document.querySelectorAll("[data-tip]").forEach(el => {
-    el.addEventListener("pointerenter", e => { if (e.pointerType === "mouse") show(el); });
-    el.addEventListener("pointerleave", e => { if (e.pointerType === "mouse") hide(); });
-    el.addEventListener("click", () => current === el ? hide() : show(el));
-    el.addEventListener("focus", () => show(el));
-    el.addEventListener("blur", hide);
-  });
+  function place(x, top, bottom) {
+    const w = tip.offsetWidth, hgt = tip.offsetHeight;
+    tip.style.left = Math.min(Math.max(8, x - w / 2), innerWidth - w - 8) + "px";
+    tip.style.top = (top - hgt - 8 > 8 ? top - hgt - 8 : bottom + 8) + "px";
+  }
+  const hide = () => { tip.hidden = true; };
   addEventListener("scroll", hide, {passive: true});
+
+  // Bars and columns: tap, hover or focus.
+  document.querySelectorAll("[data-tip]").forEach(el => {
+    const show = () => { const [t, ...l] = el.dataset.tip.split("|"); fill(t, l); const b = el.getBoundingClientRect(); place(b.left + b.width / 2, b.top, b.bottom); };
+    el.addEventListener("pointerenter", e => { if (e.pointerType === "mouse") show(); });
+    el.addEventListener("pointerleave", e => { if (e.pointerType === "mouse") hide(); });
+    el.addEventListener("click", show); el.addEventListener("focus", show); el.addEventListener("blur", hide);
+  });
+
+  // The line chart: 2px line, light wash, end dot; drag or tap to read any point.
+  const data = JSON.parse(document.getElementById("lineData").textContent);
+  const box = document.getElementById("lineChart"), total = document.getElementById("lineTotal"), sub = document.getElementById("lineSub");
+  const NS = "http://www.w3.org/2000/svg";
+  let mode = "revenue";
+  const el = (name, attrs) => { const n = document.createElementNS(NS, name); for (const k in attrs) n.setAttribute(k, attrs[k]); return n; };
+  function draw() {
+    const rows = data.rows, values = rows.map(r => r[mode] || 0);
+    const W = box.clientWidth || 340, H = 170, top = 14, bottom = H - 4;
+    const peak = Math.max(...values, 1), step = Math.pow(10, Math.floor(Math.log10(peak)));
+    const ceil = Math.ceil(peak / step) * step;
+    const x = i => rows.length === 1 ? W / 2 : (i / (rows.length - 1)) * W;
+    const y = v => bottom - (v / ceil) * (bottom - top);
+    const svg = el("svg", {viewBox: `0 0 ${W} ${H}`, "aria-hidden": "true"});
+    [0, .5, 1].forEach(f => svg.appendChild(el("line", {x1: 0, x2: W, y1: y(ceil * f), y2: y(ceil * f), stroke: "#E6DFD2", "stroke-width": 1})));
+    const label = el("text", {x: 0, y: y(ceil) - 4, fill: "#7C786D", "font-size": 11, "font-weight": 700}); label.textContent = money(ceil); svg.appendChild(label);
+    const pts = values.map((v, i) => `${x(i).toFixed(1)},${y(v).toFixed(1)}`);
+    svg.appendChild(el("polygon", {points: `0,${bottom} ${pts.join(" ")} ${W},${bottom}`, fill: A, "fill-opacity": .1}));
+    svg.appendChild(el("polyline", {points: pts.join(" "), fill: "none", stroke: A, "stroke-width": 2, "stroke-linejoin": "round", "stroke-linecap": "round"}));
+    const last = values.length - 1;
+    svg.appendChild(el("circle", {cx: x(last), cy: y(values[last]), r: 5, fill: A, stroke: "#FFFDF8", "stroke-width": 2}));
+    const cross = el("line", {y1: top, y2: bottom, stroke: "#7C786D", "stroke-width": 1, visibility: "hidden"});
+    const dot = el("circle", {r: 5, fill: A, stroke: "#FFFDF8", "stroke-width": 2, visibility: "hidden"});
+    svg.append(cross, dot);
+    box.replaceChildren(svg);
+    const read = e => {
+      const r = svg.getBoundingClientRect(), i = Math.round(((e.clientX - r.left) / r.width) * last);
+      const k = Math.min(Math.max(i, 0), last);
+      cross.setAttribute("x1", x(k)); cross.setAttribute("x2", x(k)); cross.setAttribute("visibility", "visible");
+      dot.setAttribute("cx", x(k)); dot.setAttribute("cy", y(values[k])); dot.setAttribute("visibility", "visible");
+      const row = rows[k];
+      fill(money(values[k]), [(data.unit === "week" ? "Week of " : "") + row.label, row.sold + " sold"]);
+      place(r.left + (x(k) / W) * r.width, r.top + (y(values[k]) / H) * r.height - 6, r.bottom);
+    };
+    svg.addEventListener("pointermove", read); svg.addEventListener("pointerdown", read);
+    svg.addEventListener("pointerleave", () => { hide(); cross.setAttribute("visibility", "hidden"); dot.setAttribute("visibility", "hidden"); });
+  }
+  document.querySelectorAll(".in-switch button").forEach(b => b.addEventListener("click", () => {
+    mode = b.dataset.mode;
+    document.querySelectorAll(".in-switch button").forEach(o => o.setAttribute("aria-pressed", String(o === b)));
+    if (mode === "profit") {
+      total.textContent = data.profit == null ? "—" : money(data.profit);
+      sub.textContent = data.profit_known ? `on ${data.profit_known} sale${data.profit_known === 1 ? "" : "s"}` : "Add buy prices to see profit";
+    } else { total.textContent = money(data.revenue); sub.textContent = `${data.sold} sold`; }
+    draw();
+  }));
+  draw();
+  addEventListener("resize", draw);
 })();
 </script>
 {% endblock %}

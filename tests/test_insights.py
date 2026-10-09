@@ -40,6 +40,9 @@ def test_types_group_and_price_spread():
     assert (h["sold"], h["revenue"], h["median"], h["low"], h["high"]) == (5, 154, 30, 10, 60)
     assert h["best_type"]["name"] == "Trainers" and h["listed"] == 2
     assert [b["name"] for b in data["brands"]] == ["Nike", "Adidas"]
+    # Sell-through = sold / (sold + still for sale): 5 sold, 2 live → 71%; T-shirts 3 sold, 1 live → 75%.
+    assert h["sell_through"] == 71 and tee["sell_through"] == 75 and types["Jeans"]["sell_through"] == 0
+    assert h["profit"] == 15 and h["profit_known"] == 2
 
 
 def test_all_time_includes_old_sales_and_bad_period_falls_back():
@@ -62,6 +65,7 @@ def test_rhythm_counts_listed_and_sold_per_week_and_month():
     assert this_week["start"] == "2026-10-05" and (this_week["listed"], this_week["sold"]) == (2, 0)
     last_week = weekly["rows"][-2]
     assert (last_week["listed"], last_week["sold"]) == (1, 3)
+    assert last_week["revenue"] == 54 and last_week["profit"] == 15 and this_week["profit"] is None
     monthly = insights.build(listings, SALES, TODAY, "12m")["rhythm"]
     assert monthly["unit"] == "month" and monthly["rows"][-1]["start"] == "2026-10-01"
     assert (monthly["rows"][-1]["listed"], monthly["rows"][-1]["sold"]) == (2, 3)
@@ -87,7 +91,8 @@ def test_insights_page_and_sold_link(tmp_path, monkeypatch):
     assert client.post(f"/listing/{folder}/outcome", json={"status": "sold", "platform": "Vinted",
                                                             "sold_price_gbp": 55}).status_code == 200
     page = client.get("/insights?period=all").get_data(as_text=True)
-    assert "What you sell" in page and "Jacket" in page and "£55" in page
+    assert "By type" in page and "Jacket" in page and "£55" in page and "Sell-through" in page
+    assert "median" not in page.lower()
     assert 'aria-current="page">All time' in page
     assert client.get("/insights").status_code == 200
     assert 'href="/insights"' in client.get("/sold").get_data(as_text=True)

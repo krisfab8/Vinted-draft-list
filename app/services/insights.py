@@ -2,11 +2,12 @@
 listings and sales. Deterministic, no AI, nothing stored.
 
 build() returns plain numbers for the Insights page:
-  headline   sold, revenue, average/median/lowest/highest sale price, days to sell, listed count
-  types      per item type: sold count, average/median/lowest/highest price, average days to sell,
-             average profit (where the buy price is known), still for sale
+  headline   sold, revenue, profit, average sale price, sell-through %, days to sell, listed count
+  types      per item type: sold, still for sale, average price, sell-through %, days to sell, profit
   brands     top brands by sales
-  rhythm     listed vs sold per week (short periods) or per month (long periods)
+  rhythm     per week (short periods) or month (long): listed, sold, takings, profit
+
+Sell-through = sold ÷ (sold + still for sale): the share of your stock that sold. Never over 100%.
 """
 from __future__ import annotations
 
@@ -51,6 +52,10 @@ def _day(value) -> date | None:
         except ValueError:
             return None
     return None
+
+
+def _sell_through(sold: int, live: int):
+    return round(100 * sold / (sold + live)) if sold + live else None
 
 
 def _money(values):
@@ -112,7 +117,8 @@ def build(listings: list[dict], sales: list[dict], today: date, period: str = "9
                 "avg": _money(prices), "median": round(median(prices), 2) if prices else None,
                 "low": prices[0] if prices else None, "high": prices[-1] if prices else None,
                 "avg_days": round(sum(g["days"]) / len(g["days"]), 1) if g["days"] else None,
-                "avg_profit": _money(g["profits"]), "profit_known": len(g["profits"])}
+                "avg_profit": _money(g["profits"]), "profit_known": len(g["profits"]),
+                "sell_through": _sell_through(len(prices), len(g["live"]))}
     type_rows = _fold(types, type_row)
 
     brands = defaultdict(lambda: {"prices": []})
@@ -126,8 +132,12 @@ def build(listings: list[dict], sales: list[dict], today: date, period: str = "9
     prices = sorted(s["price"] for s in sold)
     sell_days = [s["days"] for s in sold if isinstance(s["days"], (int, float))]
     weeks = max(1, ((days or max(30, (today - min([s["date"] for s in sold] + listed_dates + [today])).days + 1)) / 7))
+    live = sum(1 for item in listings if item.get("inventory_status") != "sold")
+    profits = [float(s["profit"]) for s in sold if isinstance(s["profit"], (int, float))]
     headline = {
-        "sold": len(sold), "revenue": round(sum(prices), 2), "listed": len(listed_dates),
+        "sold": len(sold), "revenue": round(sum(prices), 2), "listed": len(listed_dates), "for_sale": live,
+        "profit": round(sum(profits), 2) if profits else None, "profit_known": len(profits),
+        "sell_through": _sell_through(len(sold), live),
         "avg": _money(prices), "median": round(median(prices), 2) if prices else None,
         "low": prices[0] if prices else None, "high": prices[-1] if prices else None,
         "avg_days": round(sum(sell_days) / len(sell_days), 1) if sell_days else None,
@@ -136,11 +146,12 @@ def build(listings: list[dict], sales: list[dict], today: date, period: str = "9
                          key=lambda t: t["avg"], default=None),
     }
     return {"period": period, "periods": list(PERIODS), "headline": headline, "types": type_rows,
-            "brands": brand_rows, "rhythm": _rhythm(listed_dates, [s["date"] for s in sold], today, days, start)}
+            "brands": brand_rows, "rhythm": _rhythm(listed_dates, sold, today, days, start)}
 
 
-def _rhythm(listed: list[date], sold: list[date], today: date, days: int | None, start: date | None) -> dict:
-    """Listed vs sold per week (up to 90 days) or per month (longer)."""
+def _rhythm(listed: list[date], sales: list[dict], today: date, days: int | None, start: date | None) -> dict:
+    """Listed, sold, takings and profit per week (up to 90 days) or per month (longer)."""
+    sold = [s["date"] for s in sales]
     weekly = days is not None and days <= 90
     if weekly:
         first = today - timedelta(days=today.weekday()) - timedelta(weeks=(days // 7))
@@ -171,12 +182,19 @@ def _rhythm(listed: list[date], sold: list[date], today: date, days: int | None,
 
         def label(b):
             return b.strftime("%b") if b.month != 1 else b.strftime("%b %y")
-    counts = {b: [0, 0] for b in buckets}
+    counts = {b: [0, 0, 0.0, 0.0, 0] for b in buckets}   # listed, sold, takings, profit, sales with profit
     for d in listed:
         if bucket(d) in counts:
             counts[bucket(d)][0] += 1
-    for d in sold:
-        if bucket(d) in counts:
-            counts[bucket(d)][1] += 1
+    for s in sales:
+        c = counts.get(bucket(s["date"]))
+        if c is not None:
+            c[1] += 1
+            c[2] += s["price"]
+            if isinstance(s["profit"], (int, float)):
+                c[3] += float(s["profit"])
+                c[4] += 1
     return {"unit": "week" if weekly else "month",
-            "rows": [{"label": label(b), "start": b.isoformat(), "listed": c[0], "sold": c[1]} for b, c in counts.items()]}
+            "rows": [{"label": label(b), "start": b.isoformat(), "listed": c[0], "sold": c[1],
+                      "revenue": round(c[2], 2), "profit": round(c[3], 2) if c[4] else None}
+                     for b, c in counts.items()]}
