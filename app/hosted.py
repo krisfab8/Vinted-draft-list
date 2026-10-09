@@ -226,7 +226,10 @@ def create_app():
                        config.GOOGLE_AI_API_KEY, password)
             if any(secret and secret in serialized for secret in secrets) or "Traceback (most recent call last)" in serialized:
                 response.set_data(app.json.dumps({"error": "Operation failed; check API settings."}))
-        response.headers["Cache-Control"] = "no-store"
+        # Static files (versioned links) and photos may be cached; private pages never are.
+        from app.web import cache_policy
+        policy = cache_policy(request.path, bool(request.args.get("v"))) if response.status_code in (200, 304) else None
+        response.headers["Cache-Control"] = policy or "no-store"
         response.headers["X-Content-Type-Options"] = "nosniff"
         response.headers["X-Frame-Options"] = "DENY"
         response.headers["Referrer-Policy"] = "same-origin"

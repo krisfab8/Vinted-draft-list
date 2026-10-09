@@ -82,6 +82,38 @@ def item_revision_headers(response):
     return response
 
 
+def cache_policy(path: str, versioned: bool) -> str | None:
+    """Cache-Control for static files and item photos; None = leave the route's own policy."""
+    if path.startswith("/static/"):
+        return "public, max-age=31536000, immutable" if versioned else "public, max-age=86400"
+    if path.startswith("/items/"):
+        return "private, no-cache"        # revalidate: an unchanged photo costs a tiny 304, not a re-download
+    return None
+
+
+@app.after_request
+def compress_text(response):
+    """Gzip pages and JSON (Drafts carries the whole item list); files are left alone."""
+    import gzip
+    policy = cache_policy(request.path, bool(request.args.get("v"))) if response.status_code in (200, 304) else None
+    if policy:
+        response.headers["Cache-Control"] = policy
+    if (response.direct_passthrough or not 200 <= response.status_code < 300 or response.headers.get("Content-Encoding")
+            or "gzip" not in request.headers.get("Accept-Encoding", "")):
+        return response
+    kind = response.mimetype or ""
+    if not (kind.startswith("text/") or kind in ("application/json", "application/javascript")):
+        return response
+    data = response.get_data()
+    if len(data) < 1400:
+        return response
+    response.set_data(gzip.compress(data, 6))
+    response.headers["Content-Encoding"] = "gzip"
+    response.headers["Content-Length"] = str(len(response.get_data()))
+    response.vary.add("Accept-Encoding")
+    return response
+
+
 @app.teardown_request
 def release_item_request(error):
     lock = g.pop('item_lock', None)
@@ -778,6 +810,26 @@ def _draft_count() -> int:
     )
 
 
+GRID_THUMB = "_grid.jpg"   # small card image; not backed up (underscore files aren't), rebuilt when the photo changes
+
+
+def _grid_thumb(item_dir: Path, source: Path) -> str:
+    """URL of a ~480px card image instead of the full 2048px photo (saves bandwidth on every Drafts load)."""
+    thumb = item_dir / GRID_THUMB
+    try:
+        if not thumb.exists() or thumb.stat().st_mtime < source.stat().st_mtime:
+            from PIL import Image, ImageOps
+            with Image.open(source) as image:
+                image = ImageOps.exif_transpose(image).convert("RGB")
+                image.thumbnail((480, 480))
+                tmp = item_dir / (GRID_THUMB + ".tmp")
+                image.save(tmp, "JPEG", quality=78, optimize=True)
+                tmp.replace(thumb)
+        return f"/items/{item_dir.name}/{GRID_THUMB}?v={int(thumb.stat().st_mtime)}"
+    except Exception:
+        return f"/items/{item_dir.name}/{source.name}"
+
+
 def _get_all_listings() -> list[dict]:
     listings = []
     if not ITEMS_DIR.exists():
@@ -804,7 +856,7 @@ def _get_all_listings() -> list[dict]:
             for role in ["front", "back", "brand"]:
                 for ext in [".jpg", ".jpeg", ".png", ".webp"]:
                     if (item_dir / f"{role}{ext}").exists():
-                        listing["thumbnail_url"] = f"/items/{item_dir.name}/{role}{ext}"
+                        listing["thumbnail_url"] = _grid_thumb(item_dir, item_dir / f"{role}{ext}")
                         break
                 if listing.get("thumbnail_url"):
                     break
