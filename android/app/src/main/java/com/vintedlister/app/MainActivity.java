@@ -96,7 +96,7 @@ public class MainActivity extends Activity {
                 backToApp.setVisibility(isMarketplace(currentUrl) ? View.VISIBLE : View.GONE);
                 if (onVinted && "vinted".equals(pendingLogin)) {
                     pendingLogin = null;
-                    loginUntil = System.currentTimeMillis() + 25000;
+                    loginUntil = System.currentTimeMillis() + 45000;
                     loginClicked = false;
                     loginNavDone = false;
                     loginSteps.setLength(0);
@@ -147,7 +147,8 @@ public class MainActivity extends Activity {
 
     /** One look at Vinted's page: "form" = login options showing, "tapped"/"opened" = clicked a Log in,
      *  "in" = already logged in, "menu" = opened the \u2630 menu (on phones Vinted keeps Sign up | Log in there,
-     *  and it only exists once opened), "nav" = followed a login link, otherwise "none|what it saw". */
+     *  and it only exists once opened), "nav" = followed a login link, "cookies" = chose essential cookies,
+     *  "country"/"country-ok" = picked United Kingdom, otherwise "none|what it saw". */
     private static final String LOGIN_STEP =
         "(function(allowNav){var all=Array.prototype.slice.call(document.querySelectorAll('a,button,[role=button]'));"
         + "var shown=function(e){var r=e.getBoundingClientRect();return r.width>0&&r.height>0&&r.right>0&&r.left<innerWidth"
@@ -155,6 +156,16 @@ public class MainActivity extends Activity {
         + "var els=all.filter(function(e){return shown(e)&&!e.dataset.vlTapped"
         + "&&!(e.closest('form')&&(e.type==='submit'||e.closest('form').querySelector('input[type=password]')));});"
         + "var txt=function(e){return (e.innerText||e.textContent||'').trim();};"
+        // Cookie pop-up: essential only (never accept advertising cookies for the seller); then the menu may be retried.
+        + "var ck=els.find(function(e){return /^(choose essential|essential only|reject all|accept essential( cookies)?)$/i.test(txt(e));});"
+        + "if(ck){ck.dataset.vlTapped='1';ck.click();delete document.documentElement.dataset.vlMenu;return 'cookies';}"
+        // Country picker: United Kingdom, then its Continue/Confirm.
+        + "var de=document.documentElement,body=(document.body&&document.body.innerText)||'';"
+        + "if(/countr/i.test(body)){var uk=Array.prototype.slice.call(document.querySelectorAll('a,button,[role=button],[role=option],[role=radio],li,label,span,div'))"
+        + ".filter(function(e){return shown(e)&&!e.dataset.vlTapped&&/^united kingdom$/i.test(txt(e));}).pop();"
+        + "if(uk&&!de.dataset.vlCountry){uk.dataset.vlTapped='1';uk.click();de.dataset.vlCountry=1;return 'country';}"
+        + "if(de.dataset.vlCountry){var go=els.find(function(e){return /^(continue|confirm|save|done|next)$/i.test(txt(e));});"
+        + "if(go){delete de.dataset.vlCountry;go.dataset.vlTapped='1';go.click();return 'country-ok';}}}"
         + "var exact=els.find(function(e){return /^(log ?in|sign ?in)$/i.test(txt(e));});"
         + "if(exact){exact.dataset.vlTapped='1';exact.click();return 'tapped';}"
         + "if(document.querySelector('input[type=password],input[name=username],input[type=email]')"
@@ -196,7 +207,7 @@ public class MainActivity extends Activity {
                 Toast.makeText(this, "You're already logged in to Vinted \u2713", Toast.LENGTH_LONG).show();
                 return;
             }
-            if (attempt < 14) { view.postDelayed(() -> loginStep(view, run, attempt + 1), 800); return; }
+            if (attempt < 30) { view.postDelayed(() -> loginStep(view, run, attempt + 1), 800); return; }
             loginUntil = 0;
             String saw = r.startsWith("none|") ? r.substring(5) : "";
             Toast.makeText(this, "Couldn't reach Vinted's Log in: tap \u2630 then Sign up | Log in. (Tried: " + loginSteps
