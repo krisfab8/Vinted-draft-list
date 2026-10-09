@@ -77,7 +77,7 @@ def item_revision_headers(response):
         if revision:
             response.headers['X-Item-Revision'] = revision
         response.headers['Cache-Control'] = 'no-store'
-    elif request.path in {'/drafts', '/sold', '/api/listings', '/api/sales'}:
+    elif request.path in {'/drafts', '/sold', '/insights', '/api/listings', '/api/sales'}:
         response.headers['Cache-Control'] = 'no-store'
     return response
 
@@ -698,6 +698,19 @@ def sold_page():
 @app.get("/connect")
 def connect_page():
     return render_template("connect.html", active_tab="connect")
+
+
+@app.get("/insights")
+def insights_page():
+    """What you sell, what it sells for and how often you list (tap the chart on Sold)."""
+    from app.services import insights, progress as progress_svc, sales_history
+    listings = _get_all_listings()
+    for item in listings:
+        made = progress_svc.created_on(item, ITEMS_DIR / item["folder"])
+        item["created_date"] = made.isoformat() if made else None
+    data = insights.build(listings, sales_history.read_all(), sales_history.today(), request.args.get("period", "90d"))
+    return render_template("insights.html", data=data, active_tab="sold",
+                           draft_count=sum(item["inventory_status"] != "sold" for item in listings))
 
 
 @app.get("/stats")

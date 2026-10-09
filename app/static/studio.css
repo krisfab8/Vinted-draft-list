@@ -358,6 +358,8 @@ body.tab-upload:has(#resultCard:empty):has(#reviewCard:empty) .page-upload .uplo
 /* Sold: white stage card, one row of numbers */
 .sales-trend-card { background: var(--sn-card); color: var(--sn-text); border: 1px solid var(--sn-line); box-shadow: var(--shadow-md); }
 .sales-trend-card .trend-count, .sales-trend-card .chart-axis { color: var(--sn-muted); }
+.sales-trend-card { cursor: pointer; }
+.sales-trend-card .trend-more { color: var(--sn-pop); font-weight: 800; text-decoration: none; }
 .chart-switch { background: var(--sn-bg); }
 .chart-switch button { color: var(--sn-muted); font-weight: 700; }
 .chart-switch button.selected { background: var(--sn-text); color: #fff; }

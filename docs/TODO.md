@@ -39,6 +39,11 @@ Newest at the top. Move items to TASK_TRACKER.md when done.
 - **Step 3 — weekly leagues/leaderboard** once accounts are separate (XP only for listings sent to
   Vinted/eBay, daily cap, sales worth most; first name + initial, opt-out).
 
+## Insights (done: /insights, tap the Sold chart)
+- [x] Sold by type, average price by type vs your median, price range (low/median/average/high), listed vs
+  sold per week/month, days to sell by type, top brands, full numbers table; 30d/90d/12m/all filter.
+- NEXT ideas: profit by type, sell-through % by type, platform split (Vinted vs eBay), size/colour breakdowns.
+
 ## Later
 - [x] **Separate data per person** — DONE: owner (APP_USERNAME/APP_PASSWORD) keeps their data; Settings →
   "Invite a seller" makes a one-time 7-day link; each seller gets their own listings, photos, sales, profile,

@@ -404,3 +404,12 @@ Keep IDs stable. Do not rename an open task to hide scope. Split partial work in
 - Seller files: accounts/<id>/items, accounts/<id>/data (items.db, sales.db, profile, logs, costs). Cloud copies
   under `users/<id>/`. Phone backup database is per account (data-account on <html>). Price memory stays shared.
 - Owner-only: POST /api/accounts/invite, GET /api/accounts. Tests: tests/test_accounts.py (end-to-end separation).
+
+## Insights page
+- Tap the sales chart on Sold (or "Insights ›") → /insights?period=30d|90d|12m|all.
+- `app/services/insights.py` (deterministic, no AI): per item type sold/for-sale counts, average/median/low/high
+  price, days to sell, average profit; top brands; listed vs sold per week (≤90 days) or month. Types are
+  grouped from free text (tee/t shirt → T-shirt, trainer/sneakers → Trainers); past 8 groups fold into "Other".
+- Charts are plain HTML/CSS (single-series bars in #12744F; listed/sold pair #12744F/#D0901C, validated for
+  colour-blindness; amber needs the legend + table, both present). Tap/hover/focus tooltip; numbers table.
+- Tests: tests/test_insights.py.

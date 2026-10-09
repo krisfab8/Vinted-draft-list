@@ -611,10 +611,10 @@
 {% if sold_mode %}
 <section class="sales-overview" aria-label="Monthly sales summary">
   <div class="visual-sales-grid">
-    <div class="sales-trend-card" data-sales="{{ sale_summary.revenue_gbp }}" data-profit="{{ sale_summary.gross_profit_gbp if sale_summary.gross_profit_gbp is not none else '' }}">
+    <div class="sales-trend-card" onclick="if (!event.target.closest('.chart-switch, a')) location.href='/insights'" data-sales="{{ sale_summary.revenue_gbp }}" data-profit="{{ sale_summary.gross_profit_gbp if sale_summary.gross_profit_gbp is not none else '' }}">
       <div class="trend-top"><span class="trend-label" id="trend-label">Sales</span><div class="chart-switch" aria-label="Chart metric"><button type="button" class="selected" aria-pressed="true" onclick="switchSalesChart('sales',this)">Sales</button><button type="button" aria-pressed="false" onclick="switchSalesChart('profit',this)">Profit</button></div></div>
       <div class="trend-value" id="trend-value">£{{ '%.2f'|format(sale_summary.revenue_gbp) }}</div>
-      <div class="trend-count">{{ sale_summary.sold_count }} sold</div>
+      <div class="trend-count">{{ sale_summary.sold_count }} sold · <a class="trend-more" href="/insights">Insights ›</a></div>
       {% for mode in ['sales', 'profit'] %}
       {% set chart = sale_summary.sales_chart if mode == 'sales' else sale_summary.profit_chart %}
       <div id="chart-{{ mode }}" class="trend-chart" {% if mode == 'profit' %}hidden{% endif %}>
