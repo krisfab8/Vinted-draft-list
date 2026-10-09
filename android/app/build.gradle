@@ -7,9 +7,23 @@ android {
         applicationId "com.vintedlister.app"
         minSdk 26
         targetSdk 34
-        versionCode 1
-        versionName "0.1-prototype"
+        // Each online build gets the next number, so the installed version is easy to check (Settings).
+        versionCode((System.getenv("GITHUB_RUN_NUMBER") ?: "1") as int)
+        versionName "0.1." + (System.getenv("GITHUB_RUN_NUMBER") ?: "dev")
         buildConfigField "String", "APP_URL", "\"https://vinted-measurements-test.onrender.com/\""
+    }
+    // One fixed test key for every build. Android refuses updates signed with a different key, and each
+    // online build used to make a new random one. Test-only key (like Android's debug key), not for the Play Store.
+    signingConfigs {
+        prototype {
+            storeFile file("../prototype.keystore")
+            storePassword "android"
+            keyAlias "prototype"
+            keyPassword "android"
+        }
+    }
+    buildTypes {
+        debug { signingConfig signingConfigs.prototype }
     }
     buildFeatures { buildConfig true }
     compileOptions {

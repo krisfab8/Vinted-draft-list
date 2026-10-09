@@ -64,6 +64,7 @@
   <button type="button" class="acct-btn" data-site="vinted"><span class="wm wm-vinted">Vinted</span><b>Log in</b></button>
   <button type="button" class="acct-btn" data-site="ebay"><span class="wm wm-ebay"><i class="e">e</i><i class="b">b</i><i class="a">a</i><i class="y">y</i></span><b>Log in</b></button>
   <p class="acct-note" id="acctNote">Log in once in the app. Your logins stay on your phone.</p>
+  <p class="acct-note" id="appVersion" hidden></p>
 </section>
 <section class="rv-card st-links">
   <span id="st-vinted" hidden></span>
@@ -160,6 +161,12 @@
       go.textContent = "Delete my data"; go.disabled = false; toast(error.message);
     }
   });
+  // Which phone app is installed (older builds can't say, so they show as old).
+  if (window.AndroidBridge) {
+    const v = document.getElementById("appVersion"), bridge = window.AndroidBridge;
+    v.textContent = "App version: " + (bridge.appVersion ? bridge.appVersion() : "old, please reinstall");
+    v.hidden = false;
+  }
   if (!window.AndroidBridge) fetch("/auth/status").then(r => r.json()).then(d => {
     document.getElementById("st-vinted").textContent = d.logged_in === "likely" ? "Connected" : "Connect";
   }).catch(() => {});

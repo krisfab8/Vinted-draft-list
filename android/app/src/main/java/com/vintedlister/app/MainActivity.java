@@ -241,6 +241,10 @@ public class MainActivity extends Activity {
         @JavascriptInterface
         public boolean isApp() { return true; }
 
+        /** Shown in Settings so you can check which build is installed. */
+        @JavascriptInterface
+        public String appVersion() { return BuildConfig.VERSION_NAME; }
+
         /** Our site hands over a listing; open Vinted's sell page and fill it there. */
         @JavascriptInterface
         public void startFill(String payloadJson) {
