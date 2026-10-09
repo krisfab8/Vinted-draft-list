@@ -687,3 +687,55 @@ button.st-link { width: 100%; background: none; border: 0; font: inherit; font-w
 .qt-toast.out { opacity: 0; transform: translateY(-14px); }
 @keyframes toastIn { from { transform: translateY(-40px) scale(.9); opacity: 0; } to { transform: none; opacity: 1; } }
 @media (prefers-reduced-motion: reduce) { .pq-chest.ready .chest, .qt-toast { animation: none !important; } .bdg-medal { transform: none; } }
+
+/* ── Progress, cleaner (Duolingo-style: icons and numbers, fewer words) ── */
+.pg-streak { padding: 18px 16px 16px; }
+.pg-streak .pg-freezes { position: absolute; right: 14px; top: 14px; margin: 0; gap: 4px; }
+.pg-streak .pg-freezes i { width: 26px; height: 26px; font-size: 13px; }
+.pg-streak-top { gap: 6px; }
+.pg-streak-num b { font-size: 56px; }
+.pg-streak-status { margin-top: 6px; font-size: 14.5px; }
+.pg-streak .pg-week { position: relative; display: flex; justify-content: space-between; gap: 4px; margin: 14px 2px 0; padding: 0; background: none; border: 0; }
+.pg-streak .pg-day { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 0; background: none; }
+.pg-streak .pg-day i { width: 32px; height: 32px; border-radius: 50%; background: var(--sn-bg); display: grid; place-items: center; font-style: normal; font-size: 15px; }
+.pg-streak .pg-day.met i { background: #FFE9C7; }
+.pg-streak .pg-day.frozen i { background: #E6F1F7; }
+.pg-streak .pg-day.today i { box-shadow: 0 0 0 2px var(--sn-text); }
+.pg-streak .pg-day small { font-size: 11px; font-weight: 800; color: var(--sn-muted); }
+.pg-streak .pg-day.today small { color: var(--sn-text); }
+.pg-streak .pg-mile { display: flex; align-items: center; gap: 10px; margin-top: 14px; }
+.pg-streak .pg-mile .pg-bar { flex: 1; height: 8px; }
+.pg-streak .pg-mile span { flex: none; font-size: 13px; font-weight: 800; }
+.pq-main b { margin-bottom: 7px; }
+.pq-bar { position: relative; height: 22px; border-radius: 11px; }
+.pq-bar i { border-radius: 11px; min-width: 22px; }
+.pq-bar em { position: absolute; inset: 0; display: grid; place-items: center; font-style: normal; font-size: 12px; font-weight: 800; color: var(--sn-text); }
+.pq.done .pq-bar em { color: var(--sn-on-pop); }
+.pq-xp { min-width: 40px; font-size: 13px; color: #9A5A0E; }
+.pq.done .pq-xp { color: var(--sn-pop); }
+.pq-lock { flex: none; font-size: 14px; font-weight: 800; color: var(--sn-muted); }
+.pg-level { display: flex; align-items: center; gap: 14px; }
+.pg-level .pg-coin-stage { padding: 0; flex: none; }
+.pg-level-main { flex: 1; min-width: 0; }
+.pg-level .pg-level-top { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 8px; }
+.pg-level .pg-level-top strong { font-size: 20px; }
+.pg-level .pg-level-top span { font-size: 13px; font-weight: 700; color: var(--sn-muted); }
+.pg-level .pg-level-top span b { font-size: 16px; color: var(--sn-text); }
+.pg-level .pg-coin-hint { font-style: normal; color: var(--sn-pop); font-weight: 800; margin: 0; }
+.pg-level .pg-bar { height: 10px; }
+.pg-level-main small { display: block; margin-top: 6px; font-size: 12.5px; font-weight: 700; color: var(--sn-muted); }
+.pg-tile { flex-direction: row; flex-wrap: wrap; align-items: center; column-gap: 8px; padding: 14px; }
+.pg-tile i { font-style: normal; font-size: 20px; }
+.pg-tile strong { font-size: 24px; }
+.pg-tile span { flex-basis: 100%; }
+.pg-badges { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+.pg-badge { border: 0; font-family: inherit; padding: 10px 2px 8px; color: var(--sn-text); }
+.pg-badge i { width: 44px; height: 44px; font-size: 20px; }
+.pg-badge b { font-size: 11px; }
+.pg-skins { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--sn-line); justify-content: space-between; }
+.pg-skin { width: auto; flex: 1; min-width: 56px; padding: 6px 2px; }
+.pg-skin small { margin-top: 6px; font-size: 11px; }
+.pg-how summary { cursor: pointer; font-size: 13px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--sn-muted); list-style: none; }
+.pg-how summary::-webkit-details-marker { display: none; }
+.pg-how summary::after { content: ' ›'; }
+.pg-how[open] summary { margin-bottom: 6px; }

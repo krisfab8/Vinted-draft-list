@@ -8,107 +8,88 @@
 
 {% set left = p.goal - p.today_count %}
 <section class="pg-streak{% if not p.streak %} cold{% endif %}" aria-label="{{ p.streak }}-day streak">
+  <div class="pg-freezes" title="Streak freezes: each covers a missed day. Earn one every 7 days." aria-label="{{ p.freezes }} of 2 streak freezes">
+    {% for i in range(2) %}<i class="{{ '' if i < p.freezes else 'empty' }}">❄️</i>{% endfor %}</div>
   <div class="pg-streak-top">
-    <svg class="stk-flame" width="96" height="96" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 1.5c1.2 4.2 6.5 6.3 6.5 12.6a6.5 6.5 0 01-13 0c0-3.3 2.1-5.3 3.2-6.4 0 2.1 1 3.2 2.1 3.2 0-4.2 0-6.3 1.2-9.4z" fill="#F08A24"/><path d="M12 10.5c2.1 2.1 3.4 3.3 3.4 5.6a3.4 3.4 0 01-6.8 0c0-2.2 2.2-3.4 3.4-5.6z" fill="#FFD34D"/></svg>
+    <svg class="stk-flame" width="76" height="76" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 1.5c1.2 4.2 6.5 6.3 6.5 12.6a6.5 6.5 0 01-13 0c0-3.3 2.1-5.3 3.2-6.4 0 2.1 1 3.2 2.1 3.2 0-4.2 0-6.3 1.2-9.4z" fill="#F08A24"/><path d="M12 10.5c2.1 2.1 3.4 3.3 3.4 5.6a3.4 3.4 0 01-6.8 0c0-2.2 2.2-3.4 3.4-5.6z" fill="#FFD34D"/></svg>
     <div class="pg-streak-num"><b>{{ p.streak }}</b><span>day streak</span></div>
   </div>
   <p class="pg-streak-status" data-streak-risk data-streak="{{ p.streak }}" data-met="{{ '1' if p.today_met else '0' }}"
-     data-risk-text="⏰ List {{ left }} by midnight to keep your {{ p.streak }}-day streak">
-    {%- if p.today_met %}Goal hit today ✓ See you tomorrow.{% elif p.streak %}List {{ left }} today to keep your streak.{% else %}List {{ p.goal }} today to start a streak.{% endif -%}
+     data-risk-text="⏰ List {{ left }} by midnight">
+    {%- if p.today_met %}✓ Done for today{% elif p.freeze_saved_yesterday %}❄️ A freeze saved your streak · list {{ left }} today{% else %}List {{ left if p.streak else p.goal }} today{% endif -%}
   </p>
-  <div class="pg-freezes" aria-label="{{ p.freezes }} streak freezes">
-    {% for i in range(2) %}<i class="{{ '' if i < p.freezes else 'empty' }}">❄️</i>{% endfor %}
-    <span>{% if p.freezes %}{{ p.freezes }} streak freeze{{ 's' if p.freezes > 1 }}: covers a missed day{% else %}Earn a streak freeze every 7 days{% endif %}</span>
+  <div class="pg-week" aria-label="This week">
+    {% for d in p.week %}<div class="pg-day{% if d.met %} met{% endif %}{% if d.today %} today{% endif %}{% if d.frozen %} frozen{% endif %}" title="{{ 'Saved by a streak freeze' if d.frozen else d.count ~ ' listed' }}">
+      <i>{% if d.frozen %}❄️{% elif d.met %}{{ (flame % (18, 18, '#FF9F0A', '#FFD60A'))|safe }}{% endif %}</i><small>{{ d.label[:1] if not d.today else 'T' }}</small></div>{% endfor %}
   </div>
-  {% if p.freeze_saved_yesterday %}<p class="pg-saved">❄️ A streak freeze saved your streak yesterday.</p>{% endif %}
   {% if p.milestone.next %}
-  <div class="pg-mile">
-    <p>🏅 {{ p.milestone.to_go }} day{{ 's' if p.milestone.to_go != 1 }} to your {{ p.milestone.next }}-day milestone</p>
-    <div class="pg-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ (p.milestone.progress * 100)|round|int }}"><i style="width:{{ (p.milestone.progress * 100)|round(1) }}%"></i></div>
+  <div class="pg-mile" aria-label="{{ p.milestone.to_go }} days to the {{ p.milestone.next }}-day milestone">
+    <div class="pg-bar"><i style="width:{{ (p.milestone.progress * 100)|round(1) }}%"></i></div><span>🏅 {{ p.milestone.next }}</span>
   </div>
   {% endif %}
 </section>
 
 <section class="pg-card pg-quests" aria-label="Today's quests">
-  <div class="pg-head">Today's quests <span>new ones at midnight</span></div>
+  <div class="pg-head">Daily quests <span id="pqLeft">⏱ today</span></div>
   {% for q in p.quests %}
   <div class="pq{% if q.done %} done{% endif %}">
     <span class="pq-ic" aria-hidden="true">{{ q.icon }}</span>
-    <div class="pq-main"><b>{{ q.text }}</b><div class="pq-bar"><i style="width:{{ ((q.have / q.target) * 100)|round(1) }}%"></i></div></div>
-    <span class="pq-xp">{% if q.done %}✓{% else %}{{ q.have }}/{{ q.target }}{% endif %}<small>+{{ q.xp }} XP</small></span>
+    <div class="pq-main"><b>{{ q.text }}</b>
+      <div class="pq-bar" aria-label="{{ q.have }} of {{ q.target }}"><i style="width:{{ ((q.have / q.target) * 100)|round(1) }}%"></i><em>{{ '✓' if q.done else q.have ~ ' / ' ~ q.target }}</em></div></div>
+    <span class="pq-xp">+{{ q.xp }}</span>
   </div>
   {% endfor %}
   <div class="pq-chest{% if p.chest_ready %} ready{% endif %}" id="pqChest">
     <svg class="chest" viewBox="0 0 120 100" aria-hidden="true"><g class="chest-lid"><path d="M14 44 Q14 16 60 16 Q106 16 106 44 Z" fill="#9C6B3A"/><rect x="52" y="16" width="16" height="28" fill="#C9A45C"/></g><rect x="14" y="44" width="92" height="46" rx="6" fill="#B07A44"/><rect x="52" y="44" width="16" height="46" fill="#C9A45C"/><rect x="54" y="52" width="12" height="14" rx="3" fill="#6E4724"/></svg>
     <div><b id="pqChestTitle">{% if p.chest_ready %}Chest unlocked!{% else %}Daily chest{% endif %}</b>
-      <small>Finish all 3 for +{{ p.chest_xp }} XP and a Pro price check</small></div>
-    {% if p.chest_ready %}<button type="button" class="pq-open" id="pqOpen" data-xp="{{ p.chest_xp }}">Open</button>{% endif %}
+      <small>+{{ p.chest_xp }} XP · 🔎 Pro price check</small></div>
+    {% if p.chest_ready %}<button type="button" class="pq-open" id="pqOpen" data-xp="{{ p.chest_xp }}">Open</button>{% else %}<span class="pq-lock">{{ p.quests|selectattr('done')|list|length }}/3</span>{% endif %}
   </div>
-</section>
-
-<section class="pg-card pg-week" aria-label="This week">
-  {% for d in p.week %}
-  <div class="pg-day{% if d.met %} met{% endif %}{% if d.today %} today{% endif %}{% if d.frozen %} frozen{% endif %}" title="{{ 'Saved by a streak freeze' if d.frozen else d.count ~ ' listed' }}">
-    <span class="pg-flame">{% if d.frozen %}<span style="font-size:22px;line-height:26px">❄️</span>{% elif d.met %}{{ (flame % (26, 26, '#FF9F0A', '#FFD60A'))|safe }}{% else %}{{ (flame % (26, 26, '#E5E5EA', '#F5F5F7'))|safe }}{% endif %}</span>
-    <b>{{ d.count }}</b><small>{{ d.label }}</small>
-  </div>
-  {% endfor %}
-</section>
-
-<section class="pg-card pg-tip" aria-label="Why streaks matter">
-  <span class="pg-tip-ic" aria-hidden="true">💡</span>
-  <div><div class="pg-head">Why streaks matter</div><p>{{ p.tip }}</p></div>
 </section>
 
 <section class="pg-card pg-level" aria-label="Level">
   <div class="pg-coin-stage" id="pgCoinStage" role="button" tabindex="0" aria-label="{{ p.xp }} XP. Tap to spin the coin">
-    <span class="coin" id="pgCoin" data-coin="idle" style="--coin:128px"></span>
-    <div class="pg-coin-xp">{{ p.xp }}<small>XP</small></div>
-    {% if p.xp_today %}<div class="pg-coin-hint">+{{ p.xp_today }} today</div>{% endif %}
+    <span class="coin" id="pgCoin" data-coin="idle" style="--coin:64px"></span>
   </div>
-  <div class="pg-level-top"><div><small>Level</small><strong>{{ p.level.name }}</strong></div>{% if p.level.next_name %}<div class="pg-xp"><small>Next</small><strong>{{ p.level.next_name }}</strong></div>{% endif %}</div>
-  <div class="pg-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ (p.level.progress * 100)|round|int }}"><i style="width:{{ (p.level.progress * 100)|round(1) }}%"></i></div>
-  <p class="pg-note">{% if p.level.next_name %}{{ p.level.to_next }} XP to {{ p.level.next_name }}{% else %}Top level reached{% endif %}{% if p.xp_today %} · +{{ p.xp_today }} today{% endif %}</p>
+  <div class="pg-level-main">
+    <div class="pg-level-top"><strong>{{ p.level.name }}</strong><span><b>{{ p.xp }}</b> XP{% if p.xp_today %} <em class="pg-coin-hint">+{{ p.xp_today }}</em>{% endif %}</span></div>
+    <div class="pg-bar"><i style="width:{{ (p.level.progress * 100)|round(1) }}%"></i></div>
+    <small>{% if p.level.next_name %}{{ p.level.to_next }} XP to {{ p.level.next_name }}{% else %}Top level{% endif %}</small>
+  </div>
 </section>
 
 <div class="pg-grid">
-  <div class="pg-tile"><strong>{{ p.today_count }}<small>/{{ p.goal }}</small></strong><span>Today</span></div>
-  <div class="pg-tile"><strong>{{ p.best_streak }}</strong><span>Best streak</span></div>
-  <div class="pg-tile"><strong>{{ p.premium }}</strong><span>★ Premium</span></div>
-  <div class="pg-tile hot"><strong>{{ p.hot }}</strong><span>🔥 Hot pieces</span></div>
+  <div class="pg-tile"><i aria-hidden="true">🔥</i><strong>{{ p.best_streak }}</strong><span>Best streak</span></div>
+  <div class="pg-tile"><i aria-hidden="true">📦</i><strong>{{ p.listed }}</strong><span>Listed</span></div>
+  <div class="pg-tile"><i aria-hidden="true">★</i><strong>{{ p.premium + p.hot }}</strong><span>Premium</span></div>
+  <div class="pg-tile"><i aria-hidden="true">💷</i><strong>{{ p.sold }}</strong><span>Sold</span></div>
 </div>
 
-<section class="pg-card pg-perks" aria-label="Your perks">
-  <div class="pg-head">Your perks</div>
+<section class="pg-card" aria-label="Badges">
+  <div class="pg-head">Badges <span>{{ p.badges|selectattr('unlocked')|list|length }} / {{ p.badges|length }}</span></div>
+  <div class="pg-badges">
+    {% for b in p.badges|sort(attribute='unlocked', reverse=True) %}<button type="button" class="pg-badge{% if not b.unlocked %} locked{% endif %}" data-tip="{{ b.icon }} {{ b.name }}: {{ b.desc }}"><i aria-hidden="true">{{ b.icon }}</i><b>{{ b.name }}</b></button>{% endfor %}
+  </div>
+</section>
+
+<section class="pg-card" aria-label="Rewards">
+  <div class="pg-head">Rewards</div>
   {% for k in p.perks %}
-  <div class="pk"><span class="pk-ic" aria-hidden="true">🔎</span>
-    <div><b>{{ k.name }}</b><small>{{ k.desc }}. Earn more from daily chests and every level-up.</small></div>
+  <div class="pk" title="{{ k.desc }}"><span class="pk-ic" aria-hidden="true">🔎</span><div><b>{{ k.name }}</b><small>From chests and level-ups</small></div>
     <span class="pk-n{% if not k.left %} zero{% endif %}" aria-label="{{ k.left }} left">×{{ k.left }}</span></div>
   {% endfor %}
-</section>
-
-<section class="pg-card" aria-label="Badges">
-  <div class="pg-head">Badges <span>{{ p.badges|selectattr('unlocked')|list|length }} of {{ p.badges|length }}</span></div>
-  <div class="pg-badges">
-    {% for b in p.badges %}<div class="pg-badge{% if not b.unlocked %} locked{% endif %}" title="{{ b.desc }}"><i aria-hidden="true">{{ b.icon }}</i><b>{{ b.name }}</b><small>{{ b.desc }}</small></div>{% endfor %}
+  <div class="pg-skins" id="pgSkins" aria-label="Coin skins">
+    {% for k in p.skins %}<button type="button" class="pg-skin{% if not k.unlocked %} locked{% endif %}{% if k.id == coin_skin %} on{% endif %}" data-skin-pick="{{ k.id }}" data-tip="🔒 {{ k.name }}: {{ k.hint }}" {% if not k.unlocked %}aria-disabled="true"{% endif %}>
+      <span class="coin" data-coin="still" data-skin="{{ k.id }}" style="--coin:40px" aria-hidden="true"></span><small>{{ '🔒' if not k.unlocked }}{{ k.name }}</small></button>{% endfor %}
   </div>
 </section>
 
-<section class="pg-card" aria-label="Coin skins">
-  <div class="pg-head">Coin skins <span>just for fun</span></div>
-  <div class="pg-skins" id="pgSkins">
-    {% for k in p.skins %}<button type="button" class="pg-skin{% if not k.unlocked %} locked{% endif %}{% if k.id == coin_skin %} on{% endif %}" data-skin-pick="{{ k.id }}" {% if not k.unlocked %}aria-disabled="true"{% endif %}>
-      <span class="coin" data-coin="still" data-skin="{{ k.id }}" style="--coin:46px" aria-hidden="true"></span>
-      <small>{{ k.name }}</small><em>{{ '✓ Unlocked' if k.unlocked else '🔒 ' ~ k.hint }}</em></button>{% endfor %}
-  </div>
-</section>
-
-<section class="pg-card" aria-label="How to earn XP">
-  <div class="pg-head">Earn XP</div>
+<details class="pg-card pg-how">
+  <summary>How XP works</summary>
   {% for label, xp in rules %}<div class="pg-rule"><span>{{ label }}</span><b>+{{ xp }}</b></div>{% endfor %}
   <div class="pg-rule"><span>Profit when sold</span><b>+1 per £1</b></div>
-  {# ANIM / Phase 2: daily quests, coins, streak freezes go here. #}
-</section>
+  <div class="pg-rule"><span>Daily quests · chest</span><b>+10 to +35 · +{{ p.chest_xp }}</b></div>
+</details>
 {% endblock %}
 {% block scripts %}
 <script>
@@ -117,7 +98,7 @@
     const spin = () => window.Coin && Coin.earn(coin);
     stage.addEventListener("click", spin);
     stage.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); spin(); } });
-    if (stage.querySelector(".pg-coin-hint")) setTimeout(spin, 700);   // XP earned today: a celebratory spin
+    if (document.querySelector(".pg-coin-hint")) setTimeout(spin, 700);   // XP earned today: a celebratory spin
 
     // Daily chest: open once a day.
     const open = document.getElementById("pqOpen"), box = document.getElementById("pqChest");
@@ -137,6 +118,14 @@
     const show = seen ? fresh : fresh.slice(-1);
     show.forEach((id, i) => setTimeout(() => window.Streak?.badge(info.find(b => b.id === id)), 900 + i * 2600));
     try { localStorage.setItem("badgesSeen", JSON.stringify(unlocked)); } catch (_) {}
+
+    // Time left on today's quests.
+    const mid = new Date(); mid.setHours(24, 0, 0, 0);
+    const hrs = Math.max(1, Math.round((mid - new Date()) / 3600000));
+    document.getElementById("pqLeft").textContent = `⏱ ${hrs}h left`;
+    // Tap a badge (or a locked coin) for what it means.
+    document.querySelectorAll(".pg-badge, .pg-skin.locked").forEach(el =>
+      el.addEventListener("click", () => window.Streak?.toast(el.dataset.tip.replace(/[<>&]/g, ""))));
 
     // Coin skins: tap an unlocked one to wear it everywhere.
     document.getElementById("pgSkins").addEventListener("click", async e => {

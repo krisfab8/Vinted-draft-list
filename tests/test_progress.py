@@ -58,10 +58,10 @@ def test_progress_page_and_drafts_chip(monkeypatch, tmp_path):
                                                          tagged_size="L", created_at="2026-10-07T09:00:00")))
     client = web.app.test_client()
     page = client.get("/progress").get_data(as_text=True)
-    assert "Earn XP" in page and "Rookie" in page and "+25" in page
+    assert "How XP works" in page and "Rookie" in page and "+25" in page and "Daily quests" in page
     assert 'class="sn-back" href="/drafts"' in page
     drafts = client.get("/drafts").get_data(as_text=True)
-    assert 'href="/progress" class="sn-streak sn-xp-chip' in drafts and "35 XP" in drafts
+    assert 'href="/progress" class="sn-streak sn-xp-chip' in drafts and "<small>XP</small>" in drafts
     assert 'draft-premium-tag hot' in drafts
     # The spinning XP coin: big on Progress, mini in the chip, script on every page.
     assert 'id="pgCoin" data-coin="idle"' in page and "coin.js" in page

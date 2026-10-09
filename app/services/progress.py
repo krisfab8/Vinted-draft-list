@@ -252,7 +252,7 @@ def summary(listings: list[dict], root: Path, goal: int, today: date, perks_used
             "streak_before_today": info["before_today"], "freezes": info["freezes"], "freeze_saved_yesterday": saved_yesterday,
             "milestone": milestones(current), "tip": TIPS[today.toordinal() % len(TIPS)],
             "today_count": day_counts.get(today, 0), "goal": goal, "xp": xp_total, "xp_today": xp_today,
-            "level": lvl, "week": week, "hot": tiers["hot"], "premium": tiers["premium"],
+            "listed": totals["listed"], "sold": totals["sold"], "level": lvl, "week": week, "hot": tiers["hot"], "premium": tiers["premium"],
             "quests": daily["quests"], "chest_ready": daily["chest_ready"], "chests": daily["chests"],
             "chest_xp": quests.CHEST_XP, "badges": badge_list, "perks": quests.perks(daily["chests"], level_index, perks_used),
             "skins": quests.skins(level_index, unlocked)}

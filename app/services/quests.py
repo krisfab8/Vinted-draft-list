@@ -16,9 +16,9 @@ QUEST_POOL = {
     "list": ("List {n} items", "📸", 15),
     "full_set": ("Take a full photo set", "🖼️", 10),
     "premium": ("List a ★ premium piece", "★", 20),
-    "hot": ("List a 🔥 hot piece (premium, £40+)", "🔥", 35),
+    "hot": ("List a 🔥 hot piece", "🔥", 35),
     "sale": ("Record a sale", "💷", 25),
-    "crosslist": ("Cross-list an item on eBay or Depop", "🔁", 15),
+    "crosslist": ("Cross-list an item", "🔁", 15),
 }
 CHEST_XP = 25
 CHEST_PERKS = {"price_check": 1}
