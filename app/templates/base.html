@@ -114,6 +114,7 @@
     }
     .vinted-status-link.connected    .vinted-dot { background: #34c759; }
     .vinted-status-link.disconnected .vinted-dot { background: #ff3b30; }
+    .vinted-status-link.in-app .vinted-dot { background: #09B1BA; }
 
     .logo {
       display: flex;
@@ -367,7 +368,22 @@
   {% endif %}
   {% block scripts %}{% endblock %}
   <script>
+    // Inside the phone app, "Connect Vinted" means the app's own Vinted window (log in once on the phone);
+    // the desktop connect page can't work there.
+    if (window.AndroidBridge) {
+      document.addEventListener("click", e => {
+        const link = e.target.closest('a[href="/connect"]');
+        if (!link) return;
+        e.preventDefault();
+        window.AndroidBridge.openVinted();
+      }, true);
+      const chip = document.getElementById("header-vinted-status");
+      if (chip) chip.classList.add("in-app");
+      const st = document.getElementById("st-vinted");
+      if (st) st.textContent = "Open ›";
+    }
     (async () => {
+      if (window.AndroidBridge) return;   // the server can't see the phone's Vinted login
       try {
         const r = await fetch("/auth/status");
         const d = await r.json();
