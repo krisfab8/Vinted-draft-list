@@ -143,7 +143,8 @@ public class MainActivity extends Activity {
     }
 
     /** One look at Vinted's page: "form" = login options showing, "tapped"/"opened" = clicked a Log in,
-     *  "nav" = followed a (hidden) login link, "in" = already logged in, otherwise "none|what the page shows". */
+     *  "nav" = followed a (hidden) login link, "in" = already logged in, "menu" = opened the menu (on phones
+     *  Vinted keeps Sign up | Log in in its menu, which only exists once opened), otherwise "none|what it saw". */
     private static final String LOGIN_STEP =
         "(function(allowNav){var all=Array.prototype.slice.call(document.querySelectorAll('a,button,[role=button]'));"
         + "var els=all.filter(function(e){return e.getClientRects().length&&!e.dataset.vlTapped"
@@ -159,6 +160,11 @@ public class MainActivity extends Activity {
         + "var link=all.find(function(e){var h=e.getAttribute('href')||'';return /select_type|\\/login|\\/signin|\\/auth/i.test(h)"
         + "||/login|log in/i.test((e.getAttribute('data-testid')||'')+' '+(e.textContent||''));});"
         + "if(allowNav&&link&&link.href){location.href=link.href;return 'nav';}"
+        + "if(!document.documentElement.dataset.vlMenu){var hdr=document.querySelector('header')||document.body;"
+        + "var menu=els.find(function(e){return /menu|burger|navigation/i.test((e.getAttribute('aria-label')||'')+' '+(e.getAttribute('data-testid')||''));})"
+        + "||Array.prototype.slice.call(hdr.querySelectorAll('button,[role=button]')).filter(function(e){"
+        + "return e.getClientRects().length&&!txt(e)&&e.querySelector('svg,span,i');}).pop();"
+        + "if(menu){document.documentElement.dataset.vlMenu=1;menu.click();return 'menu';}}"
         + "return 'none|'+els.map(txt).filter(function(t){return t&&t.length<24;}).slice(0,10).join(', ');})";
 
     private boolean loginNavDone;
@@ -169,6 +175,7 @@ public class MainActivity extends Activity {
             if (run != loginRun) return;
             String r = result == null ? "" : result.replaceAll("^\"|\"$", "").replace("\\\"", "\"");
             if (r.equals("tapped") || r.equals("opened")) loginClicked = true;
+            // "menu": opened Vinted's \u2630 menu; the next look finds its Log in.
             if (r.equals("nav")) { loginNavDone = true; loginClicked = true; return; }   // new page restarts the search
             if (r.equals("form")) { loginUntil = 0; return; }   // login options are showing: done
             if (r.equals("in")) {
