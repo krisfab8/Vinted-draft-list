@@ -400,8 +400,16 @@ class CloudStore:
         log.error("Cloud storage: %s", message)
 
 
-def from_environment(items_dir, on_restored=None, profile_path=None, ledger_path=None):
-    """Return a started CloudStore, or None when B2 is not configured."""
+STARTUP_WAIT_SECONDS = 45   # Render gives up if nothing listens for ~15 min; never let a slow bucket block that
+
+
+def from_environment(items_dir, on_restored=None, profile_path=None, ledger_path=None, after_restore=None,
+                     wait_seconds=None):
+    """Return a started CloudStore, or None when B2 is not configured.
+
+    wait_seconds: restore in the background and return after at most this long, so the server can start
+    listening even if the bucket is slow (requests that need a stored item wait for it). after_restore
+    runs once the restore has finished, in whichever thread did it."""
     missing = missing_settings()
     if missing:
         if len(missing) < len(REQUIRED):
@@ -411,7 +419,26 @@ def from_environment(items_dir, on_restored=None, profile_path=None, ledger_path
         return None
     store = CloudStore(make_client(), os.environ["B2_BUCKET"].strip(), items_dir, on_restored, profile_path,
                        ledger_path=ledger_path)
-    store.restore_all()
-    store.sync()
-    store.start()
+
+    def warm():
+        try:
+            store.restore_all()
+            store.sync()
+            if after_restore:
+                after_restore(store)
+        except Exception as error:      # logged; the sync loop keeps retrying
+            store._fail("startup restore", error)
+        finally:
+            store.restored = True
+            store.start()
+
+    store.restored = False
+    if wait_seconds is None:
+        warm()
+        return store
+    worker = threading.Thread(target=warm, name="cloud-restore", daemon=True)
+    worker.start()
+    worker.join(wait_seconds)
+    if worker.is_alive():
+        log.warning("Cloud storage: still restoring after %ss; carrying on in the background", wait_seconds)
     return store

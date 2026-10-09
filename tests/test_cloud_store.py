@@ -262,3 +262,32 @@ def test_usage_record_survives_a_wiped_server(s3, tmp_path):
     store_for(s3, tmp_path / "items2", ledger_path=fresh, prefix="users/a0123456789/").restore_all()
     ids = [json.loads(line)["id"] for line in fresh.read_text().splitlines()]
     assert sorted(ids) == ["e1", "e2", "e3"]
+
+
+def test_slow_bucket_never_blocks_startup(monkeypatch, tmp_path):
+    """Render stops a deploy if nothing listens in time: the restore carries on in the background."""
+    import threading
+    import time
+    release = threading.Event()
+
+    class SlowClient:
+        def list_objects_v2(self, **kwargs):
+            release.wait(5)
+            return {"Contents": []}
+
+        def get_object(self, **kwargs):
+            raise KeyError("NoSuchKey")
+
+    monkeypatch.setattr(cloud_store, "missing_settings", lambda: [])
+    monkeypatch.setattr(cloud_store, "make_client", lambda: SlowClient())
+    monkeypatch.setenv("B2_BUCKET", "drafts")
+    done = []
+    started = time.monotonic()
+    store = cloud_store.from_environment(tmp_path / "items", after_restore=lambda s: done.append(s), wait_seconds=0.2)
+    assert time.monotonic() - started < 2 and store is not None and not store.restored
+    release.set()
+    for _ in range(50):
+        if done:
+            break
+        time.sleep(0.1)
+    assert done == [store] and store.restored

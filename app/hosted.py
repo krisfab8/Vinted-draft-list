@@ -105,7 +105,9 @@ def _start_cloud_store():
         from app.services import model_usage, user_profile
         return cloud_store.from_environment(web.ITEMS_DIR, on_restored=status_after_restore,
                                             profile_path=user_profile._PATH.resolve(),
-                                            ledger_path=Path(model_usage.LEDGER_PATH).resolve())
+                                            ledger_path=Path(model_usage.LEDGER_PATH).resolve(),
+                                            after_restore=_tidy_duplicates,
+                                            wait_seconds=cloud_store.STARTUP_WAIT_SECONDS)
     except Exception as error:
         cloud_store.log.error("Cloud storage failed to start (%s)", type(error).__name__)
         return None
@@ -156,7 +158,8 @@ def create_app():
             and hmac.compare_digest((secret or "").encode(), password.encode())
     cloud = _start_cloud_store()
     app.extensions["cloud_store"] = cloud
-    _tidy_duplicates(cloud)
+    if not cloud:
+        _tidy_duplicates(None)   # with cloud storage it runs right after the restore (see _start_cloud_store)
     if cloud:
         accounts.attach_cloud(cloud.client, cloud.bucket)
     if not app.secret_key:
