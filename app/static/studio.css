@@ -770,3 +770,24 @@ a.pq:active { opacity: .7; }
 .pf-row .pf { width: 18px; height: 18px; border-radius: 6px; font-size: 11px; }
 .pf-row .pf-ebay { font-size: 7px; }
 .pf-row .pf-st { width: 10px; height: 10px; right: -3px; bottom: -3px; font-size: 6px; }
+
+/* Wordmarks in brand colours (typed, not official logo files) */
+.wm { display: inline-flex; align-items: baseline; font-family: inherit; font-weight: 900; line-height: 1; letter-spacing: -.03em; white-space: nowrap; }
+.wm i { font-style: normal; }
+.wm-vinted { color: #09B1BA; letter-spacing: -.02em; }
+.wm-ebay { letter-spacing: -.07em; } .wm-ebay .e { color: #E53238; } .wm-ebay .b { color: #0064D2; } .wm-ebay .a { color: #F5AF02; } .wm-ebay .y { color: #86B817; }
+.wm-depop { color: #FF2300; text-transform: lowercase; letter-spacing: -.04em; }
+.wm-other { color: #7C786D; font-weight: 800; }
+.xl-chips { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.xl-chip { display: flex; align-items: center; justify-content: center; gap: 10px; height: 60px; padding: 0 12px; border-radius: 18px;
+  background: var(--sn-card); border: 1.5px solid var(--sn-line2); }
+.xl-chip .wm { font-size: 24px; }
+.xl-chip .wm-other { font-size: 18px; }
+.xl-chip .xl-st { font-style: normal; display: grid; place-items: center; width: 24px; height: 24px; border-radius: 50%;
+  background: #D8D3C8; color: #fff; font-size: 13px; font-weight: 900; }
+.xl-chip:not(.on) .wm { filter: grayscale(1); opacity: .4; }
+.xl-chip.on { background: #F1F7F2; border-color: #2E9E5B; }
+.xl-chip.on .xl-st { background: #2E9E5B; }
+.wm-row { display: flex; flex-wrap: wrap; gap: 8px; margin: 4px 0 2px; }
+.wm-row .wm { font-size: 14px; }
+.wm-row .wm-other { font-size: 12px; }

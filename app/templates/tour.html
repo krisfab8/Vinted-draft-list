@@ -151,27 +151,56 @@
     @keyframes vinFinger { 0%, 46% { opacity: 0; transform: scale(1.4); } 54% { opacity: 1; transform: none; } 58% { transform: scale(.8); }
                            62% { transform: none; } 66%, 100% { opacity: 0; } }
 
-    /* 4 · Sold → take it down elsewhere */
+    /* 4 · Listed everywhere, sold once: wordmark chips tick and untick */
     .s-sold { position: absolute; inset: 0; padding: 18px; display: flex; flex-direction: column; gap: 12px; }
-    .s-sold .card { border-radius: 20px; background: #2B3530; height: 46%; position: relative; }
-    .s-sold .card svg { position: absolute; left: 50%; top: 50%; width: 40%; transform: translate(-50%, -50%); }
-    .s-sold .tag { position: absolute; left: 12px; top: 12px; padding: 5px 10px; border-radius: 12px; background: #F3EDE0; color: var(--sn-pop);
-                   font-size: 12px; font-weight: 800; letter-spacing: .06em; opacity: 0; }
-    .s-sold .warn { position: absolute; left: 12px; top: 44px; padding: 5px 9px; border-radius: 10px; background: #B8552B; color: #FFF8EE;
-                    font-size: 12px; font-weight: 800; opacity: 0; }
+    .s-sold .card { position: relative; display: flex; gap: 12px; align-items: center; padding: 10px; border-radius: 18px; background: var(--sn-bg); }
+    .s-sold .card .th { position: relative; width: 72px; height: 72px; border-radius: 14px; background: #2B3530; flex: none; }
+    .s-sold .card .th svg { position: absolute; left: 50%; top: 50%; width: 70%; transform: translate(-50%, -50%); }
+    .s-sold .card b { display: block; font-size: 16px; font-weight: 800; }
+    .s-sold .card .wmr { display: flex; gap: 8px; margin-top: 6px; font-size: 14px; }
+    .s-sold .tag { position: absolute; left: 6px; top: 6px; padding: 3px 6px; border-radius: 8px; background: #F3EDE0; color: var(--sn-pop);
+                   font-size: 9px; font-weight: 800; letter-spacing: .06em; opacity: 0; }
+    .s-sold .chips { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .s-sold .chip { display: flex; align-items: center; justify-content: center; gap: 10px; height: 60px; border-radius: 18px; background: #F1F7F2;
+                    border: 1.5px solid #2E9E5B; font-size: 24px; position: relative; }
+    .s-sold .st { display: grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; background: #2E9E5B; color: #fff;
+                  font-size: 13px; font-weight: 900; font-style: normal; position: relative; }
+    .s-sold .st b { position: absolute; inset: 0; display: grid; place-items: center; opacity: 0; }
     .s-sold .task { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 12px 14px; border-radius: 16px;
                     background: #FBF1E4; border: 1px solid #E9C9A0; font-size: 14px; font-weight: 800; opacity: 0; }
-    .s-sold .task span { padding: 8px 12px; border-radius: 16px; background: var(--sn-pop); color: var(--sn-on-pop); font-size: 13px; }
+    .s-sold .task span { white-space: nowrap; padding: 8px 12px; border-radius: 16px; background: var(--sn-pop); color: var(--sn-on-pop); font-size: 13px; }
     .s-sold .clear { text-align: center; font-size: 15px; font-weight: 800; color: var(--sn-pop); opacity: 0; }
-    .play .s-sold .tag { animation: pop .4s .4s both; }
-    .play .s-sold .warn { animation: warnLife 6.5s both; }
+    .s-sold .tr-finger { right: 62px; top: 41%; }
+    .play .s-sold .tag { animation: pop .4s 1.5s both; }
+    .play .s-sold .chip.v .st { animation: toSold 6.5s both; }
+    .play .s-sold .chip.v .st b.sold { animation: showSold 6.5s both; }
+    .play .s-sold .chip.v .st b.tick, .play .s-sold .chip.e .st b.tick { opacity: 1; }
+    .play .s-sold .chip.v .st b.tick { animation: hideTick 6.5s both; }
+    .play .s-sold .chip.e { animation: chipOff 6.5s both; }
+    .play .s-sold .chip.e .st { animation: stOff 6.5s both; }
+    .play .s-sold .chip.e .st b.tick { animation: hideTick2 6.5s both; }
+    .play .s-sold .chip.e .st b.cross { animation: showCross 6.5s both; }
+    .play .s-sold .card .wmr .wm-ebay { animation: wmOff 6.5s both; }
     .play .s-sold .task { animation: taskLife 6.5s both; }
-    .play .s-sold .clear { animation: fadeUp .4s 4.6s both; }
-    .play .s-sold .tr-finger { animation: vinFinger2 6.5s both; right: 48px; top: 66%; }
-    @keyframes warnLife { 0%, 15% { opacity: 0; } 20%, 64% { opacity: 1; } 70%, 100% { opacity: 0; } }
-    @keyframes taskLife { 0%, 22% { opacity: 0; transform: translateY(8px); } 28%, 62% { opacity: 1; transform: none; } 68%, 100% { opacity: 0; } }
-    @keyframes vinFinger2 { 0%, 40% { opacity: 0; transform: scale(1.4); } 48% { opacity: 1; transform: none; } 52% { transform: scale(.8); }
-                            56% { transform: none; } 62%, 100% { opacity: 0; } }
+    .play .s-sold .clear { animation: fadeUp .4s 4.4s both; }
+    .play .s-sold .tr-finger { animation: vinFinger2 6.5s both; }
+    @keyframes toSold { 0%, 22% { background: #2E9E5B; } 26%, 100% { background: #C9A45C; } }
+    @keyframes showSold { 0%, 22% { opacity: 0; } 26%, 100% { opacity: 1; } }
+    @keyframes hideTick { 0%, 22% { opacity: 1; } 26%, 100% { opacity: 0; } }
+    @keyframes hideTick2 { 0%, 56% { opacity: 1; } 60%, 100% { opacity: 0; } }
+    @keyframes showCross { 0%, 56% { opacity: 0; } 60%, 100% { opacity: 1; } }
+    @keyframes stOff { 0%, 56% { background: #2E9E5B; } 60%, 100% { background: #D8D3C8; } }
+    @keyframes chipOff { 0%, 56% { background: #F1F7F2; border-color: #2E9E5B; } 60%, 100% { background: var(--sn-card); border-color: var(--sn-line2); } }
+    @keyframes wmOff { 0%, 58% { opacity: 1; } 64%, 100% { opacity: 0; } }
+    @keyframes taskLife { 0%, 30% { opacity: 0; transform: translateY(8px); } 36%, 60% { opacity: 1; transform: none; } 66%, 100% { opacity: 0; } }
+    @keyframes vinFinger2 { 0%, 44% { opacity: 0; transform: scale(1.4); } 50% { opacity: 1; transform: none; } 54% { transform: scale(.8); }
+                            58% { transform: none; } 64%, 100% { opacity: 0; } }
+    .wm { display: inline-flex; font-weight: 900; line-height: 1; letter-spacing: -.03em; } .wm i { font-style: normal; }
+    .wm-vinted { color: #09B1BA; } .wm-ebay { letter-spacing: -.07em; } .wm-ebay .e { color: #E53238; } .wm-ebay .b { color: #0064D2; }
+    .wm-ebay .a { color: #F5AF02; } .wm-ebay .y { color: #86B817; }
+    .s-sold .chip.e .wm { animation: none; }
+    .play .s-sold .chip.e .wm { animation: wmFade 6.5s both; }
+    @keyframes wmFade { 0%, 56% { filter: none; opacity: 1; } 60%, 100% { filter: grayscale(1); opacity: .4; } }
 
     /* 5 · Streaks, XP and coins */
     .s-xp { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px; }
@@ -246,12 +275,16 @@
 
     <section class="tr-slide" aria-roledescription="slide" aria-label="4 of 5">
       <div class="tr-stage"><div class="s-sold">
-        <div class="card"><svg viewBox="0 0 200 220" aria-hidden="true"><path fill="#C9A45C" d="M70 18 L40 30 L10 70 L38 88 L52 74 L52 205 L148 205 L148 74 L162 88 L190 70 L160 30 L130 18 C124 34 76 34 70 18 Z"/></svg>
-          <div class="tag">SOLD</div><div class="warn">⚠ Still on eBay</div></div>
-        <div class="task">Still live on eBay<span>Removed ✓</span></div>
+        <div class="card"><div class="th"><svg viewBox="0 0 200 220" aria-hidden="true"><path fill="#C9A45C" d="M70 18 L40 30 L10 70 L38 88 L52 74 L52 205 L148 205 L148 74 L162 88 L190 70 L160 30 L130 18 C124 34 76 34 70 18 Z"/></svg><div class="tag">SOLD</div></div>
+          <div><b>Barbour jacket</b><div class="wmr"><span class="wm wm-vinted">Vinted</span><span class="wm wm-ebay"><i class="e">e</i><i class="b">b</i><i class="a">a</i><i class="y">y</i></span></div></div></div>
+        <div class="chips">
+          <div class="chip v"><span class="wm wm-vinted">Vinted</span><em class="st"><b class="tick">✓</b><b class="sold">£</b></em></div>
+          <div class="chip e"><span class="wm wm-ebay"><i class="e">e</i><i class="b">b</i><i class="a">a</i><i class="y">y</i></span><em class="st"><b class="tick">✓</b><b class="cross">✕</b></em></div>
+        </div>
+        <div class="task">Sold on Vinted · still live on eBay<span>Removed ✓</span></div>
         <div class="clear">✓ All clear: it can't sell twice</div><div class="tr-finger"></div>
       </div></div>
-      <div class="tr-copy"><h1>Sold? We tidy up.</h1><p>Mark it sold and we remind you to take it down everywhere else, so it <b>never sells twice</b>.</p></div>
+      <div class="tr-copy"><h1>Listed everywhere. Sold once.</h1><p>See at a glance where each item is live. When it sells, we remind you to take it down elsewhere, so it <b>never sells twice</b>.</p></div>
     </section>
 
     <section class="tr-slide" aria-roledescription="slide" aria-label="5 of 5">
