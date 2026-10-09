@@ -11,6 +11,11 @@ on:
 permissions:
   contents: write
 
+# Both branches get the same push; build one at a time so they don't clash over the release file.
+concurrency:
+  group: android-prototype-release
+  cancel-in-progress: false
+
 jobs:
   build:
     runs-on: ubuntu-latest
