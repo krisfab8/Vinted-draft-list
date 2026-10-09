@@ -40,7 +40,10 @@ Newest at the top. Move items to TASK_TRACKER.md when done.
   Vinted/eBay, daily cap, sales worth most; first name + initial, opt-out).
 
 ## Later
-- Separate data per person (before inviting other sellers).
+- [x] **Separate data per person** — DONE: owner (APP_USERNAME/APP_PASSWORD) keeps their data; Settings →
+  "Invite a seller" makes a one-time 7-day link; each seller gets their own listings, photos, sales, profile,
+  logs, costs, XP, cloud copies (`users/<id>/` in B2) and phone backup (`app/services/accounts.py`).
+  NEXT: password reset / change, owner can remove a seller, per-seller usage caps.
 - Switch cloud photo storage to Cloudflare R2 (free downloads, 10 GB free).
 - Chrome extension that fills Vinted drafts in each user's own browser (multi-user Vinted drafting).
 - Free bigger server for testers: Oracle Cloud "Always Free" (or ~£4/month VPS).

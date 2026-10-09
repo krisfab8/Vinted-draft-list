@@ -394,3 +394,13 @@ Keep IDs stable. Do not rename an open task to hide scope. Split partial work in
   Each links to the page that does it (/drafts?stale=1 shows only stale items, tagged "💤 40d").
 - XP from timestamped actions: price drop +5 (max 10/day), take-down +10, cross-list mark +5. Daily chest =
   listing goal + one upkeep job (price drop, take-down, sale or cross-list): +25 XP and a Pro price check.
+
+## Seller accounts (separate data per person)
+- Owner signs in as before (APP_USERNAME/APP_PASSWORD); data stays where it was. Settings → "Invite a seller"
+  makes a one-time link (7 days). /signup?invite=… → name, email, password (8+). Sign-in takes email or username.
+- `app/services/accounts.py`: registry (hashed passwords, invites) in accounts/registry.json + B2
+  `accounts/registry.json`. Per-person paths are ScopedPaths resolved through a context variable set per
+  request (hosted.py before_request/teardown) and in each seller's cloud-sync thread.
+- Seller files: accounts/<id>/items, accounts/<id>/data (items.db, sales.db, profile, logs, costs). Cloud copies
+  under `users/<id>/`. Phone backup database is per account (data-account on <html>). Price memory stays shared.
+- Owner-only: POST /api/accounts/invite, GET /api/accounts. Tests: tests/test_accounts.py (end-to-end separation).

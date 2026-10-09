@@ -66,6 +66,21 @@
   <p class="acct-note" id="acctNote">Log in once in the app. Your logins stay on your phone.</p>
   <p class="acct-note" id="appVersion" hidden></p>
 </section>
+{% if is_owner %}
+<section class="rv-card acct-card" aria-label="Sellers">
+  <h2 class="acct-title">Invite a seller</h2>
+  <p class="acct-note">Each seller gets their own account: their listings, photos and sales stay separate from yours.</p>
+  <button type="button" class="acct-invite" id="inviteBtn">Make an invite link</button>
+  <div class="acct-link" id="inviteOut" hidden><input id="inviteLink" readonly aria-label="Invite link"><button type="button" id="inviteCopy">Copy</button></div>
+  <p class="acct-note" id="inviteNote" hidden></p>
+  <ul class="acct-sellers" id="sellerList"></ul>
+</section>
+{% elif account_email %}
+<section class="rv-card acct-card" aria-label="Your account">
+  <h2 class="acct-title">Your account</h2>
+  <p class="acct-note">Signed in as <b>{{ account_email }}</b>. Your listings are private to you.</p>
+</section>
+{% endif %}
 <section class="rv-card st-links">
   <span id="st-vinted" hidden></span>
   <a href="/tour" class="st-link"><span>How it works</span><b>›</b></a>
@@ -154,7 +169,7 @@
                                                          body: JSON.stringify({confirm: word.value})});
       if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || "Could not delete");
       // This phone's copies too: device backup and remembered settings.
-      try { indexedDB.deleteDatabase("vinted-draft-backups"); } catch (_) {}
+      try { indexedDB.deleteDatabase(window.backupDbName ? window.backupDbName() : "vinted-draft-backups"); } catch (_) {}
       try { localStorage.clear(); } catch (_) {}
       location.href = "/welcome";
     } catch (error) {
@@ -166,6 +181,33 @@
     const v = document.getElementById("appVersion"), bridge = window.AndroidBridge;
     v.textContent = "App version: " + (bridge.appVersion ? bridge.appVersion() : "old, please reinstall");
     v.hidden = false;
+  }
+  // Owner: one-time invite links (7 days) and who has joined.
+  const inviteBtn = document.getElementById("inviteBtn");
+  if (inviteBtn) {
+    const list = document.getElementById("sellerList");
+    const showSellers = () => fetch("/api/accounts").then(r => r.ok ? r.json() : null).then(d => {
+      if (!d) return;
+      list.innerHTML = "";
+      d.sellers.forEach(s => { const li = document.createElement("li"); li.textContent = `${s.name} · ${s.email}`; list.appendChild(li); });
+    }).catch(() => {});
+    showSellers();
+    inviteBtn.addEventListener("click", async () => {
+      inviteBtn.disabled = true;
+      const r = await fetch("/api/accounts/invite", {method: "POST"}).catch(() => null);
+      const d = r && r.ok ? await r.json() : null;
+      inviteBtn.disabled = false;
+      if (!d) return toast("Couldn't make a link. Try again.");
+      document.getElementById("inviteLink").value = d.link;
+      document.getElementById("inviteOut").hidden = false;
+      const note = document.getElementById("inviteNote");
+      note.textContent = `Works once, for ${d.days} days. Send it to the seller.`; note.hidden = false;
+    });
+    document.getElementById("inviteCopy").addEventListener("click", async () => {
+      const link = document.getElementById("inviteLink").value;
+      try { await navigator.clipboard.writeText(link); toast("Link copied"); }
+      catch (_) { document.getElementById("inviteLink").select(); toast("Select and copy the link"); }
+    });
   }
   if (!window.AndroidBridge) fetch("/auth/status").then(r => r.json()).then(d => {
     document.getElementById("st-vinted").textContent = d.logged_in === "likely" ? "Connected" : "Connect";

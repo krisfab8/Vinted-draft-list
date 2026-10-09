@@ -82,7 +82,11 @@ def _signature(folder_path):
 
 
 class CloudStore:
-    def __init__(self, client, bucket, items_dir, on_restored=None, profile_path=None):
+    def __init__(self, client, bucket, items_dir, on_restored=None, profile_path=None, prefix="", account_id=None):
+        # prefix: "" for the owner, "users/<id>/" for an invited seller (their own copies, never mixed).
+        # account_id: the background sync thread works inside that seller's files.
+        self.prefix = prefix
+        self.account_id = account_id
         self.client = client
         self.bucket = bucket
         self.items_dir = Path(items_dir)
@@ -106,12 +110,12 @@ class CloudStore:
     def _remote_meta(self):
         found, token = set(), None
         while True:
-            kwargs = {"Bucket": self.bucket, "Prefix": META_PREFIX}
+            kwargs = {"Bucket": self.bucket, "Prefix": self.prefix + META_PREFIX}
             if token:
                 kwargs["ContinuationToken"] = token
             page = self.client.list_objects_v2(**kwargs)
             for obj in page.get("Contents", []):
-                name = obj["Key"][len(META_PREFIX):]
+                name = obj["Key"][len(self.prefix + META_PREFIX):]
                 if name.endswith(".json") and item_backup.FOLDER.fullmatch(name[:-5]):
                     found.add(name[:-5])
             if not page.get("IsTruncated"):
@@ -121,12 +125,12 @@ class CloudStore:
     def _remote_folders(self):
         folders, token = [], None
         while True:
-            kwargs = {"Bucket": self.bucket, "Prefix": PREFIX}
+            kwargs = {"Bucket": self.bucket, "Prefix": self.prefix + PREFIX}
             if token:
                 kwargs["ContinuationToken"] = token
             page = self.client.list_objects_v2(**kwargs)
             for obj in page.get("Contents", []):
-                name = obj["Key"][len(PREFIX):]
+                name = obj["Key"][len(self.prefix + PREFIX):]
                 if name.endswith(".zip") and item_backup.FOLDER.fullmatch(name[:-4]):
                     folders.append(name[:-4])
             if not page.get("IsTruncated"):
@@ -156,15 +160,15 @@ class CloudStore:
                 if removed_items.contains(folder):
                     # Removed on purpose: drop the stale cloud copy instead of restoring it.
                     try:
-                        self.client.delete_object(Bucket=self.bucket, Key=_key(folder))
-                        self.client.delete_object(Bucket=self.bucket, Key=_meta_key(folder))
+                        self.client.delete_object(Bucket=self.bucket, Key=self.prefix + _key(folder))
+                        self.client.delete_object(Bucket=self.bucket, Key=self.prefix + _meta_key(folder))
                     except Exception as error:
                         self._fail(f"delete {folder}", error)
                     continue
                 try:
                     if folder in self._meta:
                         # Summary only (a few KB); photos come down when the item is opened.
-                        body = self.client.get_object(Bucket=self.bucket, Key=_meta_key(folder))["Body"].read()
+                        body = self.client.get_object(Bucket=self.bucket, Key=self.prefix + _meta_key(folder))["Body"].read()
                         summary = json.loads(body)
                         item_backup.restore_summary(summary, self.items_dir, folder)
                         if summary.get("sale"):
@@ -172,7 +176,7 @@ class CloudStore:
                             sales_history.restore([summary["sale"]])
                         self._known[folder] = "stub"
                     else:
-                        body = self.client.get_object(Bucket=self.bucket, Key=_key(folder))["Body"].read()
+                        body = self.client.get_object(Bucket=self.bucket, Key=self.prefix + _key(folder))["Body"].read()
                         item_backup.restore(body, self.items_dir)
                         self._known[folder] = _signature(self.items_dir / folder)
                     restored.append(folder)
@@ -190,7 +194,7 @@ class CloudStore:
         if not self.profile_path or self.profile_path.exists():
             return
         try:
-            body = self.client.get_object(Bucket=self.bucket, Key=PROFILE_KEY)["Body"].read()
+            body = self.client.get_object(Bucket=self.bucket, Key=self.prefix + PROFILE_KEY)["Body"].read()
             if not isinstance(json.loads(body), dict):
                 raise ValueError("stored profile is not an object")
             self.profile_path.parent.mkdir(parents=True, exist_ok=True)
@@ -208,7 +212,7 @@ class CloudStore:
         """Merge the stored "removed on purpose" list into the local one (a restart wipes disk)."""
         from app.services import removed_items
         try:
-            body = self.client.get_object(Bucket=self.bucket, Key=REMOVED_KEY)["Body"].read()
+            body = self.client.get_object(Bucket=self.bucket, Key=self.prefix + REMOVED_KEY)["Body"].read()
             stored = json.loads(body)
             if isinstance(stored, list):
                 removed_items.add(*(str(f) for f in stored))
@@ -230,7 +234,7 @@ class CloudStore:
         if signature is None or signature == getattr(self, "_removed_sig", None):
             return
         try:
-            self.client.put_object(Bucket=self.bucket, Key=REMOVED_KEY, Body=signature,
+            self.client.put_object(Bucket=self.bucket, Key=self.prefix + REMOVED_KEY, Body=signature,
                                    ContentType="application/json")
             self._removed_sig = signature
         except Exception as error:
@@ -240,7 +244,7 @@ class CloudStore:
         """Delete my data: remove the stored profile copy too."""
         with self._lock:
             try:
-                self.client.delete_object(Bucket=self.bucket, Key=PROFILE_KEY)
+                self.client.delete_object(Bucket=self.bucket, Key=self.prefix + PROFILE_KEY)
                 self._profile_sig = None
             except Exception as error:
                 self._fail("delete profile", error)
@@ -254,7 +258,7 @@ class CloudStore:
                 return
             body = self.profile_path.read_bytes()
             json.loads(body)  # skip a half-written save
-            self.client.put_object(Bucket=self.bucket, Key=PROFILE_KEY, Body=body, ContentType="application/json")
+            self.client.put_object(Bucket=self.bucket, Key=self.prefix + PROFILE_KEY, Body=body, ContentType="application/json")
             self._profile_sig = signature
         except Exception as error:
             self._fail("upload profile", error)
@@ -274,7 +278,7 @@ class CloudStore:
                         continue
                     json.loads((path / "listing.json").read_text())  # skip half-written saves
                     with item_backup.export_file(self.items_dir, folder) as data:
-                        self.client.put_object(Bucket=self.bucket, Key=_key(folder), Body=data,
+                        self.client.put_object(Bucket=self.bucket, Key=self.prefix + _key(folder), Body=data,
                                                ContentType="application/zip")
                     self._known[folder] = signature
                     self._put_summary(folder, path)
@@ -283,8 +287,8 @@ class CloudStore:
                     self._fail(f"upload {folder}", error)
             for folder in [f for f in self._known if f not in local]:
                 try:
-                    self.client.delete_object(Bucket=self.bucket, Key=_key(folder))
-                    self.client.delete_object(Bucket=self.bucket, Key=_meta_key(folder))
+                    self.client.delete_object(Bucket=self.bucket, Key=self.prefix + _key(folder))
+                    self.client.delete_object(Bucket=self.bucket, Key=self.prefix + _meta_key(folder))
                     self._meta.discard(folder)
                     del self._known[folder]
                     self.status["deleted"] += 1
@@ -298,7 +302,7 @@ class CloudStore:
             summary = item_backup.summary(path)
             from app.services import sales_history
             summary["sale"] = sales_history.get(folder)
-            self.client.put_object(Bucket=self.bucket, Key=_meta_key(folder),
+            self.client.put_object(Bucket=self.bucket, Key=self.prefix + _meta_key(folder),
                                    Body=json.dumps(summary, default=str).encode(), ContentType="application/json")
             self._meta.add(folder)
         except Exception as error:
@@ -313,7 +317,7 @@ class CloudStore:
             if not item_backup.is_stub(path):
                 return True
             try:
-                body = self.client.get_object(Bucket=self.bucket, Key=_key(folder))["Body"].read()
+                body = self.client.get_object(Bucket=self.bucket, Key=self.prefix + _key(folder))["Body"].read()
                 item_backup.fill_stub(body, self.items_dir, folder)
                 self._known[folder] = _signature(path)
                 self.status["hydrated"] = self.status.get("hydrated", 0) + 1
@@ -327,6 +331,9 @@ class CloudStore:
 
     def start(self):
         def loop():
+            if self.account_id:
+                from app.services import accounts
+                accounts.enter(self.account_id)   # this thread's own context: the seller's files
             while True:
                 self._wake.wait(SYNC_INTERVAL_SECONDS)
                 if self._wake.is_set():

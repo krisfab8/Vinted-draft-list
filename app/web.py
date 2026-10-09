@@ -1807,7 +1807,8 @@ def delete_my_data():
     if not isinstance(body, dict) or str(body.get("confirm", "")).strip().upper() != "DELETE":
         return jsonify(error='Type DELETE to confirm.'), 422
     from app.services import account_data
-    result = account_data.wipe(ITEMS_DIR, app.extensions.get("cloud_store"))
+    current_cloud = app.extensions.get("current_cloud")
+    result = account_data.wipe(ITEMS_DIR, current_cloud() if current_cloud else app.extensions.get("cloud_store"))
     return jsonify(deleted=True, **result)
 
 

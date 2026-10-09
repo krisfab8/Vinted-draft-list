@@ -70,3 +70,6 @@ android/build/
 android/app/build/
 android/app/src/main/assets/vinted_filler.js
 android/local.properties
+
+# Invited sellers: their listings, photos, sales and the account registry (runtime data)
+accounts/

@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <meta name="theme-color" content="#F4F0E8">
-  <title>Sign in · Vinted Lister</title>
+  <title>Join · Vinted Lister</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&display=swap" rel="stylesheet">
@@ -19,19 +19,29 @@
     .si-form input:focus { outline: 2px solid var(--sn-text); outline-offset: 1px; }
     .si-form button { margin-top: 8px; height: 58px; border: 0; border-radius: 999px; background: var(--sn-pop); color: var(--sn-on-pop); font: inherit; font-size: 17px; font-weight: 800; }
     .si-error { background: #FFEDEC; color: #B3261E; border-radius: 14px; padding: 12px 14px; font-size: 14px; font-weight: 700; }
+    .si-note { margin-top: 14px; font-size: 15px; line-height: 1.45; color: var(--sn-muted); }
     .si-foot { margin-top: auto; padding-top: 24px; font-size: 13px; color: var(--sn-muted); text-align: center; }
     .si-foot a { color: inherit; }
   </style>
 </head>
 <body>
   <img class="si-logo" src="{{ url_for('static', filename='brand-mark.svg') }}" alt="">
-  <h1 class="sn-title">Welcome<br><span>back<i>.</i></span></h1>
-  <form class="si-form" method="post">
+  {% if invalid %}
+  <h1 class="sn-title">Invite<br><span>expired<i>.</i></span></h1>
+  <p class="si-note">This invite link has expired or has already been used. Ask the person who sent it for a new one.</p>
+  <p class="si-foot"><a href="/signin">Sign in</a> · <a href="/privacy">Privacy</a></p>
+  {% else %}
+  <h1 class="sn-title">You're<br><span>invited<i>.</i></span></h1>
+  <p class="si-note">Make your Vinted Lister account. Your listings, photos and sales are yours alone.</p>
+  <form class="si-form" method="post" action="/signup?invite={{ code | urlencode }}">
     {% if error %}<div class="si-error" role="alert">{{ error }}</div>{% endif %}
-    <label>Email or username<input name="username" autocomplete="username" autocapitalize="none" required></label>
-    <label>Password<input name="password" type="password" autocomplete="current-password" required></label>
-    <button type="submit">Sign in</button>
+    <input type="hidden" name="invite" value="{{ code }}">
+    <label>Your name<input name="name" autocomplete="given-name" maxlength="40" value="{{ form.get('name', '') }}" required></label>
+    <label>Email<input name="email" type="email" inputmode="email" autocomplete="email" autocapitalize="none" maxlength="254" value="{{ form.get('email', '') }}" required></label>
+    <label>Password<input name="password" type="password" autocomplete="new-password" minlength="8" required></label>
+    <button type="submit">Create my account</button>
   </form>
-  <p class="si-foot">Stays signed in for 30 days · <a href="/privacy">Privacy</a></p>
+  <p class="si-foot">At least 8 characters · <a href="/privacy">Privacy</a></p>
+  {% endif %}
 </body>
 </html>

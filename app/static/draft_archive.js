@@ -1,6 +1,10 @@
 /* Device backup for the private test app. No AI calls; existing server edits win. */
 (() => {
   const nativeFetch = window.fetch.bind(window);
+  window.backupDbName = window.backupDbName || (() => {
+    const account = document.documentElement?.dataset?.account;
+    return 'vinted-draft-backups' + (account ? '-' + account : '');
+  });
   let database, pending = Promise.resolve();
   const notice = message => {
     const element = document.getElementById('draft-backup-status');
@@ -8,7 +12,8 @@
   };
   function db() {
     if (!database) database = new Promise((resolve, reject) => {
-      const request = indexedDB.open('vinted-draft-backups', 1);
+      // One backup per account, so a shared phone never restores one person's items into another's account.
+      const request = indexedDB.open(window.backupDbName(), 1);
       request.onupgradeneeded = () => request.result.createObjectStore('items', {keyPath:'folder'});
       request.onsuccess = () => resolve(request.result);
       request.onerror = () => reject(request.error);
